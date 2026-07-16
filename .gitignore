@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+src/scratch/
+test-*.js
+login img.png
+sf8 template.xlsx
+*.log

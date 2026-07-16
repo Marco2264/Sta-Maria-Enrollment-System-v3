@@ -60,7 +60,7 @@ type TeacherContextType = {
   updateAttendance: (studentId: string, date: string, amStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked', pmStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked') => Promise<void>;
   deleteAttendance: (studentId: string, date: string) => Promise<void>;
   updateStudentStatus: (id: string, status: 'Enrolled' | 'Rejected') => Promise<void>;
-  updateStudentGrade: (id: string, subjectCode: string, grade: number) => Promise<void>;
+  updateStudentGrade: (id: string, subjectCode: string, quarter: string, grade: number | null) => Promise<void>;
   updateStudentBmi: (id: string, height: string, weight: string) => Promise<void>;
   loading: boolean;
   currentGradeLevel: string;
@@ -233,11 +233,34 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateStudentGrade = async (id: string, subjectCode: string, grade: number) => {
+  const updateStudentGrade = async (id: string, subjectCode: string, quarter: string, grade: number | null) => {
     const student = students.find(s => s.id === id);
     if (!student) return;
     
-    const grades = { ...(student.grades || {}), [subjectCode]: grade };
+    const existingGrades = student.grades || {};
+    const gradeKey = currentGradeLevel || 'Grade 6';
+    const gradeLevelGrades = (existingGrades as Record<string, any>)[gradeKey] || {};
+    const existingSubjectGrades = gradeLevelGrades[subjectCode] || {};
+    
+    let updatedSubjectGrades = {};
+    if (typeof existingSubjectGrades === 'object' && existingSubjectGrades !== null) {
+      updatedSubjectGrades = { ...existingSubjectGrades };
+      if (grade === null) {
+        delete (updatedSubjectGrades as any)[quarter];
+      } else {
+        (updatedSubjectGrades as any)[quarter] = grade;
+      }
+    } else {
+      updatedSubjectGrades = grade === null ? {} : { [quarter]: grade };
+    }
+
+    const grades = {
+      ...existingGrades,
+      [gradeKey]: {
+        ...gradeLevelGrades,
+        [subjectCode]: updatedSubjectGrades
+      }
+    };
     await updateDoc(doc(db, 'enrollments', id), { grades });
   };
 

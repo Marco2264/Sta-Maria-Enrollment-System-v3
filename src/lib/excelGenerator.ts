@@ -3,6 +3,7 @@ import { saveAs } from 'file-saver';
 import { Student } from './teacherData';
 import type { SF1Data, SF4Data } from './services/reportDataService';
 import type { HealthData } from './services/healthAnalyticsService';
+import { HealthAnalyticsService } from './services/healthAnalyticsService';
 
 // Helper function to fix the Excel stale value strikethrough bug (WPS Compatibility)
 const removeStrikethrough = (worksheet: ExcelJS.Worksheet) => {
@@ -17,52 +18,264 @@ const removeStrikethrough = (worksheet: ExcelJS.Worksheet) => {
   });
 };
 
+import { db } from './firebase';
+import { collection, getDocs } from 'firebase/firestore';
+
 export async function generateSF5(students: Student[], sectionName: string, academicYear: string) {
   try {
-    // 1. Fetch the template file
+    // 1. Fetch subjects assigned to this grade level from Firestore
+    // Find the grade level of the section by looking at the first student
+    const firstStudent = students.find(s => s.status === 'Enrolled');
+    const gradeLevel = firstStudent?.gradeLevel || 'Grade 6'; // Fallback
+    const normalizedGradeLevel = gradeLevel.toLowerCase().replace(/grade\s*/g, '').trim();
+
+    // Query subjects from Firestore
+    const subSnap = await getDocs(collection(db, 'subjects'));
+    const sectionSubjects = subSnap.docs
+      .map(d => ({ id: d.id, ...d.data() } as any))
+      .filter(sub => {
+        const subGrade = (sub.gradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
+        return subGrade === normalizedGradeLevel;
+      });
+
+    // 2. Fetch the template file
     const response = await fetch('/templates/SF5.xlsx');
     const arrayBuffer = await response.arrayBuffer();
-
-    // 2. Load the template into exceljs
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
-
-    // 3. Get the first worksheet
     const worksheet = workbook.worksheets[0];
 
-    // 4. Populate Header Info (adjust these cells based on actual DepEd SF5 template)
-    // For SF5, typical header might be around Row 5 or 6, but we'll try basic cells.
-    // We can refine this later if the user provides exact cell mappings.
-    // Example (fictional cells for now):
-    // worksheet.getCell('B4').value = sectionName;
-    // worksheet.getCell('D4').value = academicYear;
+    // 3. Populate Header Info
+    // C3: Region
+    // E3: Division
+    // J3: District
+    // C5: School ID
+    // G5: School Year
+    // J5: Curriculum
+    // C7: School Name
+    // J7: Grade Level
+    // L7: Section
+    worksheet.getCell('C3').value = 'Cordillera Administrative Region (CAR)';
+    worksheet.getCell('E3').value = 'Baguio City';
+    worksheet.getCell('J3').value = 'Baguio Central';
+    worksheet.getCell('C5').value = '123456';
+    worksheet.getCell('G5').value = academicYear;
+    worksheet.getCell('J5').value = 'K to 12 Basic Education Program';
+    worksheet.getCell('C7').value = 'Sta. Maria Central School SPED Center';
+    worksheet.getCell('J7').value = gradeLevel;
+    
+    // Extract section name if it is combined (e.g. "Grade 6 - Gold" -> "Gold")
+    const cleanSectionName = sectionName.includes(' - ') ? sectionName.split(' - ')[1] : sectionName;
+    worksheet.getCell('L7').value = cleanSectionName;
 
-    // 5. Populate Students (Male then Female usually for DepEd)
-    const males = students.filter(s => s.gender === 'Male').sort((a, b) => a.lastName.localeCompare(b.lastName));
-    const females = students.filter(s => s.gender === 'Female').sort((a, b) => a.lastName.localeCompare(b.lastName));
+    // 4. Sort and filter students (Males first, then Females)
+    const enrolledMales = students
+      .filter(s => s.status === 'Enrolled' && s.gender?.toLowerCase() === 'male')
+      .sort((a, b) => a.lastName.localeCompare(b.lastName));
+    const enrolledFemales = students
+      .filter(s => s.status === 'Enrolled' && s.gender?.toLowerCase() === 'female')
+      .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
-    let currentRow = 15; // Starting row for student list in many DepEd forms
+    // Summary tallies
+    let promotedM = 0, promotedF = 0;
+    let condM = 0, condF = 0;
+    let retainedM = 0, retainedF = 0;
+    
+    let dnM = 0, dnF = 0;
+    let fsM = 0, fsF = 0;
+    let satM = 0, satF = 0;
+    let vsM = 0, vsF = 0;
+    let outM = 0, outF = 0;
 
-    const writeStudents = (studentList: Student[]) => {
-      studentList.forEach((student, index) => {
-        // Name format: LAST NAME, FIRST NAME MIDDLE NAME
-        const fullName = `${student.lastName}, ${student.firstName} ${(student as any).middleName || ''}`.trim();
-        worksheet.getCell(`B${currentRow}`).value = index + 1; // Number
-        worksheet.getCell(`C${currentRow}`).value = student.lrn; // LRN
-        worksheet.getCell(`D${currentRow}`).value = fullName; // Name
-        // In SF5, we also have averages and actions (Promoted, Retained), we can leave them blank or add logic later.
-        currentRow++;
+    const writeStudentRow = (student: Student, rowNumber: number, gender: 'Male' | 'Female') => {
+      // Columns in SF5 template:
+      // Col 1 (A): LRN
+      // Col 2 (B): Learner's Name (merged B to E)
+      // Col 6 (F): General Average
+      // Col 7 (G): Action Taken
+      // Col 8 (H): Incomplete subjects from previous school years completed (merged H to I)
+      // Col 10 (J): Incomplete subjects as of end of current school year (merged J to K)
+      
+      const fullName = `${student.lastName}, ${student.firstName} ${(student as any).middleName || ''}`.trim();
+      worksheet.getCell(`A${rowNumber}`).value = student.lrn || '';
+      worksheet.getCell(`B${rowNumber}`).value = fullName;
+
+      const finalRatings: number[] = [];
+      const failedSubjects: string[] = [];
+
+      sectionSubjects.forEach(sub => {
+        const code = sub.code ?? sub.name;
+        const gradeKey = gradeLevel; // e.g. "Grade 6"
+        const gradeData = (student.grades as any)?.[gradeKey]?.[code];
+        
+        let subAverage = 0;
+        let quartersCount = 0;
+        
+        if (typeof gradeData === 'object' && gradeData !== null) {
+          ['q1', 'q2', 'q3', 'q4'].forEach(q => {
+            const qGrade = parseFloat(gradeData[q]);
+            if (!isNaN(qGrade)) {
+              subAverage += qGrade;
+              quartersCount++;
+            }
+          });
+        } else {
+          // Fallback to legacy flat grades
+          const legacyGrade = parseFloat((student.grades as any)?.[code]);
+          if (!isNaN(legacyGrade)) {
+            subAverage = legacyGrade;
+            quartersCount = 1;
+          }
+        }
+        
+        if (quartersCount > 0) {
+          const finalSubRating = subAverage / quartersCount;
+          finalRatings.push(finalSubRating);
+          if (finalSubRating < 75) {
+            failedSubjects.push(sub.name || code);
+          }
+        }
       });
+
+      // Calculate general average
+      let generalAvg = 0;
+      let generalAvgStr = '';
+      let isHonor = false;
+
+      if (finalRatings.length > 0) {
+        generalAvg = finalRatings.reduce((sum, r) => sum + r, 0) / finalRatings.length;
+        isHonor = generalAvg >= 90;
+        
+        if (isHonor) {
+          generalAvgStr = generalAvg.toFixed(3); // 3 decimal places for honors
+        } else {
+          generalAvgStr = Math.round(generalAvg).toString(); // whole number for non-honors
+        }
+      }
+
+      worksheet.getCell(`F${rowNumber}`).value = generalAvgStr || '--';
+
+      // Promotion rules
+      let action = 'PROMOTED';
+      if (finalRatings.length === 0) {
+        action = '--';
+      } else if (failedSubjects.length === 0) {
+        action = 'PROMOTED';
+        if (gender === 'Male') promotedM++; else promotedF++;
+      } else if (failedSubjects.length === 1 || failedSubjects.length === 2) {
+        action = 'CONDITIONALLY PROMOTED';
+        if (gender === 'Male') condM++; else condF++;
+      } else {
+        action = 'RETAINED';
+        if (gender === 'Male') retainedM++; else retainedF++;
+      }
+
+      worksheet.getCell(`G${rowNumber}`).value = action;
+
+      // Incomplete current school year subject names
+      if (action === 'CONDITIONALLY PROMOTED') {
+        worksheet.getCell(`J${rowNumber}`).value = failedSubjects.join(', ');
+      }
+
+      // Tally proficiency distribution based on general average
+      if (finalRatings.length > 0) {
+        const roundedAvg = Math.round(generalAvg);
+        if (roundedAvg >= 90) {
+          if (gender === 'Male') outM++; else outF++;
+        } else if (roundedAvg >= 85) {
+          if (gender === 'Male') vsM++; else vsF++;
+        } else if (roundedAvg >= 80) {
+          if (gender === 'Male') satM++; else satF++;
+        } else if (roundedAvg >= 75) {
+          if (gender === 'Male') fsM++; else fsF++;
+        } else {
+          if (gender === 'Male') dnM++; else dnF++;
+        }
+      }
     };
 
-    // Write Males
-    writeStudents(males);
+    // Write Males (Rows 12 to 32)
+    let currentMaleRow = 12;
+    enrolledMales.forEach(student => {
+      if (currentMaleRow <= 32) {
+        writeStudentRow(student, currentMaleRow, 'Male');
+        currentMaleRow++;
+      }
+    });
 
-    // Add space between Males and Females
-    currentRow += 2;
+    // Write total male count to F33
+    worksheet.getCell('F33').value = enrolledMales.length;
 
-    // Write Females
-    writeStudents(females);
+    // Write Females (Rows 34 to 59)
+    let currentFemaleRow = 34;
+    enrolledFemales.forEach(student => {
+      if (currentFemaleRow <= 59) {
+        writeStudentRow(student, currentFemaleRow, 'Female');
+        currentFemaleRow++;
+      }
+    });
+
+    // Write total female count to F60
+    worksheet.getCell('F60').value = enrolledFemales.length;
+
+    // Write combined count to F61
+    worksheet.getCell('F61').value = enrolledMales.length + enrolledFemales.length;
+
+    // Write Summary Table for Promotion Status
+    // Promoted (Rows 15-16)
+    worksheet.getCell('N15').value = promotedM;
+    worksheet.getCell('O15').value = promotedF;
+    worksheet.getCell('P15').value = promotedM + promotedF;
+
+    // Conditionally Promoted (Rows 17-18)
+    worksheet.getCell('N17').value = condM;
+    worksheet.getCell('O17').value = condF;
+    worksheet.getCell('P17').value = condM + condF;
+
+    // Retained (Rows 19-20)
+    worksheet.getCell('N19').value = retainedM;
+    worksheet.getCell('O19').value = retainedF;
+    worksheet.getCell('P19').value = retainedM + retainedF;
+
+    // Promotion totals (Row 21)
+    const promotionMaleTotal = promotedM + condM + retainedM;
+    const promotionFemaleTotal = promotedF + condF + retainedF;
+    worksheet.getCell('N21').value = promotionMaleTotal;
+    worksheet.getCell('O21').value = promotionFemaleTotal;
+    worksheet.getCell('P21').value = promotionMaleTotal + promotionFemaleTotal;
+
+    // Write Learning Progress & Achievement (Proficiency scale)
+    // Did Not Meet Expectations (Rows 24-25)
+    worksheet.getCell('N24').value = dnM;
+    worksheet.getCell('O24').value = dnF;
+    worksheet.getCell('P24').value = dnM + dnF;
+
+    // Fairly Satisfactory (Rows 26-27)
+    worksheet.getCell('N26').value = fsM;
+    worksheet.getCell('O26').value = fsF;
+    worksheet.getCell('P26').value = fsM + fsF;
+
+    // Satisfactory (Rows 28-29)
+    worksheet.getCell('N28').value = satM;
+    worksheet.getCell('O28').value = satF;
+    worksheet.getCell('P28').value = satM + satF;
+
+    // Very Satisfactory (Rows 30-31)
+    worksheet.getCell('N30').value = vsM;
+    worksheet.getCell('O30').value = vsF;
+    worksheet.getCell('P30').value = vsM + vsF;
+
+    // Outstanding (Rows 32-33)
+    worksheet.getCell('N32').value = outM;
+    worksheet.getCell('O32').value = outF;
+    worksheet.getCell('P32').value = outM + outF;
+
+    // Proficiency totals (Row 34)
+    const profMaleTotal = dnM + fsM + satM + vsM + outM;
+    const profFemaleTotal = dnF + fsF + satF + vsF + outF;
+    worksheet.getCell('N34').value = profMaleTotal;
+    worksheet.getCell('O34').value = profFemaleTotal;
+    worksheet.getCell('P34').value = profMaleTotal + profFemaleTotal;
 
     // 5.5 Remove Strikethrough bug
     removeStrikethrough(worksheet);
@@ -87,25 +300,121 @@ export async function generateSF8(students: Student[], sectionName: string, acad
     const arrayBuffer = await response.arrayBuffer();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
+
+    // If there are 2 sheets, remove the first empty/unused worksheet "1"
+    if (workbook.worksheets.length > 1) {
+      const ws0 = workbook.worksheets[0];
+      workbook.removeWorksheet(ws0.id);
+    }
+    
     const worksheet = workbook.worksheets[0];
 
-    const males = students.filter(s => s.gender === 'Male').sort((a, b) => a.lastName.localeCompare(b.lastName));
-    const females = students.filter(s => s.gender === 'Female').sort((a, b) => a.lastName.localeCompare(b.lastName));
-    let currentRow = 15;
+    // Set header info
+    worksheet.getCell('N6').value = sectionName.toUpperCase();
+    worksheet.getCell('D6').value = new Date(); // Weighing date
 
-    const writeStudents = (studentList: Student[]) => {
-      studentList.forEach((student, index) => {
-        const fullName = `${student.lastName}, ${student.firstName} ${(student as any).middleName || ''}`.trim();
-        worksheet.getCell(`B${currentRow}`).value = index + 1;
-        worksheet.getCell(`C${currentRow}`).value = student.lrn;
-        worksheet.getCell(`D${currentRow}`).value = fullName;
-        currentRow++;
-      });
+    // Clear all pre-filled/leftover template rows (Rows 10 to 74, columns C to G)
+    for (let r = 10; r <= 74; r++) {
+      worksheet.getCell(`C${r}`).value = null;
+      worksheet.getCell(`D${r}`).value = null;
+      worksheet.getCell(`E${r}`).value = null;
+      worksheet.getCell(`F${r}`).value = null;
+      worksheet.getCell(`G${r}`).value = null;
+    }
+
+    // Only include enrolled students
+    const enrolledStudents = students.filter(s => s.status === 'Enrolled');
+    const males = enrolledStudents.filter(s => s.gender === 'Male').sort((a, b) => a.lastName.localeCompare(b.lastName));
+    const females = enrolledStudents.filter(s => s.gender === 'Female').sort((a, b) => a.lastName.localeCompare(b.lastName));
+    
+    // Helper to calculate and inject formulas and results safely
+    const writeStudentRow = (student: Student, rowNum: number, genderSymbol: 'M' | 'F') => {
+      const middleName = (student as any).middleName || '';
+      const middleInitial = middleName ? `${middleName.charAt(0)}.` : '';
+      const fullName = `${student.lastName}, ${student.firstName} ${middleInitial}`.trim().toUpperCase();
+      
+      worksheet.getCell(`C${rowNum}`).value = fullName;
+      if (student.birthDate) {
+        const [yr, mo, dy] = student.birthDate.split('-').map(Number);
+        worksheet.getCell(`D${rowNum}`).value = new Date(yr, mo - 1, dy);
+      }
+      
+      let bmi: number | null = null;
+      let nutStatus: string | null = null;
+      let hfaStatus: string | null = null;
+
+      if (student.medical?.height && student.medical?.weight) {
+        const h = parseFloat(student.medical.height);
+        const w = parseFloat(student.medical.weight);
+        if (!isNaN(h) && !isNaN(w) && h > 0) {
+          worksheet.getCell(`E${rowNum}`).value = w;
+          worksheet.getCell(`F${rowNum}`).value = h / 100;
+          
+          // Calculate values using the exact same algorithms as the students module
+          bmi = parseFloat(HealthAnalyticsService.calculateBMI(h, w).toFixed(1));
+          nutStatus = HealthAnalyticsService.getNutritionalStatus(bmi);
+          
+          if (student.birthDate) {
+            const ageMonths = HealthAnalyticsService.calculateAgeInMonths(student.birthDate);
+            hfaStatus = HealthAnalyticsService.getHfaStatus(h, student.gender, ageMonths);
+          }
+        }
+      }
+
+      // Write results into the existing formula cell definitions
+      const cellL = worksheet.getCell(`L${rowNum}`);
+      if (bmi !== null) {
+        const formula = cellL.value && (cellL.value as any).formula ? (cellL.value as any).formula : null;
+        cellL.value = formula ? { formula, result: bmi } : bmi;
+      }
+
+      const cellM = worksheet.getCell(`M${rowNum}`);
+      if (nutStatus !== null) {
+        const formula = cellM.value && (cellM.value as any).formula ? (cellM.value as any).formula : null;
+        cellM.value = formula ? { formula, result: nutStatus } : nutStatus;
+      }
+
+      const cellN = worksheet.getCell(`N${rowNum}`);
+      if (hfaStatus !== null) {
+        const formula = cellN.value && (cellN.value as any).formula ? (cellN.value as any).formula : null;
+        cellN.value = formula ? { formula, result: hfaStatus } : hfaStatus;
+      }
+
+      worksheet.getCell(`G${rowNum}`).value = genderSymbol;
     };
 
-    writeStudents(males);
-    currentRow += 2;
-    writeStudents(females);
+    // Write males starting from Row 10 (template boundary is up to Row 43)
+    let maleRow = 10;
+    males.forEach((student) => {
+      if (maleRow <= 43) {
+        writeStudentRow(student, maleRow, 'M');
+        maleRow++;
+      }
+    });
+
+    // Write separator row for the template's female index formula (which looks for "female" in cell C44)
+    worksheet.getCell('C44').value = 'female';
+
+    // Write females starting from Row 45 (template boundary is up to Row 74)
+    let femaleRow = 45;
+    females.forEach((student) => {
+      if (femaleRow <= 74) {
+        writeStudentRow(student, femaleRow, 'F');
+        femaleRow++;
+      }
+    });
+
+    // Apply Arial font to student rows (10 to 74) while maintaining size and style hierarchies
+    for (let r = 10; r <= 74; r++) {
+      const row = worksheet.getRow(r);
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        if (cell.font) {
+          cell.font = { ...cell.font, name: 'Arial' };
+        } else {
+          cell.font = { name: 'Arial' };
+        }
+      });
+    }
 
     removeStrikethrough(worksheet);
 
@@ -171,8 +480,8 @@ export async function generateSF2(data: any) {
     worksheet.getCell('AF4').value = data.month.toUpperCase();
     // Grade Level: Cell AF5
     worksheet.getCell('AF5').value = data.gradeLevel;
-    // Section: Cell AS5 (or prepend to current value)
-    worksheet.getCell('AS5').value = `Section: ${data.section}`;
+    // Section Name: Cell BA5
+    worksheet.getCell('BA5').value = data.section.toUpperCase();
 
     // Adviser Name: Cell BB91 (write to BB91-BB94 to ensure it renders correctly on merged cells)
     const adviserName = (data.advisorName || data.adviserName || '').toUpperCase();
@@ -201,6 +510,7 @@ export async function generateSF2(data: any) {
         uniqueDays.add(val);
       }
     }
+
     const totalSchoolDays = uniqueDays.size;
 
     // Helper to clear existing default template values in student rows
@@ -235,19 +545,20 @@ export async function generateSF2(data: any) {
       worksheet.getCell(`C${rowNum}`).value = `${student.lastName}, ${student.firstName}`;
 
       // Insert calculation formulas
-      worksheet.getCell(`BA${rowNum}`).value = { formula: `SUM(H${rowNum}:AY${rowNum})` };
+      // Since absences are marked with "x", we use COUNTIF to calculate total absences.
+      worksheet.getCell(`BA${rowNum}`).value = { formula: `COUNTIF(H${rowNum}:AY${rowNum},"x")` };
       worksheet.getCell(`BC${rowNum}`).value = { formula: `SUM(${totalSchoolDays}-BA${rowNum})` };
 
       // Write attendance records
       for (let d = 1; d <= 31; d++) {
-        const status = student.attendance[d];
         const colLetter = dayToColMap[d];
         if (colLetter) {
           const cell = worksheet.getCell(`${colLetter}${rowNum}`);
+          const status = student.attendance[d];
           if (status === 'absent') {
-            cell.value = 1; // 1 for absent so SUM formula accumulates correctly
+            cell.value = 'x'; // Mark absent as 'x'
           } else if (status === 'late') {
-            cell.value = 'L'; // 'L' is ignored by SUM, visually indicating late
+            cell.value = 'L'; // 'L' indicates late
           } else {
             cell.value = null; // Blank indicates present
           }
@@ -255,17 +566,32 @@ export async function generateSF2(data: any) {
       }
     };
 
+    const applyArialFont = (rowNum: number) => {
+      const row = worksheet.getRow(rowNum);
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        if (cell.font) {
+          cell.font = { ...cell.font, name: 'Arial' };
+        } else {
+          cell.font = { name: 'Arial' };
+        }
+      });
+    };
+
     const males = data.learners.filter((l: any) => !l.gender?.toLowerCase().startsWith('f'));
     const females = data.learners.filter((l: any) => l.gender?.toLowerCase().startsWith('f'));
 
     // Populate Males starting from Row 9 (max 21 rows)
     males.slice(0, 21).forEach((student: any, idx: number) => {
-      writeStudent(student, idx + 1, 9 + idx);
+      const r = 9 + idx;
+      writeStudent(student, idx + 1, r);
+      applyArialFont(r);
     });
 
     // Populate Females starting from Row 31 (max 26 rows)
     females.slice(0, 26).forEach((student: any, idx: number) => {
-      writeStudent(student, idx + 1, 31 + idx);
+      const r = 31 + idx;
+      writeStudent(student, idx + 1, r);
+      applyArialFont(r);
     });
 
     // Fix stale value bug for WPS Office/Excel compatibility
@@ -434,120 +760,107 @@ export async function generateAdminSF8(data: { schoolYear: string, gradeLevel: s
     const arrayBuffer = await response.arrayBuffer();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
-    const worksheet = workbook.getWorksheet('Nutritional Status') || workbook.worksheets[1];
 
-    if (!worksheet) {
-      throw new Error("Could not find the Nutritional Status worksheet in the SF8 template.");
+    // If there are 2 sheets, remove the first empty/unused worksheet "1"
+    if (workbook.worksheets.length > 1) {
+      const ws0 = workbook.worksheets[0];
+      workbook.removeWorksheet(ws0.id);
+    }
+    
+    const worksheet = workbook.worksheets[0];
+
+    // Set header info
+    const fullSectionName = data.gradeLevel && data.section && !data.section.includes(data.gradeLevel)
+      ? `${data.gradeLevel} - ${data.section}`
+      : data.section;
+    worksheet.getCell('N6').value = fullSectionName.toUpperCase();
+    worksheet.getCell('D6').value = new Date(); // Weighing date
+
+    // Clear all pre-filled/leftover template rows (Rows 10 to 74, columns C to G)
+    for (let r = 10; r <= 74; r++) {
+      worksheet.getCell(`C${r}`).value = null;
+      worksheet.getCell(`D${r}`).value = null;
+      worksheet.getCell(`E${r}`).value = null;
+      worksheet.getCell(`F${r}`).value = null;
+      worksheet.getCell(`G${r}`).value = null;
     }
 
-    worksheet.getCell('F7').value = data.gradeLevel;
-    worksheet.getCell('H7').value = data.section;
-    worksheet.getCell('O7').value = data.schoolYear;
-
-    const females = data.learners.filter(s => s.gender?.toLowerCase().startsWith('f')).sort((a, b) => a.name.localeCompare(b.name));
     const males = data.learners.filter(s => !s.gender?.toLowerCase().startsWith('f')).sort((a, b) => a.name.localeCompare(b.name));
+    const females = data.learners.filter(s => s.gender?.toLowerCase().startsWith('f')).sort((a, b) => a.name.localeCompare(b.name));
+    
+    // Helper to calculate and inject formulas and results safely
+    const writeLearnerRow = (learner: HealthData, rowNum: number, genderSymbol: 'M' | 'F') => {
+      worksheet.getCell(`C${rowNum}`).value = learner.name.toUpperCase();
+      if (learner.birthDate) {
+        const [yr, mo, dy] = learner.birthDate.split('-').map(Number);
+        worksheet.getCell(`D${rowNum}`).value = new Date(yr, mo - 1, dy);
+      }
+      if (learner.weight > 0) {
+        worksheet.getCell(`E${rowNum}`).value = learner.weight;
+      }
+      if (learner.height > 0) {
+        worksheet.getCell(`F${rowNum}`).value = learner.height;
+      }
+      worksheet.getCell(`G${rowNum}`).value = genderSymbol;
 
-    let femaleStartRow = 65;
+      // Write results into the existing formula cell definitions
+      const cellL = worksheet.getCell(`L${rowNum}`);
+      if (learner.bmi > 0) {
+        const formula = cellL.value && (cellL.value as any).formula ? (cellL.value as any).formula : null;
+        cellL.value = formula ? { formula, result: parseFloat(learner.bmi.toFixed(1)) } : parseFloat(learner.bmi.toFixed(1));
+      }
 
-    const writeLearners = (learners: typeof data.learners, startRow: number) => {
-      let currentRow = startRow;
-      learners.forEach((learner, index) => {
-        const fullName = learner.name;
+      const cellM = worksheet.getCell(`M${rowNum}`);
+      if (learner.nutritionalStatus) {
+        const formula = cellM.value && (cellM.value as any).formula ? (cellM.value as any).formula : null;
+        cellM.value = formula ? { formula, result: learner.nutritionalStatus } : learner.nutritionalStatus;
+      }
 
-        const cols = [
-          { col: 'B', val: learner.lrn },
-          { col: 'C', val: fullName },
-          { col: 'G', val: learner.birthDate ? new Date(learner.birthDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '' },
-          { col: 'H', val: learner.age },
-          { col: 'I', val: learner.weight > 0 ? learner.weight : '' },
-          { col: 'J', val: learner.height > 0 ? learner.height : '' },
-          { col: 'K', val: learner.height > 0 ? (learner.height * learner.height).toFixed(2) : '' },
-          { col: 'L', val: learner.bmi > 0 ? learner.bmi : '' },
-          { col: 'M', val: learner.nutritionalStatus || '' },
-          { col: 'N', val: learner.heightForAge || '' }
-        ];
-
-        cols.forEach(({ col, val }) => {
-          worksheet.getCell(`${col}${currentRow}`).value = val;
-        });
-
-        currentRow++;
-      });
-    };
-
-    writeLearners(males, 12);
-    writeLearners(females, femaleStartRow);
-
-    // Compute Summary Table
-    const countStats = (learnersList: typeof data.learners) => {
-      const stats = {
-        nutritional: { severelyWasted: 0, wasted: 0, normal: 0, overweight: 0, obese: 0 },
-        hfa: { severelyStunted: 0, stunted: 0, normal: 0, tall: 0 }
-      };
-
-      learnersList.forEach(l => {
-        const ns = l.nutritionalStatus?.toLowerCase() || '';
-        if (ns.includes('severely wasted')) stats.nutritional.severelyWasted++;
-        else if (ns.includes('wasted')) stats.nutritional.wasted++;
-        else if (ns.includes('normal')) stats.nutritional.normal++;
-        else if (ns.includes('overweight')) stats.nutritional.overweight++;
-        else if (ns.includes('obese')) stats.nutritional.obese++;
-
-        const hfa = l.heightForAge?.toLowerCase() || '';
-        if (hfa.includes('severely stunted')) stats.hfa.severelyStunted++;
-        else if (hfa.includes('stunted')) stats.hfa.stunted++;
-        else if (hfa.includes('normal')) stats.hfa.normal++;
-        else if (hfa.includes('tall')) stats.hfa.tall++;
-      });
-      return stats;
-    };
-
-    const maleStats = countStats(males);
-    const femaleStats = countStats(females);
-
-    const writeSummaryRow = (row: number, stats: ReturnType<typeof countStats>) => {
-      // Nutritional Status
-      worksheet.getCell(`C${row}`).value = stats.nutritional.severelyWasted || '';
-      worksheet.getCell(`E${row}`).value = stats.nutritional.wasted || '';
-      worksheet.getCell(`F${row}`).value = stats.nutritional.normal || '';
-      worksheet.getCell(`G${row}`).value = stats.nutritional.overweight || '';
-      worksheet.getCell(`H${row}`).value = stats.nutritional.obese || '';
-      worksheet.getCell(`I${row}`).value = (stats.nutritional.severelyWasted + stats.nutritional.wasted + stats.nutritional.normal + stats.nutritional.overweight + stats.nutritional.obese) || '';
-
-      // Height for Age
-      worksheet.getCell(`J${row}`).value = stats.hfa.severelyStunted || '';
-      worksheet.getCell(`K${row}`).value = stats.hfa.stunted || '';
-      worksheet.getCell(`L${row}`).value = stats.hfa.normal || '';
-      worksheet.getCell(`M${row}`).value = stats.hfa.tall || '';
-      worksheet.getCell(`N${row}`).value = (stats.hfa.severelyStunted + stats.hfa.stunted + stats.hfa.normal + stats.hfa.tall) || '';
-    };
-
-    writeSummaryRow(114, maleStats);
-    writeSummaryRow(115, femaleStats);
-
-    const totalStats = {
-      nutritional: {
-        severelyWasted: maleStats.nutritional.severelyWasted + femaleStats.nutritional.severelyWasted,
-        wasted: maleStats.nutritional.wasted + femaleStats.nutritional.wasted,
-        normal: maleStats.nutritional.normal + femaleStats.nutritional.normal,
-        overweight: maleStats.nutritional.overweight + femaleStats.nutritional.overweight,
-        obese: maleStats.nutritional.obese + femaleStats.nutritional.obese
-      },
-      hfa: {
-        severelyStunted: maleStats.hfa.severelyStunted + femaleStats.hfa.severelyStunted,
-        stunted: maleStats.hfa.stunted + femaleStats.hfa.stunted,
-        normal: maleStats.hfa.normal + femaleStats.hfa.normal,
-        tall: maleStats.hfa.tall + femaleStats.hfa.tall
+      const cellN = worksheet.getCell(`N${rowNum}`);
+      if (learner.heightForAge) {
+        const formula = cellN.value && (cellN.value as any).formula ? (cellN.value as any).formula : null;
+        cellN.value = formula ? { formula, result: learner.heightForAge } : learner.heightForAge;
       }
     };
 
-    writeSummaryRow(116, totalStats);
+    // Write males starting from Row 10 (template boundary is up to Row 43)
+    let maleRow = 10;
+    males.forEach((learner) => {
+      if (maleRow <= 43) {
+        writeLearnerRow(learner, maleRow, 'M');
+        maleRow++;
+      }
+    });
+
+    // Write separator row for the template's female index formula (which looks for "female" in cell C44)
+    worksheet.getCell('C44').value = 'female';
+
+    // Write females starting from Row 45 (template boundary is up to Row 74)
+    let femaleRow = 45;
+    females.forEach((learner) => {
+      if (femaleRow <= 74) {
+        writeLearnerRow(learner, femaleRow, 'F');
+        femaleRow++;
+      }
+    });
+
+    // Apply Arial font to student rows (10 to 74) while maintaining size and style hierarchies
+    for (let r = 10; r <= 74; r++) {
+      const row = worksheet.getRow(r);
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        if (cell.font) {
+          cell.font = { ...cell.font, name: 'Arial' };
+        } else {
+          cell.font = { name: 'Arial' };
+        }
+      });
+    }
 
     removeStrikethrough(worksheet);
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `SF8_${data.gradeLevel}_${data.section}_${data.schoolYear}.xlsx`);
+    saveAs(blob, `SF8_${data.gradeLevel.replace(/\s+/g, '_')}_${data.section.replace(/\s+/g, '_')}_${data.schoolYear}.xlsx`);
     return true;
   } catch (error) {
     console.error('Error generating Admin SF8:', error);

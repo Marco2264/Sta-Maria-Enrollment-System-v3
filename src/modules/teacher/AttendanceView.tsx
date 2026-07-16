@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import {
@@ -27,6 +28,11 @@ export function AttendanceView() {
     deleteAttendance,
     loading
   } = useTeacherData();
+
+  const [activeTab, setActiveTab] = useState<'am' | 'pm'>(() => {
+    const hours = new Date().getHours();
+    return hours < 12 ? 'am' : 'pm';
+  });
 
   const todayDate = React.useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedDate, setSelectedDate] = useState(todayDate);
@@ -66,6 +72,17 @@ export function AttendanceView() {
   const isAutoSavingRef = useRef(false);
   const amAutoAbsentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pmAutoAbsentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const localAttendanceRef = useRef(localAttendance);
+  const confirmedRef = useRef(confirmed);
+
+  useEffect(() => {
+    localAttendanceRef.current = localAttendance;
+  }, [localAttendance]);
+
+  useEffect(() => {
+    confirmedRef.current = confirmed;
+  }, [confirmed]);
 
   useEffect(() => {
     const existing = attendance.filter((a) => a.date === selectedDate);
@@ -149,67 +166,69 @@ export function AttendanceView() {
     pmCutoff.setHours(16, 30, 0, 0);
 
     const applyAMAutoAbsent = () => {
-      setConfirmed(prevConfirmed => {
-        const updatedConfirmed = { ...prevConfirmed };
-        
-        setLocalAttendance(prevAttendance => {
-          const updatedAttendance = { ...prevAttendance };
+      const currentConfirmed = confirmedRef.current;
+      const currentAttendance = localAttendanceRef.current;
+      
+      const updatedConfirmed = { ...currentConfirmed };
+      const updatedAttendance = { ...currentAttendance };
+      let anyChanged = false;
+
+      enrolled.forEach(s => {
+        const wasConfirmed = currentConfirmed[s.id] || { am: false, pm: false };
+        if (!wasConfirmed.am) {
+          updatedConfirmed[s.id] = { ...(updatedConfirmed[s.id] || { am: false, pm: false }), am: true };
           
-          enrolled.forEach(s => {
-            const wasConfirmed = prevConfirmed[s.id] || { am: false, pm: false };
-            if (!wasConfirmed.am) {
-              updatedConfirmed[s.id] = { ...(updatedConfirmed[s.id] || { am: false, pm: false }), am: true };
-              
-              const rec = prevAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
-              const amVal = 'Absent';
-              const pmVal = rec.pm;
-              
-              updatedAttendance[s.id] = { am: amVal, pm: pmVal };
-              
-              updateAttendance(s.id, selectedDate, amVal, pmVal).catch(err =>
-                console.error("AM Auto-absent update failed for", s.id, err)
-              );
-            }
-          });
+          const rec = currentAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
+          const amVal = 'Absent';
+          const pmVal = rec.pm;
           
-          return updatedAttendance;
-        });
-        
-        return updatedConfirmed;
+          updatedAttendance[s.id] = { am: amVal, pm: pmVal };
+          anyChanged = true;
+          
+          updateAttendance(s.id, selectedDate, amVal, pmVal).catch(err =>
+            console.error("AM Auto-absent update failed for", s.id, err)
+          );
+        }
       });
-      setSaved(true);
+
+      if (anyChanged) {
+        setConfirmed(updatedConfirmed);
+        setLocalAttendance(updatedAttendance);
+        setSaved(true);
+      }
     };
 
     const applyPMAutoAbsent = () => {
-      setConfirmed(prevConfirmed => {
-        const updatedConfirmed = { ...prevConfirmed };
-        
-        setLocalAttendance(prevAttendance => {
-          const updatedAttendance = { ...prevAttendance };
+      const currentConfirmed = confirmedRef.current;
+      const currentAttendance = localAttendanceRef.current;
+      
+      const updatedConfirmed = { ...currentConfirmed };
+      const updatedAttendance = { ...currentAttendance };
+      let anyChanged = false;
+
+      enrolled.forEach(s => {
+        const wasConfirmed = currentConfirmed[s.id] || { am: false, pm: false };
+        if (!wasConfirmed.pm) {
+          updatedConfirmed[s.id] = { ...(updatedConfirmed[s.id] || { am: false, pm: false }), pm: true };
           
-          enrolled.forEach(s => {
-            const wasConfirmed = prevConfirmed[s.id] || { am: false, pm: false };
-            if (!wasConfirmed.pm) {
-              updatedConfirmed[s.id] = { ...(updatedConfirmed[s.id] || { am: false, pm: false }), pm: true };
-              
-              const rec = prevAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
-              const amVal = rec.am;
-              const pmVal = 'Absent';
-              
-              updatedAttendance[s.id] = { am: amVal, pm: pmVal };
-              
-              updateAttendance(s.id, selectedDate, amVal, pmVal).catch(err =>
-                console.error("PM Auto-absent update failed for", s.id, err)
-              );
-            }
-          });
+          const rec = currentAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
+          const amVal = rec.am;
+          const pmVal = 'Absent';
           
-          return updatedAttendance;
-        });
-        
-        return updatedConfirmed;
+          updatedAttendance[s.id] = { am: amVal, pm: pmVal };
+          anyChanged = true;
+          
+          updateAttendance(s.id, selectedDate, amVal, pmVal).catch(err =>
+            console.error("PM Auto-absent update failed for", s.id, err)
+          );
+        }
       });
-      setSaved(true);
+
+      if (anyChanged) {
+        setConfirmed(updatedConfirmed);
+        setLocalAttendance(updatedAttendance);
+        setSaved(true);
+      }
     };
 
     // Check AM state
@@ -243,7 +262,7 @@ export function AttendanceView() {
   const handleReset = async () => {
     setIsSaving(true);
     try {
-      const promises = enrolled.map(s => deleteAttendance(s.id, selectedDate));
+      const promises = enrolled.map(s => updateAttendance(s.id, selectedDate, 'Unmarked', 'Unmarked'));
       await Promise.all(promises);
       setConfirmed({});
       setSaved(true);
@@ -261,25 +280,23 @@ export function AttendanceView() {
       [studentId]: { ...(prev[studentId] || { am: false, pm: false }), [session]: true }
     }));
 
-    setLocalAttendance(prev => {
-      const current = prev[studentId] || { am: 'Unmarked', pm: 'Unmarked' };
-      const nextAM = session === 'am' ? status : current.am;
-      const nextPM = session === 'pm' ? status : current.pm;
+    const current = localAttendanceRef.current[studentId] || { am: 'Unmarked', pm: 'Unmarked' };
+    const nextAM = session === 'am' ? status : current.am;
+    const nextPM = session === 'pm' ? status : current.pm;
 
-      setIsSaving(true);
-      updateAttendance(studentId, selectedDate, nextAM, nextPM)
-        .then(() => setSaved(true))
-        .catch(err => {
-          console.error("Auto-save failed", err);
-          setSaved(false);
-        })
-        .finally(() => setIsSaving(false));
+    setLocalAttendance(prev => ({
+      ...prev,
+      [studentId]: { am: nextAM, pm: nextPM }
+    }));
 
-      return {
-        ...prev,
-        [studentId]: { am: nextAM, pm: nextPM }
-      };
-    });
+    setIsSaving(true);
+    updateAttendance(studentId, selectedDate, nextAM, nextPM)
+      .then(() => setSaved(true))
+      .catch(err => {
+        console.error("Auto-save failed", err);
+        setSaved(false);
+      })
+      .finally(() => setIsSaving(false));
   }, [selectedDate, updateAttendance]);
 
   if (loading) {
@@ -312,7 +329,7 @@ export function AttendanceView() {
     if (!isConfirmed) {
       // Show "Present" and "Absent" buttons
       return (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => handleConfirm(studentId, session, 'Present')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50/60 text-emerald-700 text-xs font-bold shadow-sm hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
@@ -331,37 +348,65 @@ export function AttendanceView() {
       );
     }
 
+    const displayValue = value === 'Unmarked' ? 'Present' : value;
+
     // Show dropdown after confirmation
     return (
       <Select
-        value={value === 'Unmarked' ? 'Present' : value}
-        onValueChange={(v: string) => {
-          const newStatus = v as 'Present' | 'Absent' | 'Late';
-          setLocalAttendance(prev => {
-            const current = prev[studentId] || { am: 'Unmarked', pm: 'Unmarked' };
-            const nextAM = session === 'am' ? newStatus : current.am;
-            const nextPM = session === 'pm' ? newStatus : current.pm;
-
+        value={displayValue}
+        onValueChange={async (v: string) => {
+          const newStatus = v as 'Present' | 'Absent' | 'Late' | 'Unmarked';
+          
+          if (newStatus === 'Unmarked') {
             setIsSaving(true);
-            updateAttendance(studentId, selectedDate, nextAM, nextPM)
-              .then(() => setSaved(true))
-              .catch(err => {
-                console.error("Auto-save failed", err);
-                setSaved(false);
-              })
-              .finally(() => setIsSaving(false));
+            try {
+              const nextAM = session === 'am' ? 'Unmarked' : st.am;
+              const nextPM = session === 'pm' ? 'Unmarked' : st.pm;
 
-            return {
-              ...prev,
-              [studentId]: { am: nextAM, pm: nextPM }
-            };
-          });
+              await updateAttendance(studentId, selectedDate, nextAM, nextPM);
+
+              setConfirmed(prev => ({
+                ...prev,
+                [studentId]: { ...(prev[studentId] || { am: false, pm: false }), [session]: false }
+              }));
+              
+              setLocalAttendance(prev => ({
+                ...prev,
+                [studentId]: { am: nextAM, pm: nextPM }
+              }));
+              setSaved(true);
+            } catch (err) {
+              console.error("Failed to reset student attendance", err);
+              setSaved(false);
+            } finally {
+              setIsSaving(false);
+            }
+            return;
+          }
+
+          const current = localAttendance[studentId] || { am: 'Unmarked', pm: 'Unmarked' };
+          const nextAM = session === 'am' ? newStatus : current.am;
+          const nextPM = session === 'pm' ? newStatus : current.pm;
+
+          setLocalAttendance(prev => ({
+            ...prev,
+            [studentId]: { am: nextAM, pm: nextPM }
+          }));
+
+          setIsSaving(true);
+          updateAttendance(studentId, selectedDate, nextAM, nextPM)
+            .then(() => setSaved(true))
+            .catch(err => {
+              console.error("Auto-save failed", err);
+              setSaved(false);
+            })
+            .finally(() => setIsSaving(false));
         }}
       >
         <SelectTrigger
           className={`w-[120px] ${align === 'right' ? 'ml-auto' : 'mx-auto'
-            } h-9 font-semibold transition-colors focus:ring-0 focus:ring-offset-0 ${value === 'Present' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' :
-              value === 'Absent' ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' :
+            } h-9 font-semibold transition-colors focus:ring-0 focus:ring-offset-0 ${displayValue === 'Present' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' :
+              displayValue === 'Absent' ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' :
                 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
             }`}
         >
@@ -371,6 +416,7 @@ export function AttendanceView() {
           <SelectItem value="Present" className="text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50">Present</SelectItem>
           <SelectItem value="Late" className="text-amber-700 focus:text-amber-800 focus:bg-amber-50">Late</SelectItem>
           <SelectItem value="Absent" className="text-rose-700 focus:text-rose-800 focus:bg-rose-50">Absent</SelectItem>
+          <SelectItem value="Unmarked" className="text-slate-500 focus:text-slate-700 focus:bg-slate-50">Unmarked (Reset)</SelectItem>
         </SelectContent>
       </Select>
     );
@@ -378,7 +424,7 @@ export function AttendanceView() {
 
   const renderStudentRow = (s: any, idx: number) => {
     const st = localAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
-    const amConfirmed = confirmed[s.id]?.am;
+    const tabConfirmed = confirmed[s.id]?.[activeTab];
 
     const rowColors = {
       Present: 'hover:bg-emerald-50/40',
@@ -392,13 +438,13 @@ export function AttendanceView() {
       Unmarked: 'bg-slate-100 text-slate-500 border-slate-200'
     };
 
-    // Avatar reflects AM status only after confirmation, else neutral
-    const avatarStatus = amConfirmed ? st.am : 'Unmarked';
+    // Avatar reflects selected tab status only after confirmation, else neutral
+    const avatarStatus = tabConfirmed ? st[activeTab] : 'Unmarked';
 
     return (
       <TableRow
         key={s.id}
-        className={`border-b border-border/40 transition-colors ${amConfirmed ? rowColors[st.am] : 'hover:bg-slate-50/60'
+        className={`border-b border-border/40 transition-colors ${tabConfirmed ? rowColors[st[activeTab]] : 'hover:bg-slate-50/60'
           }`}
       >
         <TableCell className="pl-6 text-slate-400 font-semibold w-16">
@@ -418,11 +464,8 @@ export function AttendanceView() {
         <TableCell className="text-slate-500 font-mono text-sm font-medium">
           {s.lrn}
         </TableCell>
-        <TableCell className="text-center">
-          {statusDropdown(s.id, 'am', st, 'center')}
-        </TableCell>
         <TableCell className="pr-6 text-right">
-          {statusDropdown(s.id, 'pm', st, 'right')}
+          {statusDropdown(s.id, activeTab, st, 'right')}
         </TableCell>
       </TableRow>
     );
@@ -462,23 +505,66 @@ export function AttendanceView() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto bg-card p-2 rounded-2xl shadow-sm border border-border">
-            <div className="relative flex-1 md:w-48">
-              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="date"
-                max={todayDate}
-                value={selectedDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val > todayDate) {
-                    setSelectedDate(todayDate);
-                  } else {
-                    setSelectedDate(val);
-                  }
-                }}
-                className="w-full text-sm font-medium border-none bg-transparent py-2 pl-9 pr-3 outline-none focus:ring-0 text-slate-700 cursor-pointer"
-              />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            {/* AM/PM Custom Sliding Tabs */}
+            <div className="flex bg-slate-200/60 p-1.5 rounded-2xl w-full sm:w-64 border border-slate-200 relative shrink-0">
+              <button
+                onClick={() => setActiveTab('am')}
+                className={`relative flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer select-none ${
+                  activeTab === 'am' ? 'text-primary' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {activeTab === 'am' && (
+                  <motion.div
+                    layoutId="active-attendance-tab"
+                    className="absolute inset-0 bg-white shadow-md rounded-xl border border-slate-200/50"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center justify-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  AM Session
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('pm')}
+                className={`relative flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer select-none ${
+                  activeTab === 'pm' ? 'text-primary' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {activeTab === 'pm' && (
+                  <motion.div
+                    layoutId="active-attendance-tab"
+                    className="absolute inset-0 bg-white shadow-md rounded-xl border border-slate-200/50"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center justify-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  PM Session
+                </span>
+              </button>
+            </div>
+
+            {/* Date Selector */}
+            <div className="flex items-center bg-card p-1.5 rounded-2xl shadow-sm border border-border w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-44">
+                <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <input
+                  type="date"
+                  max={todayDate}
+                  value={selectedDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val > todayDate) {
+                      setSelectedDate(todayDate);
+                    } else {
+                      setSelectedDate(val);
+                    }
+                  }}
+                  className="w-full text-sm font-semibold border-none bg-transparent py-2 pl-10 pr-3 outline-none focus:ring-0 text-slate-700 cursor-pointer"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -490,7 +576,12 @@ export function AttendanceView() {
             <div className="flex justify-between items-start">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-emerald-800 uppercase tracking-wider">Present</p>
-                <p className="text-xl sm:text-2xl font-bold text-emerald-600">AM: {amPresentCount} | PM: {pmPresentCount}</p>
+                <p className="text-2xl font-extrabold text-emerald-600">
+                  {activeTab === 'am' ? amPresentCount : pmPresentCount} <span className="text-sm font-medium text-emerald-700/60">students</span>
+                </p>
+                <p className="text-xs font-semibold text-emerald-700/70">
+                  Session summary: AM: {amPresentCount} | PM: {pmPresentCount}
+                </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-emerald-200/50 flex items-center justify-center text-emerald-600 shadow-inner">
                 <UserCheck className="w-6 h-6" />
@@ -502,7 +593,12 @@ export function AttendanceView() {
             <div className="flex justify-between items-start">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-rose-800 uppercase tracking-wider">Absent</p>
-                <p className="text-xl sm:text-2xl font-bold text-rose-600">AM: {amAbsentCount} | PM: {pmAbsentCount}</p>
+                <p className="text-2xl font-extrabold text-rose-600">
+                  {activeTab === 'am' ? amAbsentCount : pmAbsentCount} <span className="text-sm font-medium text-rose-700/60">students</span>
+                </p>
+                <p className="text-xs font-semibold text-rose-700/70">
+                  Session summary: AM: {amAbsentCount} | PM: {pmAbsentCount}
+                </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-rose-200/50 flex items-center justify-center text-rose-600 shadow-inner">
                 <UserX className="w-6 h-6" />
@@ -514,7 +610,12 @@ export function AttendanceView() {
             <div className="flex justify-between items-start">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-amber-800 uppercase tracking-wider">Late</p>
-                <p className="text-xl sm:text-2xl font-bold text-amber-600">AM: {amLateCount} | PM: {pmLateCount}</p>
+                <p className="text-2xl font-extrabold text-amber-600">
+                  {activeTab === 'am' ? amLateCount : pmLateCount} <span className="text-sm font-medium text-amber-700/60">students</span>
+                </p>
+                <p className="text-xs font-semibold text-amber-700/70">
+                  Session summary: AM: {amLateCount} | PM: {pmLateCount}
+                </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-amber-200/50 flex items-center justify-center text-amber-600 shadow-inner">
                 <Clock className="w-6 h-6" />
@@ -525,7 +626,9 @@ export function AttendanceView() {
 
         <Card className="bg-card border-border rounded-2xl overflow-hidden shadow-md">
           <div className="p-5 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white">
-            <h3 className="font-bold text-lg text-slate-800">Student Roster</h3>
+            <h3 className="font-bold text-lg text-slate-800">
+              Student Roster <span className="text-xs font-semibold text-slate-400 capitalize">({activeTab} session)</span>
+            </h3>
             <div className="flex flex-wrap items-center gap-3">
               {/* Search Bar */}
               <div className="relative">
@@ -570,14 +673,15 @@ export function AttendanceView() {
                   <TableHead className="font-bold text-slate-700 pl-6 w-16">#</TableHead>
                   <TableHead className="font-bold text-slate-700">Learner Name</TableHead>
                   <TableHead className="font-bold text-slate-700">LRN</TableHead>
-                  <TableHead className="font-bold text-slate-700 w-40 text-center">AM Status</TableHead>
-                  <TableHead className="font-bold text-slate-700 w-40 text-right pr-6">PM Status</TableHead>
+                  <TableHead className="font-bold text-slate-700 w-48 text-right pr-6">
+                    {activeTab === 'am' ? 'AM Attendance Status' : 'PM Attendance Status'}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {enrolled.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
                       No students currently enrolled in this section.
                     </TableCell>
                   </TableRow>
@@ -585,7 +689,7 @@ export function AttendanceView() {
                   <>
                     {maleStudents.length > 0 && (
                       <TableRow className="bg-slate-100 hover:bg-slate-100">
-                        <TableCell colSpan={5} className="font-bold text-slate-700 tracking-widest text-xs py-2 pl-6">
+                        <TableCell colSpan={4} className="font-bold text-slate-700 tracking-widest text-xs py-2 pl-6">
                           MALE
                         </TableCell>
                       </TableRow>
@@ -594,7 +698,7 @@ export function AttendanceView() {
 
                     {femaleStudents.length > 0 && (
                       <TableRow className="bg-slate-100 hover:bg-slate-100">
-                        <TableCell colSpan={5} className="font-bold text-slate-700 tracking-widest text-xs py-2 pl-6">
+                        <TableCell colSpan={4} className="font-bold text-slate-700 tracking-widest text-xs py-2 pl-6">
                           FEMALE
                         </TableCell>
                       </TableRow>

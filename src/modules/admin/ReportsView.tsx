@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { db } from '../../lib/firebase';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import {
@@ -9,13 +10,13 @@ import {
   SelectValue
 } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
-import { FileText, Download, CheckCircle2, AlertCircle, IdCard, Calendar } from 'lucide-react';
+import { FileText, Download, CheckCircle2, AlertCircle, IdCard, Calendar, TrendingUp } from 'lucide-react';
 import { useAdminData } from '../../lib/adminData';
 import { ReportDataService } from '../../lib/services/reportDataService';
 import { HealthAnalyticsService, HealthData } from '../../lib/services/healthAnalyticsService';
 import { useAuth } from '../../lib/AuthContext';
 import { normalizeRole } from '../../lib/roles';
-import { generateAdminSF1, generateAdminSF4, generateAdminSF8, generateSF2 } from '../../lib/excelGenerator';
+import { generateAdminSF1, generateAdminSF4, generateAdminSF8, generateSF2, generateSF5 } from '../../lib/excelGenerator';
 import type { SF1Data, SF4Data } from '../../lib/services/reportDataService';
 import { getCurrentSchoolYear } from '../../lib/utils';
 import { StudentIdCardDocument } from './StudentIdCardDocument';
@@ -49,6 +50,7 @@ export function ReportsView() {
   const [reportMonth, setReportMonth] = useState('JANUARY');
   const [sf1SectionId, setSf1SectionId] = useState('all');
   const [sf2SectionId, setSf2SectionId] = useState('all');
+  const [sf5SectionId, setSf5SectionId] = useState('all');
   const [sf8SectionId, setSf8SectionId] = useState('all');
   const [sf2Month, setSf2Month] = useState('January');
   const [sf4GradeLevel, setSf4GradeLevel] = useState<string>('all');
@@ -56,6 +58,7 @@ export function ReportsView() {
 
   const [sf1SearchQuery, setSf1SearchQuery] = useState('');
   const [sf2SearchQuery, setSf2SearchQuery] = useState('');
+  const [sf5SearchQuery, setSf5SearchQuery] = useState('');
   const [sf8SearchQuery, setSf8SearchQuery] = useState('');
   const [idCardSearchQuery, setIdCardSearchQuery] = useState('');
 
@@ -96,6 +99,23 @@ export function ReportsView() {
         }
         const data = await ReportDataService.getSF2Data(syName, sf2SectionId, sf2Month);
         await generateSF2(data);
+      } else if (reportId === 'sf5') {
+        if (sf5SectionId === 'all') {
+          alert('Please select a specific section to generate School Form 5 (SF5). SF5 is a section-level report and cannot be generated for "All Sections".');
+          setGenerating(null);
+          return;
+        }
+        const selectedSection = sections.find(s => s.id === sf5SectionId);
+        const enrollRef = collection(db, 'enrollments');
+        const q = query(enrollRef, where('status', 'in', ['Enrolled', 'enrolled']));
+        const snap = await getDocs(q);
+        let studentDocs = snap.docs;
+        studentDocs = studentDocs.filter(d => d.data().sectionId === sf5SectionId);
+        
+        const studentsData = studentDocs.map(d => ({ id: d.id, ...d.data() } as any));
+        const secName = selectedSection ? `${selectedSection.gradeLevel} - ${selectedSection.name}` : 'Section';
+        
+        await generateSF5(studentsData, secName, syName);
       } else if (reportId === 'sf4') {
         const effectiveGradeLevel = assignedGrade || (sf4GradeLevel === 'all' ? undefined : sf4GradeLevel);
         const data = await ReportDataService.getSF4Data(
@@ -191,6 +211,13 @@ export function ReportsView() {
       iconClass: 'bg-indigo-100 text-indigo-600'
     },
     {
+      id: 'sf5',
+      title: 'School Form 5 (SF5)',
+      desc: 'Report on Promotion and Level of Progress & Achievement at the end of the school year.',
+      iconClass: 'bg-amber-100 text-amber-600',
+      icon: TrendingUp
+    },
+    {
       id: 'sf8',
       title: 'School Form 8 (SF8)',
       desc: "Learner's Basic Health and Nutrition Report containing BMI and nutritional status.",
@@ -263,19 +290,33 @@ export function ReportsView() {
                       </Select>
                     </div>
 
-                    {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf8') && (
+                    {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' || report.id === 'sf8') && (
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Section</label>
                         <Select 
-                          value={report.id === 'sf1' ? sf1SectionId : report.id === 'sf2' ? sf2SectionId : sf8SectionId} 
-                          onValueChange={report.id === 'sf1' ? setSf1SectionId : report.id === 'sf2' ? setSf2SectionId : setSf8SectionId}
+                          value={
+                            report.id === 'sf1' ? sf1SectionId : 
+                            report.id === 'sf2' ? sf2SectionId : 
+                            report.id === 'sf5' ? sf5SectionId : 
+                            sf8SectionId
+                          } 
+                          onValueChange={
+                            report.id === 'sf1' ? setSf1SectionId : 
+                            report.id === 'sf2' ? setSf2SectionId : 
+                            report.id === 'sf5' ? setSf5SectionId : 
+                            setSf8SectionId
+                          }
                         >
                           <SelectTrigger className="bg-slate-50 border-slate-200 rounded-xl">
-                            <SelectValue placeholder={report.id === 'sf1' || report.id === 'sf2' ? "Select Section" : "All Sections"}>
+                            <SelectValue placeholder={report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' ? "Select Section" : "All Sections"}>
                               {(() => {
-                                const activeId = report.id === 'sf1' ? sf1SectionId : report.id === 'sf2' ? sf2SectionId : sf8SectionId;
+                                const activeId = 
+                                  report.id === 'sf1' ? sf1SectionId : 
+                                  report.id === 'sf2' ? sf2SectionId : 
+                                  report.id === 'sf5' ? sf5SectionId : 
+                                  sf8SectionId;
                                 if (activeId === 'all') {
-                                  return report.id === 'sf1' || report.id === 'sf2' ? 'Select Section' : 'All Sections';
+                                  return report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' ? 'Select Section' : 'All Sections';
                                 }
                                 const sec = sortedSections.find(s => s.id === activeId);
                                 return sec ? `${sec.gradeLevel} - ${sec.name}` : activeId;
@@ -286,27 +327,43 @@ export function ReportsView() {
                             <div className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100">
                               <Input
                                 placeholder="Search section or grade..."
-                                value={report.id === 'sf1' ? sf1SearchQuery : report.id === 'sf2' ? sf2SearchQuery : sf8SearchQuery}
+                                value={
+                                  report.id === 'sf1' ? sf1SearchQuery : 
+                                  report.id === 'sf2' ? sf2SearchQuery : 
+                                  report.id === 'sf5' ? sf5SearchQuery : 
+                                  sf8SearchQuery
+                                }
                                 onChange={(e) => {
                                   if (report.id === 'sf1') setSf1SearchQuery(e.target.value);
                                   else if (report.id === 'sf2') setSf2SearchQuery(e.target.value);
+                                  else if (report.id === 'sf5') setSf5SearchQuery(e.target.value);
                                   else setSf8SearchQuery(e.target.value);
                                 }}
                                 onKeyDown={(e) => e.stopPropagation()}
                                 className="h-8 text-sm"
                               />
                             </div>
-                            {report.id !== 'sf1' && report.id !== 'sf2' && <SelectItem value="all">All Sections</SelectItem>}
+                            {report.id !== 'sf1' && report.id !== 'sf2' && report.id !== 'sf5' && <SelectItem value="all">All Sections</SelectItem>}
                             {sortedSections
                               .filter(s => {
-                                const q = ((report.id === 'sf1' ? sf1SearchQuery : report.id === 'sf2' ? sf2SearchQuery : sf8SearchQuery) || '').toLowerCase();
+                                const q = (
+                                  (report.id === 'sf1' ? sf1SearchQuery : 
+                                   report.id === 'sf2' ? sf2SearchQuery : 
+                                   report.id === 'sf5' ? sf5SearchQuery : 
+                                   sf8SearchQuery) || ''
+                                ).toLowerCase();
                                 return (s.name || '').toLowerCase().includes(q) || (s.gradeLevel || '').toLowerCase().includes(q);
                               })
                               .map((s) => (
                                 <SelectItem key={s.id} value={s.id}>{s.gradeLevel || 'Unknown Grade'} - {s.name || 'Unnamed Section'}</SelectItem>
                               ))}
                             {sortedSections.filter(s => {
-                              const q = ((report.id === 'sf1' ? sf1SearchQuery : report.id === 'sf2' ? sf2SearchQuery : sf8SearchQuery) || '').toLowerCase();
+                              const q = (
+                                (report.id === 'sf1' ? sf1SearchQuery : 
+                                 report.id === 'sf2' ? sf2SearchQuery : 
+                                 report.id === 'sf5' ? sf5SearchQuery : 
+                                 sf8SearchQuery) || ''
+                              ).toLowerCase();
                               return (s.name || '').toLowerCase().includes(q) || (s.gradeLevel || '').toLowerCase().includes(q);
                             }).length === 0 && (
                               <div className="p-2 text-sm text-center text-slate-500">No sections found.</div>
