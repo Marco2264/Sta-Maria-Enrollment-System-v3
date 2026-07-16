@@ -1,0 +1,144 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    
+    function isAuthed() {
+      return request.auth != null;
+    }
+    
+    function role() {
+      // Assumes roles are stored in lowercase in the 'users' collection, but uses .lower() for safety
+      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return userRole == null ? '' : userRole.lower();
+    }
+    
+    function isAdmin() {
+      return isAuthed() && role() == 'admin';
+    }
+
+    function isSubadmin() {
+      return isAuthed() && role() == 'subadmin';
+    }
+    
+    function hasAdminAccess() {
+      return isAdmin() || isSubadmin();
+    }
+    
+    function isTeacher() {
+      return isAuthed() && role() == 'teacher';
+    }
+    
+    function isParent() {
+      return isAuthed() && role() == 'parent';
+    }
+
+    // ─── Collection Rules ────────────────────────────────────────────────────
+
+    // Users
+    // Users can read their own profile; Admins can read all and write.
+    match /users/{uid} {
+      allow read: if isAuthed() && (request.auth.uid == uid || hasAdminAccess());
+      allow write: if isAdmin(); // Only main admin can write to users (since Subadmins shouldn't manage users)
+      allow create: if isAuthed() && request.auth.uid == uid && request.resource.data.role == 'parent';
+      allow update: if isAuthed() && request.auth.uid == uid && request.resource.data.role == resource.data.role;
+    }
+    
+    // Enrollments
+    // Admins have full access.
+    // Teachers can read (e.g., to see students in their class).
+    // Parents can read only their child's enrollments.
+    match /enrollments/{doc} {
+      allow read, write: if hasAdminAccess();
+      allow read, update: if isTeacher();
+      allow read, update, delete: if isParent() && resource.data.parentId == request.auth.uid;
+      allow create: if isParent() && request.resource.data.parentId == request.auth.uid;
+    }
+    
+    // Attendance
+    // Admins and Teachers can manage attendance.
+    match /attendance/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+      // Parents can read if they own the enrollment associated with this attendance record
+      allow read: if isParent() && get(/databases/$(database)/documents/enrollments/$(resource.data.studentId)).data.parentId == request.auth.uid;
+    }
+    
+    // Grades
+    // Admins and Teachers can manage grades.
+    match /grades/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+    }
+    
+    // Classrooms / Subjects / Sections / Assignments
+    // Admins and Teachers can read and write class configurations.
+    match /classrooms/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+    }
+    match /sections/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+    }
+    match /assignments/{doc} {
+      allow read: if isAuthed();
+      allow write: if hasAdminAccess();
+    }
+    match /subjects/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+    }
+    
+    // School Years
+    match /school_years/{doc} {
+      allow read: if isAuthed();
+      allow write: if hasAdminAccess();
+    }
+    
+    // Payments
+    // Admins have full access to manage payments.
+    // Parents can view their own payment history.
+    match /payments/{doc} {
+      allow read, write: if hasAdminAccess();
+      allow read: if isParent() && resource.data.parentId == request.auth.uid;
+    }
+    
+    // Announcements
+    // Admins can manage announcements. Any authenticated user can read them.
+    match /announcements/{doc} {
+      allow read: if isAuthed();
+      allow write: if hasAdminAccess();
+    }
+    
+    // Audit Logs (Phase 9 Addition)
+    // Any authenticated user can append an audit log (via their client actions).
+    // Only admins can read the audit logs.
+    match /auditLogs/{doc} {
+      allow create: if isAuthed();
+      allow read: if hasAdminAccess();
+    }
+    
+    // Enrollment Documents (Phase 2 Additive Collection)
+    // Admins can read and write (e.g. approve/reject).
+    // Parents can create and read their own uploaded documents.
+    match /enrollment_documents/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+      allow read: if isParent() && resource.data.parentId == request.auth.uid;
+      allow create: if isParent() && request.resource.data.parentId == request.auth.uid;
+    }
+
+    // Health Records (Phase 7 Addition)
+    // Admins and teachers can manage health records.
+    match /healthRecords/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+    }
+
+    match /settings/{doc} {
+      allow read: if isAuthed();
+      allow write: if hasAdminAccess();
+    }
+
+    // ─── Default Deny ────────────────────────────────────────────────────────
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
