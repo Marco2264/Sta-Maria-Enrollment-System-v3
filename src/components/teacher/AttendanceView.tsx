@@ -1,0 +1,1 @@
+export { AttendanceView } from '../../modules/teacher/AttendanceView';
