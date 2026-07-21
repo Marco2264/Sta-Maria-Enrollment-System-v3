@@ -64,9 +64,7 @@ export function SF8ReportDocument({ onClose, data }: SF8ReportDocumentProps) {
     <ReportLayout title="School Form 8 (SF8)" onClose={onClose} landscape>
       {/* DepEd Header */}
       <div className="flex items-center justify-between mb-2">
-        <div className="w-20 h-20 rounded-full border border-black flex items-center justify-center font-bold text-[10px] text-center p-1 leading-tight">
-          KAGAWARAN<br />NG<br />EDUKASYON
-        </div>
+        <img src="/kagawaran_ng_edukasyon.png" alt="Kagawaran ng Edukasyon Logo" className="w-20 h-20 object-contain" />
         <div className="text-center flex-1 text-blue-700">
           <h2 className="font-bold text-xl">School Form 8 (SF8) Learner's Basic Health and Nutrition Report</h2>
           <p className="text-xs italic text-slate-600">

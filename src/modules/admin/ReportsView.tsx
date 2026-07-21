@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { db } from '../../lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import {
   Select,
   SelectContent,
@@ -9,18 +11,20 @@ import {
   SelectTrigger,
   SelectValue
 } from '../../components/ui/Select';
-import { Input } from '../../components/ui/Input';
-import { FileText, Download, CheckCircle2, AlertCircle, IdCard, Calendar, TrendingUp } from 'lucide-react';
+import { FileText, Download, CheckCircle2, AlertCircle, IdCard, Calendar, TrendingUp, Award } from 'lucide-react';
 import { useAdminData } from '../../lib/adminData';
 import { ReportDataService } from '../../lib/services/reportDataService';
 import { HealthAnalyticsService, HealthData } from '../../lib/services/healthAnalyticsService';
 import { useAuth } from '../../lib/AuthContext';
 import { normalizeRole } from '../../lib/roles';
-import { generateAdminSF1, generateAdminSF4, generateAdminSF8, generateSF2, generateSF5 } from '../../lib/excelGenerator';
+import { generateAdminSF1, generateAdminSF4, generateAdminSF8, generateSF2, generateSF5, generateSF9 } from '../../lib/excelGenerator';
+import { SF9ReportDocument } from './SF9ReportDocument';
 import type { SF1Data, SF4Data } from '../../lib/services/reportDataService';
 import { getCurrentSchoolYear } from '../../lib/utils';
 import { StudentIdCardDocument } from './StudentIdCardDocument';
 import { SF1ReportDocument } from './SF1ReportDocument';
+import { SF2ReportDocument } from './SF2ReportDocument';
+import { SF4ReportDocument } from './SF4ReportDocument';
 import { SF8ReportDocument } from './SF8ReportDocument';
 
 export function ReportsView() {
@@ -47,12 +51,13 @@ export function ReportsView() {
 
   const [generating, setGenerating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reportMonth, setReportMonth] = useState('JANUARY');
+  const [reportMonth, setReportMonth] = useState(() => new Date().toLocaleString('en-US', { month: 'long' }).toUpperCase());
   const [sf1SectionId, setSf1SectionId] = useState('all');
   const [sf2SectionId, setSf2SectionId] = useState('all');
   const [sf5SectionId, setSf5SectionId] = useState('all');
   const [sf8SectionId, setSf8SectionId] = useState('all');
-  const [sf2Month, setSf2Month] = useState('January');
+  const [sf9SectionId, setSf9SectionId] = useState('all');
+  const [sf2Month, setSf2Month] = useState(() => new Date().toLocaleString('en-US', { month: 'long' }));
   const [sf4GradeLevel, setSf4GradeLevel] = useState<string>('all');
   const [idCardSectionId, setIdCardSectionId] = useState('all');
 
@@ -60,13 +65,17 @@ export function ReportsView() {
   const [sf2SearchQuery, setSf2SearchQuery] = useState('');
   const [sf5SearchQuery, setSf5SearchQuery] = useState('');
   const [sf8SearchQuery, setSf8SearchQuery] = useState('');
+  const [sf9SearchQuery, setSf9SearchQuery] = useState('');
   const [idCardSearchQuery, setIdCardSearchQuery] = useState('');
 
   const [idCardData, setIdCardData] = useState<Awaited<ReturnType<typeof ReportDataService.getStudentIdCardData>> | null>(null);
   const [generatingIdCard, setGeneratingIdCard] = useState(false);
 
   const [viewingSF1, setViewingSF1] = useState<SF1Data | null>(null);
+  const [viewingSF2, setViewingSF2] = useState<any | null>(null);
+  const [viewingSF4, setViewingSF4] = useState<SF4Data | null>(null);
   const [viewingSF8, setViewingSF8] = useState<any | null>(null);
+  const [viewingSF9, setViewingSF9] = useState<any | null>(null);
   const [viewingReportId, setViewingReportId] = useState<string | null>(null);
 
   const syName = schoolYear?.name ?? getCurrentSchoolYear();
@@ -122,9 +131,9 @@ export function ReportsView() {
           syName, 
           reportMonth, 
           effectiveGradeLevel,
-          undefined // No section filter for SF4
         );
-        await generateAdminSF4(data);
+        const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
+        await generateAdminSF4(data, fullName);
       } else if (reportId === 'sf8') {
         const selectedSection = sections.find(s => s.id === sf8SectionId);
         const learners = await HealthAnalyticsService.getHealthData(assignedGrade);
@@ -140,6 +149,30 @@ export function ReportsView() {
           section: selectedSection?.name || 'All Sections',
           learners: filteredLearners
         });
+      } else if (reportId === 'sf9') {
+        if (sf9SectionId === 'all') {
+          alert('Please select a specific section to generate School Form 9 (SF9).');
+          setGenerating(null);
+          return;
+        }
+        const selectedSection = sections.find(s => s.id === sf9SectionId);
+        const enrollRef = collection(db, 'enrollments');
+        const q = query(enrollRef, where('status', 'in', ['Enrolled', 'enrolled']));
+        const snap = await getDocs(q);
+        let studentDocs = snap.docs;
+        studentDocs = studentDocs.filter(d => d.data().sectionId === sf9SectionId);
+        
+        const studentsData = studentDocs.map(d => ({ id: d.id, ...d.data() } as any));
+        const secName = selectedSection ? `${selectedSection.gradeLevel} - ${selectedSection.name}` : 'Section';
+
+        // Fetch subjects & attendance
+        const subjectsSnap = await getDocs(collection(db, 'subjects'));
+        const subjectsData = subjectsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        const attSnap = await getDocs(query(collection(db, 'attendance'), where('sectionId', '==', sf9SectionId)));
+        const attendanceData = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+        
+        await generateSF9(studentsData, secName, syName, attendanceData, subjectsData);
       }
     } catch (err) {
       console.error('Report generation error:', err);
@@ -167,6 +200,27 @@ export function ReportsView() {
           sf1SectionId === 'all' ? undefined : sf1SectionId
         );
         setViewingSF1(data);
+      } else if (reportId === 'sf2') {
+        if (sf2SectionId === 'all') {
+          alert('Please select a specific section to view School Form 2 (SF2).');
+          setViewingReportId(null);
+          return;
+        }
+        const data = await ReportDataService.getSF2Data(
+          syName,
+          sf2SectionId,
+          sf2Month
+        );
+        setViewingSF2(data);
+      } else if (reportId === 'sf4') {
+        const effectiveGradeLevel = assignedGrade || (sf4GradeLevel === 'all' ? undefined : sf4GradeLevel);
+        const data = await ReportDataService.getSF4Data(
+          syName,
+          reportMonth,
+          effectiveGradeLevel,
+          undefined
+        );
+        setViewingSF4(data);
       } else if (reportId === 'sf8') {
         const selectedSection = sections.find(s => s.id === sf8SectionId);
         const learners = await HealthAnalyticsService.getHealthData(assignedGrade);
@@ -180,6 +234,38 @@ export function ReportsView() {
           gradeLevel: effectiveGradeLevel,
           section: selectedSection?.name || 'All Sections',
           learners: filteredLearners
+        });
+      } else if (reportId === 'sf9') {
+        if (sf9SectionId === 'all') {
+          alert('Please select a specific section to view School Form 9 (SF9).');
+          setViewingReportId(null);
+          return;
+        }
+        const selectedSection = sections.find(s => s.id === sf9SectionId);
+        const enrollRef = collection(db, 'enrollments');
+        const q = query(enrollRef, where('status', 'in', ['Enrolled', 'enrolled']));
+        const snap = await getDocs(q);
+        let studentDocs = snap.docs;
+        studentDocs = studentDocs.filter(d => d.data().sectionId === sf9SectionId);
+        
+        const studentsData = studentDocs.map(d => ({ id: d.id, ...d.data() } as any));
+        const secName = selectedSection ? `${selectedSection.gradeLevel} - ${selectedSection.name}` : 'Section';
+        const effGradeLevel = selectedSection?.gradeLevel || 'Grade 6';
+
+        // Fetch subjects & attendance
+        const subjectsSnap = await getDocs(collection(db, 'subjects'));
+        const subjectsData = subjectsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        const attSnap = await getDocs(query(collection(db, 'attendance'), where('sectionId', '==', sf9SectionId)));
+        const attendanceData = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        setViewingSF9({
+          schoolYear: syName,
+          gradeLevel: effGradeLevel,
+          section: secName,
+          students: studentsData,
+          attendance: attendanceData,
+          subjects: subjectsData
         });
       }
     } catch (err) {
@@ -222,6 +308,13 @@ export function ReportsView() {
       title: 'School Form 8 (SF8)',
       desc: "Learner's Basic Health and Nutrition Report containing BMI and nutritional status.",
       iconClass: 'bg-emerald-100 text-emerald-600'
+    },
+    {
+      id: 'sf9',
+      title: 'School Form 9 (SF9)',
+      desc: "Learner's Progress Report Card containing quarterly/term grades and monthly attendance.",
+      iconClass: 'bg-rose-100 text-rose-600',
+      icon: Award
     }
   ];
 
@@ -290,7 +383,7 @@ export function ReportsView() {
                       </Select>
                     </div>
 
-                    {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' || report.id === 'sf8') && (
+                    {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' || report.id === 'sf8' || report.id === 'sf9') && (
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Section</label>
                         <Select 
@@ -298,25 +391,28 @@ export function ReportsView() {
                             report.id === 'sf1' ? sf1SectionId : 
                             report.id === 'sf2' ? sf2SectionId : 
                             report.id === 'sf5' ? sf5SectionId : 
+                            report.id === 'sf9' ? sf9SectionId : 
                             sf8SectionId
                           } 
                           onValueChange={
                             report.id === 'sf1' ? setSf1SectionId : 
                             report.id === 'sf2' ? setSf2SectionId : 
                             report.id === 'sf5' ? setSf5SectionId : 
+                            report.id === 'sf9' ? setSf9SectionId : 
                             setSf8SectionId
                           }
                         >
                           <SelectTrigger className="bg-slate-50 border-slate-200 rounded-xl">
-                            <SelectValue placeholder={report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' ? "Select Section" : "All Sections"}>
+                            <SelectValue placeholder={report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' || report.id === 'sf9' ? "Select Section" : "All Sections"}>
                               {(() => {
                                 const activeId = 
                                   report.id === 'sf1' ? sf1SectionId : 
                                   report.id === 'sf2' ? sf2SectionId : 
                                   report.id === 'sf5' ? sf5SectionId : 
+                                  report.id === 'sf9' ? sf9SectionId : 
                                   sf8SectionId;
                                 if (activeId === 'all') {
-                                  return report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' ? 'Select Section' : 'All Sections';
+                                  return report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' || report.id === 'sf9' ? 'Select Section' : 'All Sections';
                                 }
                                 const sec = sortedSections.find(s => s.id === activeId);
                                 return sec ? `${sec.gradeLevel} - ${sec.name}` : activeId;
@@ -331,25 +427,28 @@ export function ReportsView() {
                                   report.id === 'sf1' ? sf1SearchQuery : 
                                   report.id === 'sf2' ? sf2SearchQuery : 
                                   report.id === 'sf5' ? sf5SearchQuery : 
+                                  report.id === 'sf9' ? sf9SearchQuery : 
                                   sf8SearchQuery
                                 }
-                                onChange={(e) => {
+                                onChange={(e: any) => {
                                   if (report.id === 'sf1') setSf1SearchQuery(e.target.value);
                                   else if (report.id === 'sf2') setSf2SearchQuery(e.target.value);
                                   else if (report.id === 'sf5') setSf5SearchQuery(e.target.value);
+                                  else if (report.id === 'sf9') setSf9SearchQuery(e.target.value);
                                   else setSf8SearchQuery(e.target.value);
                                 }}
-                                onKeyDown={(e) => e.stopPropagation()}
+                                onKeyDown={(e: any) => e.stopPropagation()}
                                 className="h-8 text-sm"
                               />
                             </div>
-                            {report.id !== 'sf1' && report.id !== 'sf2' && report.id !== 'sf5' && <SelectItem value="all">All Sections</SelectItem>}
+                            {report.id !== 'sf1' && report.id !== 'sf2' && report.id !== 'sf5' && report.id !== 'sf9' && <SelectItem value="all">All Sections</SelectItem>}
                             {sortedSections
                               .filter(s => {
                                 const q = (
                                   (report.id === 'sf1' ? sf1SearchQuery : 
                                    report.id === 'sf2' ? sf2SearchQuery : 
                                    report.id === 'sf5' ? sf5SearchQuery : 
+                                   report.id === 'sf9' ? sf9SearchQuery : 
                                    sf8SearchQuery) || ''
                                 ).toLowerCase();
                                 return (s.name || '').toLowerCase().includes(q) || (s.gradeLevel || '').toLowerCase().includes(q);
@@ -362,6 +461,7 @@ export function ReportsView() {
                                 (report.id === 'sf1' ? sf1SearchQuery : 
                                  report.id === 'sf2' ? sf2SearchQuery : 
                                  report.id === 'sf5' ? sf5SearchQuery : 
+                                 report.id === 'sf9' ? sf9SearchQuery : 
                                  sf8SearchQuery) || ''
                               ).toLowerCase();
                               return (s.name || '').toLowerCase().includes(q) || (s.gradeLevel || '').toLowerCase().includes(q);
@@ -435,7 +535,7 @@ export function ReportsView() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                  {(report.id === 'sf1' || report.id === 'sf8') && (
+                  {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf4' || report.id === 'sf8' || report.id === 'sf9') && (
                     <Button
                       variant="outline"
                       className="flex-1 rounded-xl h-11 font-semibold transition-all bg-white border-slate-200 shadow-sm"
@@ -524,8 +624,8 @@ export function ReportsView() {
                         <Input
                           placeholder="Search section or grade..."
                           value={idCardSearchQuery}
-                          onChange={(e) => setIdCardSearchQuery(e.target.value)}
-                          onKeyDown={(e) => e.stopPropagation()}
+                          onChange={(e: any) => setIdCardSearchQuery(e.target.value)}
+                          onKeyDown={(e: any) => e.stopPropagation()}
                           className="h-8 text-sm"
                         />
                       </div>
@@ -589,8 +689,17 @@ export function ReportsView() {
       {viewingSF1 && (
         <SF1ReportDocument data={viewingSF1} onClose={() => setViewingSF1(null)} />
       )}
+      {viewingSF2 && (
+        <SF2ReportDocument data={viewingSF2} onClose={() => setViewingSF2(null)} />
+      )}
+      {viewingSF4 && (
+        <SF4ReportDocument data={viewingSF4} onClose={() => setViewingSF4(null)} />
+      )}
       {viewingSF8 && (
         <SF8ReportDocument data={viewingSF8} onClose={() => setViewingSF8(null)} />
+      )}
+      {viewingSF9 && (
+        <SF9ReportDocument data={viewingSF9} onClose={() => setViewingSF9(null)} />
       )}
       {idCardData && (
         <StudentIdCardDocument

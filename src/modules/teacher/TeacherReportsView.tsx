@@ -15,13 +15,15 @@ import { useTeacherData } from '../../lib/teacherData';
 import { generateAdminSF1, generateSF2, generateSF5, generateSF8, generateSF9 } from '../../lib/excelGenerator';
 import { useAuth } from '../../lib/AuthContext';
 import { SF1ReportDocument } from '../admin/SF1ReportDocument';
+import { SF2ReportDocument } from '../admin/SF2ReportDocument';
 import { SF8ReportDocument } from '../admin/SF8ReportDocument';
+import { SF9ReportDocument } from '../admin/SF9ReportDocument';
 import { ReportDataService } from '../../lib/services/reportDataService';
 import { HealthAnalyticsService } from '../../lib/services/healthAnalyticsService';
 import { getCurrentSchoolYear } from '../../lib/utils';
 
 export function TeacherReportsView() {
-  const { students, currentSection, currentGradeLevel, currentSectionName, academicYear: contextAcademicYear } = useTeacherData();
+  const { students, subjects, attendance, currentSection, currentGradeLevel, currentSectionName, academicYear: contextAcademicYear } = useTeacherData();
   const { userData } = useAuth();
   
   // Try context academicYear first, then fallback to current year
@@ -31,7 +33,9 @@ export function TeacherReportsView() {
   const [generating, setGenerating] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [viewingSF1, setViewingSF1] = useState<any | null>(null);
+  const [viewingSF2, setViewingSF2] = useState<any | null>(null);
   const [viewingSF8, setViewingSF8] = useState<any | null>(null);
+  const [viewingSF9, setViewingSF9] = useState<any | null>(null);
   const [viewingReportId, setViewingReportId] = useState<string | null>(null);
   const [sf2Month, setSf2Month] = useState<string>(new Date().toLocaleString('en-US', { month: 'long' }));
 
@@ -40,15 +44,9 @@ export function TeacherReportsView() {
   const handleGenerate = async (id: string) => {
     setGenerating(id);
     try {
+      const sectionStudents = students.filter(s => ['Enrolled', 'enrolled'].includes(s.status || '') && s.sectionId === currentSection);
       if (id === 'sf1') {
-        if (!currentSection) {
-          alert('Your assigned section has not loaded yet. Please wait a moment and try again.');
-          setGenerating(null);
-          return;
-        }
-        const gradeLvl = currentGradeLevel || '';
-        const sectId = currentSection;
-        const data = await ReportDataService.getSF1Data(academicYear, gradeLvl, sectId);
+        const data = await ReportDataService.getSF1Data(academicYear, currentGradeLevel || '', currentSection);
         await generateAdminSF1(data);
       } else if (id === 'sf2') {
         if (!currentSection) {
@@ -59,11 +57,11 @@ export function TeacherReportsView() {
         const data = await ReportDataService.getSF2Data(academicYear, currentSection, sf2Month);
         await generateSF2(data);
       } else if (id === 'sf5') {
-        await generateSF5(students, sectionDisplayName, academicYear);
+        await generateSF5(sectionStudents, sectionDisplayName, academicYear);
       } else if (id === 'sf8') {
-        await generateSF8(students, sectionDisplayName, academicYear);
+        await generateSF8(sectionStudents, sectionDisplayName, academicYear);
       } else if (id === 'sf9') {
-        await generateSF9(students, sectionDisplayName, academicYear);
+        await generateSF9(sectionStudents, sectionDisplayName, academicYear, attendance, subjects);
       }
       setSuccess(id);
       setTimeout(() => setSuccess(null), 3000);
@@ -88,6 +86,9 @@ export function TeacherReportsView() {
       if (id === 'sf1') {
         const data = await ReportDataService.getSF1Data(academicYear, gradeLvl, sectId);
         setViewingSF1(data);
+      } else if (id === 'sf2') {
+        const data = await ReportDataService.getSF2Data(academicYear, sectId, sf2Month);
+        setViewingSF2(data);
       } else if (id === 'sf8') {
         const learners = await HealthAnalyticsService.getHealthData(gradeLvl);
         const filteredLearners = learners.filter(l => l.sectionId === sectId);
@@ -96,6 +97,16 @@ export function TeacherReportsView() {
           gradeLevel: gradeLvl,
           section: sectionDisplayName,
           learners: filteredLearners
+        });
+      } else if (id === 'sf9') {
+        const sectionStudents = students.filter(s => ['Enrolled', 'enrolled'].includes(s.status || '') && s.sectionId === sectId);
+        setViewingSF9({
+          schoolYear: academicYear,
+          gradeLevel: gradeLvl,
+          section: sectionDisplayName,
+          students: sectionStudents,
+          attendance,
+          subjects
         });
       }
     } catch (error) {
@@ -205,7 +216,7 @@ export function TeacherReportsView() {
                     </div>
                   )}
                   <div className="flex flex-col sm:flex-row gap-2 mt-4">
-                    {(report.id === 'sf1' || report.id === 'sf8') && (
+                    {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf8' || report.id === 'sf9') && (
                       <Button
                         variant="outline"
                         className="flex-1 rounded-xl h-11 font-semibold transition-all bg-white border-slate-200 shadow-sm"
@@ -247,8 +258,14 @@ export function TeacherReportsView() {
       {viewingSF1 && (
         <SF1ReportDocument data={viewingSF1} onClose={() => setViewingSF1(null)} />
       )}
+      {viewingSF2 && (
+        <SF2ReportDocument data={viewingSF2} onClose={() => setViewingSF2(null)} />
+      )}
       {viewingSF8 && (
         <SF8ReportDocument data={viewingSF8} onClose={() => setViewingSF8(null)} />
+      )}
+      {viewingSF9 && (
+        <SF9ReportDocument data={viewingSF9} onClose={() => setViewingSF9(null)} />
       )}
     </div>
   );

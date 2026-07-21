@@ -14,9 +14,7 @@ export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
     <ReportLayout title="School Form 4 (SF4)" onClose={onClose} landscape>
       {/* DepEd Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="w-24 h-24 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs text-center p-2">
-          KAGAWARAN<br />NG<br />EDUKASYON
-        </div>
+        <img src="/kagawaran_ng_edukasyon.png" alt="Kagawaran ng Edukasyon Logo" className="w-24 h-24 object-contain" />
         <div className="text-center flex-1">
           <h1 className="font-bold text-xl mb-1">DEPARTMENT OF EDUCATION</h1>
           <h2 className="font-bold text-lg">School Form 4 (SF4) Monthly Learner's Movement and Attendance</h2>
@@ -45,7 +43,7 @@ export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
         <tbody>
           <tr>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">School ID:</td>
-            <td className="border border-black px-2 py-1 w-64">100011</td>
+            <td className="border border-black px-2 py-1 w-64">199006</td>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">Region:</td>
             <td className="border border-black px-2 py-1 w-64">IX</td>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">Division:</td>
@@ -53,7 +51,7 @@ export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
           </tr>
           <tr>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">School Name:</td>
-            <td className="border border-black px-2 py-1 font-bold">Sta. Maria Elementary School</td>
+            <td className="border border-black px-2 py-1 font-bold">Sta. Maria CS SPED Center</td>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">School Year:</td>
             <td className="border border-black px-2 py-1">{schoolYear}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">Report Month:</td>

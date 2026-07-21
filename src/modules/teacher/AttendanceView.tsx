@@ -57,7 +57,7 @@ export function AttendanceView() {
 
   const filteredEnrolled = React.useMemo(() => {
     return enrolled.filter((s) => {
-      const matchesSearch = searchQuery.trim() === '' || 
+      const matchesSearch = searchQuery.trim() === '' ||
         `${s.firstName} ${s.lastName} ${s.lrn}`.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesGender = genderFilter === 'All' || s.gender === genderFilter;
       return matchesSearch && matchesGender;
@@ -156,7 +156,7 @@ export function AttendanceView() {
     if (selectedDate !== todayDate) return;
 
     const now = new Date();
-    
+
     // AM Cutoff: 12:00 PM
     const amCutoff = new Date();
     amCutoff.setHours(12, 0, 0, 0);
@@ -168,7 +168,7 @@ export function AttendanceView() {
     const applyAMAutoAbsent = () => {
       const currentConfirmed = confirmedRef.current;
       const currentAttendance = localAttendanceRef.current;
-      
+
       const updatedConfirmed = { ...currentConfirmed };
       const updatedAttendance = { ...currentAttendance };
       let anyChanged = false;
@@ -177,14 +177,14 @@ export function AttendanceView() {
         const wasConfirmed = currentConfirmed[s.id] || { am: false, pm: false };
         if (!wasConfirmed.am) {
           updatedConfirmed[s.id] = { ...(updatedConfirmed[s.id] || { am: false, pm: false }), am: true };
-          
+
           const rec = currentAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
           const amVal = 'Absent';
           const pmVal = rec.pm;
-          
+
           updatedAttendance[s.id] = { am: amVal, pm: pmVal };
           anyChanged = true;
-          
+
           updateAttendance(s.id, selectedDate, amVal, pmVal).catch(err =>
             console.error("AM Auto-absent update failed for", s.id, err)
           );
@@ -201,7 +201,7 @@ export function AttendanceView() {
     const applyPMAutoAbsent = () => {
       const currentConfirmed = confirmedRef.current;
       const currentAttendance = localAttendanceRef.current;
-      
+
       const updatedConfirmed = { ...currentConfirmed };
       const updatedAttendance = { ...currentAttendance };
       let anyChanged = false;
@@ -210,14 +210,14 @@ export function AttendanceView() {
         const wasConfirmed = currentConfirmed[s.id] || { am: false, pm: false };
         if (!wasConfirmed.pm) {
           updatedConfirmed[s.id] = { ...(updatedConfirmed[s.id] || { am: false, pm: false }), pm: true };
-          
+
           const rec = currentAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
           const amVal = rec.am;
           const pmVal = 'Absent';
-          
+
           updatedAttendance[s.id] = { am: amVal, pm: pmVal };
           anyChanged = true;
-          
+
           updateAttendance(s.id, selectedDate, amVal, pmVal).catch(err =>
             console.error("PM Auto-absent update failed for", s.id, err)
           );
@@ -356,7 +356,7 @@ export function AttendanceView() {
         value={displayValue}
         onValueChange={async (v: string) => {
           const newStatus = v as 'Present' | 'Absent' | 'Late' | 'Unmarked';
-          
+
           if (newStatus === 'Unmarked') {
             setIsSaving(true);
             try {
@@ -369,7 +369,7 @@ export function AttendanceView() {
                 ...prev,
                 [studentId]: { ...(prev[studentId] || { am: false, pm: false }), [session]: false }
               }));
-              
+
               setLocalAttendance(prev => ({
                 ...prev,
                 [studentId]: { am: nextAM, pm: nextPM }
@@ -510,9 +510,8 @@ export function AttendanceView() {
             <div className="flex bg-slate-200/60 p-1.5 rounded-2xl w-full sm:w-64 border border-slate-200 relative shrink-0">
               <button
                 onClick={() => setActiveTab('am')}
-                className={`relative flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer select-none ${
-                  activeTab === 'am' ? 'text-primary' : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={`relative flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer select-none ${activeTab === 'am' ? 'text-primary' : 'text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 {activeTab === 'am' && (
                   <motion.div
@@ -528,9 +527,8 @@ export function AttendanceView() {
               </button>
               <button
                 onClick={() => setActiveTab('pm')}
-                className={`relative flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer select-none ${
-                  activeTab === 'pm' ? 'text-primary' : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={`relative flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer select-none ${activeTab === 'pm' ? 'text-primary' : 'text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 {activeTab === 'pm' && (
                   <motion.div

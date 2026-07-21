@@ -26,6 +26,7 @@ export type Student = {
   status: 'Enrolled' | 'Dropped' | 'Transferred' | 'Pending' | 'Rejected';
   enrollmentDate?: string;
   grades?: Record<string, number>;
+  observedValues?: Record<string, any>;
   medical?: {
     height: string;
     weight: string;
@@ -61,6 +62,7 @@ type TeacherContextType = {
   deleteAttendance: (studentId: string, date: string) => Promise<void>;
   updateStudentStatus: (id: string, status: 'Enrolled' | 'Rejected') => Promise<void>;
   updateStudentGrade: (id: string, subjectCode: string, quarter: string, grade: number | null) => Promise<void>;
+  updateStudentObservedValue: (id: string, statementKey: string, quarter: string, value: string | null) => Promise<void>;
   updateStudentBmi: (id: string, height: string, weight: string) => Promise<void>;
   loading: boolean;
   currentGradeLevel: string;
@@ -264,6 +266,37 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     await updateDoc(doc(db, 'enrollments', id), { grades });
   };
 
+  const updateStudentObservedValue = async (id: string, statementKey: string, quarter: string, value: string | null) => {
+    const student = students.find(s => s.id === id);
+    if (!student) return;
+
+    const existingObsValues = (student as any).observedValues || {};
+    const gradeKey = currentGradeLevel || 'Grade 6';
+    const gradeLevelValues = existingObsValues[gradeKey] || {};
+    const existingStatementValues = gradeLevelValues[statementKey] || {};
+
+    let updatedStatementValues = {};
+    if (typeof existingStatementValues === 'object' && existingStatementValues !== null) {
+      updatedStatementValues = { ...existingStatementValues };
+      if (value === null) {
+        delete (updatedStatementValues as any)[quarter];
+      } else {
+        (updatedStatementValues as any)[quarter] = value;
+      }
+    } else {
+      updatedStatementValues = value === null ? {} : { [quarter]: value };
+    }
+
+    const observedValues = {
+      ...existingObsValues,
+      [gradeKey]: {
+        ...gradeLevelValues,
+        [statementKey]: updatedStatementValues
+      }
+    };
+    await updateDoc(doc(db, 'enrollments', id), { observedValues });
+  };
+
   const updateStudentBmi = async (id: string, height: string, weight: string) => {
     const student = students.find(s => s.id === id);
     if (!student) return;
@@ -282,6 +315,7 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         deleteAttendance,
         updateStudentStatus,
         updateStudentGrade,
+        updateStudentObservedValue,
         updateStudentBmi,
         loading,
         currentGradeLevel,
