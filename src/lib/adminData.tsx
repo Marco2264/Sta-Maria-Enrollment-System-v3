@@ -69,6 +69,22 @@ export type Assignment = {
   classroomId: string;
   sectionId: string;
 };
+export type SubjectAssignment = {
+  id: string;
+  teacherId: string;
+  sectionId: string;
+  subjectCode: string;
+};
+export type Schedule = {
+  id: string;
+  teacherId: string;
+  subjectId: string;
+  sectionId: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  academicYear: string;
+};
 type AdminContextType = {
   schoolYear: SchoolYear | null;
   setSchoolYear: (sy: SchoolYear | null) => void;
@@ -91,6 +107,13 @@ type AdminContextType = {
   assignments: Assignment[];
   addAssignment: (a: Omit<Assignment, 'id'>) => Promise<void>;
   deleteAssignment: (id: string) => Promise<void>;
+  subjectAssignments: SubjectAssignment[];
+  addSubjectAssignment: (sa: Omit<SubjectAssignment, 'id'>) => Promise<void>;
+  deleteSubjectAssignment: (id: string) => Promise<void>;
+  schedules: Schedule[];
+  addSchedule: (s: Omit<Schedule, 'id'>) => Promise<void>;
+  updateSchedule: (id: string, updates: Partial<Schedule>) => Promise<void>;
+  deleteSchedule: (id: string) => Promise<void>;
   setupComplete: boolean;
   setSetupComplete: (val: boolean) => void;
   isSystemInitialized: boolean;
@@ -107,6 +130,8 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [subjectAssignments, setSubjectAssignments] = useState<SubjectAssignment[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [setupComplete, setSetupComplete] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
 
@@ -129,6 +154,14 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
 
     const unsubAssignments = onSnapshot(query(collection(db, 'assignments')), (snap) => {
       setAssignments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Assignment)));
+    });
+
+    const unsubSubjectAssignments = onSnapshot(query(collection(db, 'subjectAssignments')), (snap) => {
+      setSubjectAssignments(snap.docs.map(d => ({ id: d.id, ...d.data() } as SubjectAssignment)));
+    });
+
+    const unsubSchedules = onSnapshot(query(collection(db, 'schedules')), (snap) => {
+      setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as Schedule)));
     });
 
     const unsubSchoolYears = onSnapshot(query(collection(db, 'school_years')), (snap) => {
@@ -154,6 +187,8 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
       unsubSubjects();
       unsubUsers();
       unsubAssignments();
+      unsubSubjectAssignments();
+      unsubSchedules();
       unsubSchoolYears();
     };
   }, []);
@@ -191,6 +226,10 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
     const assignmentsToDelete = assignments.filter(a => a.sectionId === id);
     for (const a of assignmentsToDelete) {
       await deleteAssignment(a.id);
+    }
+    const subjAssignmentsToDelete = subjectAssignments.filter(a => a.sectionId === id);
+    for (const a of subjAssignmentsToDelete) {
+      await deleteSubjectAssignment(a.id);
     }
     await deleteDoc(doc(db, 'sections', id));
   };
@@ -231,6 +270,10 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
     for (const a of assignmentsToDelete) {
       await deleteAssignment(a.id);
     }
+    const subjAssignmentsToDelete = subjectAssignments.filter(a => a.teacherId === id);
+    for (const a of subjAssignmentsToDelete) {
+      await deleteSubjectAssignment(a.id);
+    }
     await deleteDoc(doc(db, 'users', id));
   };
 
@@ -240,6 +283,26 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
 
   const deleteAssignment = async (id: string) => {
     await deleteDoc(doc(db, 'assignments', id));
+  };
+
+  const addSubjectAssignment = async (sa: Omit<SubjectAssignment, 'id'>) => {
+    await addDoc(collection(db, 'subjectAssignments'), sa);
+  };
+
+  const deleteSubjectAssignment = async (id: string) => {
+    await deleteDoc(doc(db, 'subjectAssignments', id));
+  };
+
+  const addSchedule = async (s: Omit<Schedule, 'id'>) => {
+    await addDoc(collection(db, 'schedules'), s);
+  };
+
+  const updateSchedule = async (id: string, updates: Partial<Schedule>) => {
+    await updateDoc(doc(db, 'schedules', id), updates);
+  };
+
+  const deleteSchedule = async (id: string) => {
+    await deleteDoc(doc(db, 'schedules', id));
   };
 
   const isSubAdmin = normalizeRole(currentUserRole) === 'subadmin';
@@ -286,6 +349,13 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
       assignments,
       addAssignment,
       deleteAssignment,
+      subjectAssignments,
+      addSubjectAssignment,
+      deleteSubjectAssignment,
+      schedules,
+      addSchedule,
+      updateSchedule,
+      deleteSchedule,
       setupComplete,
       setSetupComplete,
       isSystemInitialized,

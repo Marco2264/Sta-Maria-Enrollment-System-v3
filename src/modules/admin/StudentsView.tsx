@@ -27,6 +27,12 @@ export function StudentsView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('All Statuses');
   const [gradeFilter, setGradeFilter] = useState<string>('All Grades');
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, gradeFilter]);
 
   useEffect(() => {
     // Fetch all enrollments
@@ -70,6 +76,9 @@ export function StudentsView() {
     return result;
   }, [students, searchQuery, statusFilter, gradeFilter]);
 
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const currentStudents = filteredStudents.slice((currentPage - 1) * studentsPerPage, currentPage * studentsPerPage);
+
   const handleEditClick = (student: any) => {
     setSelectedStudentId(student.id);
     setIsModalOpen(true);
@@ -109,11 +118,11 @@ export function StudentsView() {
           </div>
           
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <div className="relative w-full sm:w-96 group">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
               <Input 
                 placeholder="Search name or LRN..." 
-                className="pl-9 bg-white border border-slate-300 ring-2 ring-slate-100 shadow-sm w-full"
+                className="pl-10 h-11 rounded-xl bg-white border-2 border-slate-200/80 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/5 shadow-sm transition-all text-sm font-medium text-black w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -181,12 +190,13 @@ export function StudentsView() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudents.map((s, idx) => {
+                  currentStudents.map((s, idx) => {
                     const assignedSection = sections.find(sec => sec.id === s.sectionId);
+                    const globalIdx = (currentPage - 1) * studentsPerPage + idx + 1;
                     
                     return (
                       <TableRow key={s.id} className="border-b border-border/40 hover:bg-slate-50/50">
-                        <TableCell className="pl-6 text-slate-400 font-semibold">{idx + 1}</TableCell>
+                        <TableCell className="pl-6 text-slate-400 font-semibold">{globalIdx}</TableCell>
                         <TableCell className="font-medium text-slate-800">
                           {s.lastName}, {s.firstName} {s.middleName?.charAt(0)}.
                         </TableCell>
@@ -221,6 +231,37 @@ export function StudentsView() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          {/* Pagination Footer */}
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-slate-500">
+              Showing <strong className="text-slate-700">{Math.min((currentPage - 1) * studentsPerPage + 1, filteredStudents.length)}</strong> to <strong className="text-slate-700">{Math.min(currentPage * studentsPerPage, filteredStudents.length)}</strong> of <strong className="text-slate-700">{filteredStudents.length}</strong> students
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 rounded-lg"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-slate-600 font-medium px-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 rounded-lg"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
       </div>

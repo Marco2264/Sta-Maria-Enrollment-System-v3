@@ -183,8 +183,8 @@ export function SubjectsView() {
           </div>
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3" />
+          <div className="relative w-full sm:w-96 group">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             <Input
               type="text"
               placeholder="Search subjects..."
@@ -193,7 +193,7 @@ export function SubjectsView() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-8 border-none bg-transparent shadow-none pl-8 w-full text-sm focus-visible:ring-0"
+              className="pl-10 h-11 rounded-xl bg-white border-2 border-slate-200/80 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/5 shadow-sm transition-all text-sm font-medium text-black w-full"
             />
           </div>
           <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl">

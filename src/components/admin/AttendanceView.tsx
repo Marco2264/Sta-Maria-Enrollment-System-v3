@@ -143,55 +143,75 @@ export function AttendanceView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-6 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Attendance Records</h1>
-              <p className="text-muted-foreground mt-1 text-lg">View student attendance by grade and section</p>
+      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-primary">
+              <Users className="w-5 h-5" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Attendance Records</h1>
             </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="date"
-                max={todayDate}
-                value={selectedDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val > todayDate) {
-                    setSelectedDate(todayDate);
-                  } else {
-                    setSelectedDate(val);
-                  }
-                }}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </div>
+            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
+              View student attendance by grade and section
+            </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-700">Grade Level</label>
-              <Popover open={openGrade} onOpenChange={setOpenGrade}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openGrade}
-                    className="w-[200px] justify-between bg-background"
-                  >
-                    {selectedGrade === 'All' ? "All Grades" : selectedGrade}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search grade..." />
-                    <CommandList>
-                      <CommandEmpty>No grade found.</CommandEmpty>
-                      <CommandGroup>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            <input
+              type="date"
+              max={todayDate}
+              value={selectedDate}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val > todayDate) {
+                  setSelectedDate(todayDate);
+                } else {
+                  setSelectedDate(val);
+                }
+              }}
+              className="flex h-9 w-full sm:w-[150px] rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+            />
+            
+            <Popover open={openGrade} onOpenChange={setOpenGrade}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openGrade}
+                  className="w-full sm:w-[140px] h-9 rounded-xl border-slate-300 justify-between bg-white shadow-sm"
+                >
+                  {selectedGrade === 'All' ? "All Grades" : selectedGrade}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search grade..." />
+                  <CommandList>
+                    <CommandEmpty>No grade found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all"
+                        onSelect={() => {
+                          setSelectedGrade('All');
+                          setSelectedSection('All');
+                          setOpenGrade(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedGrade === 'All' ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        All Grades
+                      </CommandItem>
+                      {uniqueGrades.map(grade => (
                         <CommandItem
-                          value="all"
-                          onSelect={() => {
-                            setSelectedGrade('All');
+                          key={grade}
+                          value={grade}
+                          onSelect={(val) => {
+                            const matched = uniqueGrades.find(g => g.toLowerCase() === val) || grade;
+                            setSelectedGrade(matched);
                             setSelectedSection('All');
                             setOpenGrade(false);
                           }}
@@ -199,107 +219,84 @@ export function AttendanceView() {
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              selectedGrade === 'All' ? "opacity-100" : "opacity-0"
+                              selectedGrade === grade ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          All Grades
+                          {grade}
                         </CommandItem>
-                        {uniqueGrades.map(grade => (
-                          <CommandItem
-                            key={grade}
-                            value={grade}
-                            onSelect={(val) => {
-                              const matched = uniqueGrades.find(g => g.toLowerCase() === val) || grade;
-                              setSelectedGrade(matched);
-                              setSelectedSection('All');
-                              setOpenGrade(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedGrade === grade ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {grade}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-700">Section</label>
-              <Popover open={openSection} onOpenChange={setOpenSection}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openSection}
-                    disabled={selectedGrade === 'All'}
-                    className="w-[250px] justify-between bg-background"
-                  >
-                    {selectedSection === 'All' 
-                      ? "Select Section..." 
-                      : filteredSections.find(s => s.id === selectedSection)?.name || "Select Section..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search section..." />
-                    <CommandList>
-                      <CommandEmpty>No section found.</CommandEmpty>
-                      <CommandGroup>
+            <Popover open={openSection} onOpenChange={setOpenSection}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openSection}
+                  disabled={selectedGrade === 'All'}
+                  className="w-full sm:w-[180px] h-9 rounded-xl border-slate-300 justify-between bg-white shadow-sm"
+                >
+                  {selectedSection === 'All' 
+                    ? "Select Section..." 
+                    : filteredSections.find(s => s.id === selectedSection)?.name || "Select Section..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search section..." />
+                  <CommandList>
+                    <CommandEmpty>No section found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all"
+                        onSelect={() => {
+                          setSelectedSection('All');
+                          setOpenSection(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedSection === 'All' ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        Select Section...
+                      </CommandItem>
+                      {filteredSections.map(section => (
                         <CommandItem
-                          value="all"
-                          onSelect={() => {
-                            setSelectedSection('All');
+                          key={section.id}
+                          value={section.name}
+                          onSelect={(val) => {
+                            const matched = filteredSections.find(s => s.name.toLowerCase() === val) || section;
+                            setSelectedSection(matched.id);
                             setOpenSection(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              selectedSection === 'All' ? "opacity-100" : "opacity-0"
+                              selectedSection === section.id ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          Select Section...
+                          {section.name}
                         </CommandItem>
-                        {filteredSections.map(section => (
-                          <CommandItem
-                            key={section.id}
-                            value={section.name}
-                            onSelect={(val) => {
-                              const matched = filteredSections.find(s => s.name.toLowerCase() === val) || section;
-                              setSelectedSection(matched.id);
-                              setOpenSection(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedSection === section.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {section.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+        <div className="max-w-[1600px] mx-auto space-y-6 w-full">
           {selectedSection === 'All' ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />

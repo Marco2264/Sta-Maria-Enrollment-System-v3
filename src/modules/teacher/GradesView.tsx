@@ -33,7 +33,7 @@ import {
 import { useTeacherData } from '../../lib/teacherData';
 
 export function GradesView() {
-  const { students, subjects, updateStudentGrade, loading, currentGradeLevel, currentSectionName } = useTeacherData();
+  const { students, subjects, updateStudentGrade, loading, currentGradeLevel, currentSectionName, assignedSubjectCodes } = useTeacherData();
   const enrolled = useMemo(() => students.filter((s) => s.status === 'Enrolled'), [students]);
 
   const [selectedQuarter, setSelectedQuarter] = useState<'q1' | 'q2' | 'q3'>('q1');
@@ -44,6 +44,12 @@ export function GradesView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 15;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, genderFilter]);
 
   // Filter subjects strictly to match teacher's grade level
   const sectionSubjects = useMemo(() => {
@@ -173,6 +179,9 @@ export function GradesView() {
   const totalStudents = enrolled.length;
   const completedStudents = encodedCount;
   const completionRate = totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const currentStudents = filteredStudents.slice((currentPage - 1) * studentsPerPage, currentPage * studentsPerPage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50/80">
@@ -388,15 +397,16 @@ export function GradesView() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudents.map((s, idx) => {
+                  currentStudents.map((s, idx) => {
                     const isMale = s.gender === 'Male';
+                    const globalIdx = (currentPage - 1) * studentsPerPage + idx + 1;
                     return (
                       <TableRow
                         key={s.id}
                         className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors group"
                       >
                         <TableCell className="pl-6 py-3.5 text-slate-400 font-medium text-xs text-center">
-                          {idx + 1}
+                          {globalIdx}
                         </TableCell>
                         <TableCell className="pl-4 py-3.5">
                           <div className="flex items-center gap-3">
@@ -416,30 +426,40 @@ export function GradesView() {
                         </TableCell>
                         {sectionSubjects.map((sub) => {
                           const code = sub.code ?? sub.name;
+                          const isAuthorized = assignedSubjectCodes.includes(code);
                           return (
-                            <TableCell key={code} className="text-center px-2 py-3.5">
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                className="w-16 h-10 font-mono text-center mx-auto text-sm border-slate-200 hover:border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all rounded-lg shadow-sm bg-white"
-                                value={localGrades[s.id]?.[code] || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                                    if (parseFloat(val) > 100) return;
-                                    setLocalGrades({
-                                      ...localGrades,
-                                      [s.id]: {
-                                        ...localGrades[s.id],
-                                        [code]: val
+                                <TableCell key={code} className="text-center px-2 py-3.5">
+                                  <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    disabled={!isAuthorized}
+                                    className={`w-16 h-10 font-mono text-center mx-auto text-sm transition-all rounded-lg shadow-sm ${
+                                      isAuthorized 
+                                      ? 'border-slate-200 hover:border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white' 
+                                      : 'border-slate-100 bg-slate-50/50 text-slate-400 cursor-not-allowed opacity-70'
+                                    }`}
+                                    value={localGrades[s.id]?.[code] || ''}
+                                    onChange={(e) => {
+                                      if (!isAuthorized) return;
+                                      const val = e.target.value;
+                                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                        if (parseFloat(val) > 100) return;
+                                        setLocalGrades({
+                                          ...localGrades,
+                                          [s.id]: {
+                                            ...localGrades[s.id],
+                                            [code]: val
+                                          }
+                                        });
+                                        setSaved(false);
                                       }
-                                    });
-                                    setSaved(false);
-                                  }
-                                }}
-                                onBlur={() => handleBlur(s.id, code, localGrades[s.id]?.[code] || '')}
-                              />
-                            </TableCell>
+                                    }}
+                                    onBlur={() => {
+                                      if (isAuthorized) handleBlur(s.id, code, localGrades[s.id]?.[code] || '');
+                                    }}
+                                    title={!isAuthorized ? "You are not assigned to encode grades for this subject" : ""}
+                                  />
+                                </TableCell>
                           );
                         })}
                         <TableCell className="text-center pr-6 py-3.5">
@@ -456,17 +476,44 @@ export function GradesView() {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <UserCheck className="w-4 h-4" />
               <span>
-                <strong className="text-slate-700">{filteredStudents.length}</strong> students displayed
+                <strong className="text-slate-700">{filteredStudents.length}</strong> students total
               </span>
               <span className="w-px h-4 bg-slate-300" />
               <span>
                 <strong className="text-slate-700">{sectionSubjects.length}</strong> subjects
               </span>
             </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 rounded-lg"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-slate-600 font-medium px-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 rounded-lg"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <Clock className="w-3.5 h-3.5" />
               <span>Auto-save enabled</span>

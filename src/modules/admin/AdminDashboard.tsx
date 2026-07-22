@@ -28,6 +28,7 @@ import { SetupWizard } from '../../components/admin/SetupWizard';
 import { HealthDashboardView } from '../../components/admin/HealthDashboardView';
 import { StudentsView } from '../../components/admin/StudentsView';
 import { AttendanceView } from '../../components/admin/AttendanceView';
+import { SchedulesView } from '../../components/admin/SchedulesView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -60,6 +61,7 @@ function AdminDashboardContent() {
     { id: 'classrooms', label: 'Classrooms', icon: Home, category: 'Management' },
     { id: 'subjects', label: 'Subjects', icon: BookOpen, category: 'Management' },
     { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
+    { id: 'schedules', label: 'Faculty Teaching Load', icon: CalendarDays, category: 'Management' },
     { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
   ];
@@ -72,6 +74,7 @@ function AdminDashboardContent() {
       case 'classrooms': return <ClassroomsView />;
       case 'subjects': return <SubjectsView />;
       case 'attendance': return <AttendanceView />;
+      case 'schedules': return <SchedulesView />;
       case 'health': return <HealthDashboardView />;
       case 'reports': return <ReportsView />;
       default: return <DashboardView />;
@@ -153,11 +156,11 @@ function AdminDashboardContent() {
   );
 
   return (
-    <div className="flex h-screen w-full bg-muted/30 overflow-hidden font-sans">
-      <aside className="hidden lg:flex w-64 border-r border-border bg-card flex-col shrink-0">
+    <div className="flex h-screen w-full bg-slate-100 overflow-hidden font-sans p-3 sm:p-4 gap-4">
+      <aside className="hidden lg:flex w-64 border border-slate-200 rounded-2xl bg-white flex-col shrink-0 shadow-sm overflow-hidden relative">
         <SidebarContent />
       </aside>
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm relative">
         <header className="lg:hidden h-14 border-b border-border bg-card px-4 flex items-center justify-between shrink-0">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -177,7 +180,7 @@ function AdminDashboardContent() {
             {userData?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A'}
           </div>
         </header>
-        <div className="flex-1 overflow-hidden bg-muted/30">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {renderActiveView()}
         </div>
       </main>

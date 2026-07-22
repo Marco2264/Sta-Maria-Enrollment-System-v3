@@ -27,6 +27,7 @@ import { SetupWizard } from '../../components/admin/SetupWizard';
 import { HealthDashboardView } from '../../components/admin/HealthDashboardView';
 import { StudentsView } from '../../components/admin/StudentsView';
 import { AttendanceView } from '../../components/admin/AttendanceView';
+import { SchedulesView } from '../../components/admin/SchedulesView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -59,6 +60,7 @@ function AdminDashboardContent() {
     { id: 'classrooms', label: 'Classrooms', icon: Home, category: 'Management' },
     { id: 'subjects', label: 'Subjects', icon: BookOpen, category: 'Management' },
     { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
+    { id: 'schedules', label: 'Faculty Teaching Load', icon: CalendarDays, category: 'Management' },
     { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
   ];
@@ -71,6 +73,7 @@ function AdminDashboardContent() {
       case 'classrooms': return <ClassroomsView />;
       case 'subjects': return <SubjectsView />;
       case 'attendance': return <AttendanceView />;
+      case 'schedules': return <SchedulesView />;
       case 'health': return <HealthDashboardView />;
       case 'reports': return <ReportsView />;
       default: return <DashboardView />;

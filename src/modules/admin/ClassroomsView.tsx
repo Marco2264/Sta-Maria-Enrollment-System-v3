@@ -22,7 +22,7 @@ import {
   SelectValue
 } from
   '../../components/ui/Select';
-import { Plus, Home, Users, Edit, Trash2, UserMinus, Search, X } from 'lucide-react';
+import { Plus, Home, Users, Edit, Trash2, UserMinus, Search, X, BookOpen } from 'lucide-react';
 import { useAdminData, Classroom, Section } from '../../lib/adminData';
 import { getCurrentSchoolYear } from '../../lib/utils';
 import { cn } from '../../components/ui/utils';
@@ -35,6 +35,8 @@ export function ClassroomsView() {
     sections,
     users,
     assignments,
+    subjectAssignments,
+    subjects,
     addClassroom,
     updateClassroom,
     deleteClassroom,
@@ -43,6 +45,8 @@ export function ClassroomsView() {
     deleteSection,
     addAssignment,
     deleteAssignment,
+    addSubjectAssignment,
+    deleteSubjectAssignment,
     loading
   } = useAdminData();
 
@@ -81,6 +85,8 @@ export function ClassroomsView() {
   const [assignSearchQuery, setAssignSearchQuery] = useState('');
   const [classroomAssignSearchQuery, setClassroomAssignSearchQuery] = useState('');
   const [sectionAssignSearchQuery, setSectionAssignSearchQuery] = useState('');
+  const [isSubjectTeacherOpen, setIsSubjectTeacherOpen] = useState(false);
+  const [subjectTeacherSectionId, setSubjectTeacherSectionId] = useState<string | null>(null);
   const [addSectionClassroomSearchQuery, setAddSectionClassroomSearchQuery] = useState('');
   const [isEditClassroomOpen, setIsEditClassroomOpen] = useState(false);
   const [editingClassroom, setEditingClassroom] = useState<Classroom | null>(null);
@@ -263,27 +269,27 @@ export function ClassroomsView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-8 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
+      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Classrooms & Sections</h1>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Classrooms & Sections</h1>
+            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
               Manage physical classrooms, logical sections, and teacher assignments {selectedYear === 'All' ? 'across all academic years' : `for Academic Year ${selectedYear}`}.
             </p>
           </div>
 
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 w-full">
-            <div className="relative w-full lg:w-96 shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            <div className="relative w-full sm:w-96 shrink-0 group">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
               <Input
                 placeholder="Search classroom by name..."
-                className="pl-9 bg-white border-slate-200 w-full shadow-sm"
+                className="pl-10 h-11 rounded-xl bg-white border-2 border-slate-200/80 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/5 shadow-sm transition-all text-sm font-medium text-black w-full"
                 value={mainClassroomSearchQuery}
                 onChange={(e) => setMainClassroomSearchQuery(e.target.value)}
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto shrink-0">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto shrink-0">
               <div className="flex items-center bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl w-full sm:w-auto">
                 <Select value={selectedYear} onValueChange={(val) => setSelectedYear(val)}>
                   <SelectTrigger className="h-8 border-none bg-transparent shadow-none w-full sm:w-[130px] text-xs font-bold">
@@ -895,13 +901,69 @@ export function ClassroomsView() {
                 </DialogContent>
               </Dialog>
 
+              {/* Manage Subject Teachers Dialog */}
+              <Dialog open={isSubjectTeacherOpen} onOpenChange={setIsSubjectTeacherOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Manage Subject Teachers</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto pr-2">
+                    {(() => {
+                      if (!subjectTeacherSectionId) return null;
+                      const section = sections.find(s => s.id === subjectTeacherSectionId);
+                      if (!section) return null;
+                      const sectionGrade = (section.gradeLevel || '').replace(/Grade /i, '').trim();
+                      const sectionSubjects = subjects.filter(s => (s.gradeLevel || '').replace(/Grade /i, '').trim() === sectionGrade);
+                      
+                      if (sectionSubjects.length === 0) {
+                         return <p className="text-sm text-muted-foreground italic">No subjects configured for this grade level.</p>;
+                      }
+
+                      return sectionSubjects.map(sub => {
+                        const subCode = sub.code || sub.name;
+                        const currentAssignment = subjectAssignments.find(a => a.sectionId === section.id && a.subjectCode === subCode);
+                        return (
+                          <div key={sub.id} className="flex flex-col space-y-1.5 p-3 border border-slate-100 rounded-lg bg-slate-50/50">
+                            <Label className="text-xs font-bold text-slate-700">{sub.name} {sub.code ? `(${sub.code})` : ''}</Label>
+                            <Select 
+                              value={currentAssignment?.teacherId || 'remove'} 
+                              onValueChange={async (teacherId) => {
+                                if (teacherId === 'remove') {
+                                  if (currentAssignment) await deleteSubjectAssignment(currentAssignment.id);
+                                } else {
+                                  if (currentAssignment) {
+                                    if (currentAssignment.teacherId === teacherId) return;
+                                    await deleteSubjectAssignment(currentAssignment.id);
+                                  }
+                                  await addSubjectAssignment({ sectionId: section.id, subjectCode: subCode, teacherId });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs bg-white"><SelectValue placeholder="No Teacher Assigned" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="remove" className="text-rose-500 font-medium text-xs">No Teacher (Remove)</SelectItem>
+                                {teachers.map(t => (
+                                  <SelectItem key={t.id} value={t.id} className="text-xs">{t.firstName} {t.lastName}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={() => setIsSubjectTeacherOpen(false)}>Done</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
             </div>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {classrooms
             .filter(c => selectedYear === 'All' || c.academicYear === selectedYear)
@@ -1076,6 +1138,18 @@ export function ClassroomsView() {
                                 </Badge>
                               }
                             </div>
+                            
+                            <Button 
+                              variant="ghost" 
+                              className="w-full mt-2 h-7 text-[10px] uppercase font-bold text-slate-500 bg-slate-50 border border-slate-100 hover:bg-slate-100 hover:text-primary transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSubjectTeacherSectionId(section.id);
+                                setIsSubjectTeacherOpen(true);
+                              }}
+                            >
+                              <BookOpen className="w-3 h-3 mr-1.5" /> Manage Subject Teachers
+                            </Button>
                           </div>);
 
                       })

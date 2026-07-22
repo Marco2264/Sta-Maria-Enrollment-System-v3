@@ -24,6 +24,7 @@ import { AttendanceView } from '../../components/teacher/AttendanceView';
 import { GradesView } from '../../components/teacher/GradesView';
 import { TeacherReportsView } from '../../components/teacher/TeacherReportsView';
 import { ObservedValuesView } from '../../components/teacher/ObservedValuesView';
+import { MyScheduleView } from '../../components/teacher/MyScheduleView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -57,6 +58,7 @@ function TeacherDashboardContent() {
     { id: 'enrollments', label: 'Enrollments', icon: UserCheck, category: 'Classroom', badge: pendingCount > 0 ? pendingCount : undefined },
     { id: 'students', label: 'Students', icon: Users, category: 'Classroom' },
     { id: 'attendance', label: 'Attendance', icon: Calendar, category: 'Classroom' },
+    { id: 'schedule', label: 'My Schedule', icon: Calendar, category: 'Classroom' },
     { id: 'grades', label: 'Grades', icon: ClipboardList, category: 'Classroom' },
     { id: 'observed-values', label: 'Observed Values', icon: Heart, category: 'Classroom' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF5, SF8, SF9)', icon: FileText, category: 'Documents' }
@@ -68,6 +70,7 @@ function TeacherDashboardContent() {
       case 'enrollments': return <EnrollmentsView />;
       case 'students': return <StudentsView />;
       case 'attendance': return <AttendanceView />;
+      case 'schedule': return <MyScheduleView />;
       case 'grades': return <GradesView />;
       case 'observed-values': return <ObservedValuesView />;
       case 'reports': return <TeacherReportsView />;

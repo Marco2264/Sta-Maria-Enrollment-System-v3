@@ -25,6 +25,7 @@ import { AttendanceView } from '../../components/teacher/AttendanceView';
 import { GradesView } from '../../components/teacher/GradesView';
 import { TeacherReportsView } from '../../components/teacher/TeacherReportsView';
 import { ObservedValuesView } from '../../components/teacher/ObservedValuesView';
+import { MyScheduleView } from '../../components/teacher/MyScheduleView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -32,7 +33,7 @@ import { Heart } from 'lucide-react';
 
 function TeacherDashboardContent() {
   const navigate = useNavigate();
-  const { students } = useTeacherData();
+  const { students, assignedSections, currentSection, setCurrentSection } = useTeacherData();
   const { userData } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -58,6 +59,7 @@ function TeacherDashboardContent() {
     { id: 'enrollments', label: 'Enrollments', icon: UserCheck, category: 'Classroom', badge: pendingCount > 0 ? pendingCount : undefined },
     { id: 'students', label: 'Students', icon: Users, category: 'Classroom' },
     { id: 'attendance', label: 'Attendance', icon: Calendar, category: 'Classroom' },
+    { id: 'schedule', label: 'My Schedule', icon: Calendar, category: 'Classroom' },
     { id: 'grades', label: 'Grades', icon: ClipboardList, category: 'Classroom' },
     { id: 'observed-values', label: 'Observed Values', icon: Heart, category: 'Classroom' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF5, SF8, SF9)', icon: FileText, category: 'Documents' }
@@ -69,6 +71,7 @@ function TeacherDashboardContent() {
       case 'enrollments': return <EnrollmentsView />;
       case 'students': return <StudentsView />;
       case 'attendance': return <AttendanceView />;
+      case 'schedule': return <MyScheduleView />;
       case 'grades': return <GradesView />;
       case 'observed-values': return <ObservedValuesView />;
       case 'reports': return <TeacherReportsView />;
@@ -88,6 +91,28 @@ function TeacherDashboardContent() {
         </div>
         <ChevronDown className="w-4 h-4 text-muted-foreground hidden lg:block" />
       </div>
+
+      {assignedSections.length > 1 && (
+        <div className="px-6 py-4 border-b border-border bg-slate-50/50 shrink-0">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
+            Select Section
+          </label>
+          <div className="relative">
+            <select
+              value={currentSection}
+              onChange={(e) => setCurrentSection(e.target.value)}
+              className="w-full appearance-none pl-3 pr-8 py-2 text-sm font-medium rounded-md border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-700"
+            >
+              {assignedSections.map(s => (
+                <option key={s.sectionId} value={s.sectionId}>
+                  {s.gradeLevel} - {s.name} ({s.isAdvisor ? 'Adviser' : 'Subject'})
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
         {['Home', 'Classroom', 'Documents'].map((category) => (
@@ -146,11 +171,11 @@ function TeacherDashboardContent() {
   );
 
   return (
-    <div className="flex h-screen w-full bg-muted/30 overflow-hidden font-sans">
-      <aside className="hidden lg:flex w-64 border-r border-border bg-card flex-col shrink-0">
+    <div className="flex h-screen w-full bg-slate-100 overflow-hidden font-sans p-3 sm:p-4 gap-4">
+      <aside className="hidden lg:flex w-64 border border-slate-200 rounded-2xl bg-white flex-col shrink-0 shadow-sm overflow-hidden relative">
         <SidebarContent />
       </aside>
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm relative">
         <header className="lg:hidden h-14 border-b border-border bg-card px-4 flex items-center justify-between shrink-0">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -168,7 +193,7 @@ function TeacherDashboardContent() {
           </div>
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs shrink-0">{initials}</div>
         </header>
-        <div className="flex-1 overflow-hidden bg-muted/30">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {renderActiveView()}
         </div>
       </main>

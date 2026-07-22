@@ -430,18 +430,18 @@ export function UsersView() {
   };
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-8 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-2">
+      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+          <div className="space-y-1">
             <div className="flex items-center gap-2 text-primary">
-              <Users className="w-6 h-6" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">System Users</h1>
+              <Users className="w-5 h-5" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">System Users</h1>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed">
+            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
               Manage and monitor all school personnel and parent accounts across the system.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full lg:w-auto">
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full sm:w-auto rounded-xl px-6 bg-primary shadow-sm hover:bg-primary/90 font-semibold transition-all">
@@ -562,7 +562,7 @@ export function UsersView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1600px] mx-auto w-full">
         {/* Header & Stats Section */}
         <div className="space-y-8">
 

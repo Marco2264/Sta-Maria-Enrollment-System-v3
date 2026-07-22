@@ -48,14 +48,14 @@ export function HealthDashboardView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-8 border-b border-border bg-gradient-to-r from-emerald-500/5 via-emerald-500/10 to-transparent shrink-0">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-2">
+      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-emerald-500/5 via-emerald-500/10 to-transparent shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+          <div className="space-y-1">
             <div className="flex items-center gap-2 text-emerald-600">
-              <Heart className="w-6 h-6" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Health & Nutrition</h1>
+              <Heart className="w-5 h-5" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Health & Nutrition</h1>
             </div>
-            <p className="text-sm text-slate-600 max-w-xl leading-relaxed">
+            <p className="text-sm text-slate-600 max-w-xl leading-relaxed hidden sm:block">
               Monitor student nutritional status, BMI trends, and manage feeding program eligibility based on DepEd standards.
             </p>
           </div>
@@ -71,7 +71,7 @@ export function HealthDashboardView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1600px] mx-auto w-full">
         {/* KPI Cards */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200/50 p-6 rounded-2xl shadow-sm relative overflow-hidden">

@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, ReactNode, useEffect } from 'react';
+import React, { useState, createContext, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { db } from './firebase';
 import { 
   collection, 
@@ -53,11 +53,23 @@ export type TeacherSubject = {
   academicYear?: string;
 };
 
+export type AssignedSection = {
+  sectionId: string;
+  isAdvisor: boolean;
+  subjectCodes: string[];
+  name?: string;
+  gradeLevel?: string;
+};
+
 type TeacherContextType = {
   students: Student[];
   subjects: TeacherSubject[];
   attendance: AttendanceEntry[];
   currentSection: string;
+  setCurrentSection: (sectionId: string) => void;
+  assignedSections: AssignedSection[];
+  isAdvisorForCurrentSection: boolean;
+  assignedSubjectCodes: string[];
   updateAttendance: (studentId: string, date: string, amStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked', pmStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked') => Promise<void>;
   deleteAttendance: (studentId: string, date: string) => Promise<void>;
   updateStudentStatus: (id: string, status: 'Enrolled' | 'Rejected') => Promise<void>;
@@ -83,54 +95,126 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
   const [academicYear, setAcademicYear] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const [advisorAssignments, setAdvisorAssignments] = useState<any[]>([]);
+  const [subjectAssignments, setSubjectAssignments] = useState<any[]>([]);
+
+  // 1. Fetch Assignments
   useEffect(() => {
     if (!user) {
+      setAdvisorAssignments([]);
+      setSubjectAssignments([]);
+      return;
+    }
+    const qAssign = query(collection(db, 'assignments'), where('teacherId', '==', user.uid));
+    const unsubAssign = onSnapshot(qAssign, (snap) => {
+      setAdvisorAssignments(snap.docs.map(d => d.data()));
+    });
+    
+    const qSubjAssign = query(collection(db, 'subjectAssignments'), where('teacherId', '==', user.uid));
+    const unsubSubjAssign = onSnapshot(qSubjAssign, (snap) => {
+      setSubjectAssignments(snap.docs.map(d => d.data()));
+    });
+
+    return () => {
+      unsubAssign();
+      unsubSubjAssign();
+    };
+  }, [user]);
+
+  const [assignedSections, setAssignedSections] = useState<AssignedSection[]>([]);
+
+  // 2. Compute assignedSections (basic)
+  useEffect(() => {
+    const map = new Map<string, AssignedSection>();
+    advisorAssignments.forEach(a => {
+      map.set(a.sectionId, { sectionId: a.sectionId, isAdvisor: true, subjectCodes: [] });
+    });
+    subjectAssignments.forEach(sa => {
+      if (map.has(sa.sectionId)) {
+        const existing = map.get(sa.sectionId)!;
+        if (!existing.subjectCodes.includes(sa.subjectCode)) {
+           existing.subjectCodes.push(sa.subjectCode);
+        }
+      } else {
+        map.set(sa.sectionId, { sectionId: sa.sectionId, isAdvisor: false, subjectCodes: [sa.subjectCode] });
+      }
+    });
+    
+    const basicSections = Array.from(map.values());
+    
+    // Fetch names for these sections
+    if (basicSections.length === 0) {
+      setAssignedSections([]);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchNames = async () => {
+      const enriched = await Promise.all(basicSections.map(async (sec) => {
+        try {
+          const snap = await getDoc(doc(db, 'sections', sec.sectionId));
+          if (snap.exists()) {
+            return {
+              ...sec,
+              name: snap.data().name || snap.data().sectionName || 'Unnamed Section',
+              gradeLevel: snap.data().gradeLevel || 'Unknown Grade'
+            };
+          }
+        } catch(e) {}
+        return { ...sec, name: 'Unknown', gradeLevel: '' };
+      }));
+      if (isMounted) {
+        setAssignedSections(enriched);
+      }
+    };
+    fetchNames();
+
+    return () => { isMounted = false; };
+  }, [advisorAssignments, subjectAssignments]);
+
+  // 3. Auto-select current section
+  useEffect(() => {
+    if (assignedSections.length > 0) {
+      if (!currentSection || !assignedSections.some(s => s.sectionId === currentSection)) {
+        setCurrentSection(assignedSections[0].sectionId);
+      }
+    } else {
+      setCurrentSection('');
+    }
+  }, [assignedSections, currentSection]);
+
+  const currentSectionData = useMemo(() => {
+     return assignedSections.find(s => s.sectionId === currentSection) || { sectionId: '', isAdvisor: false, subjectCodes: [] };
+  }, [assignedSections, currentSection]);
+
+  // 4. Load current section details
+  useEffect(() => {
+    if (!currentSection) {
       setStudents([]);
       setAttendance([]);
-      setCurrentSection('');
       setCurrentGradeLevel('');
+      setCurrentSectionName('');
+      setAcademicYear('');
+      setSubjects([]);
       setLoading(false);
       return;
     }
 
-    // Track all inner unsub functions so they can be properly cleaned up
-    let unsubPending: () => void = () => { /* no-op */ };
-    let unsubEnrolled: () => void = () => { /* no-op */ };
-    let unsubAttendance: () => void = () => { /* no-op */ };
-    let unsubSubjects: () => void = () => { /* no-op */ };
+    setLoading(true);
+    let unsubPending = () => {};
+    let unsubEnrolled = () => {};
+    let unsubAttendance = () => {};
+    let unsubSubjects = () => {};
     let cancelled = false;
 
-    // 1. Get Teacher's Assignment
-    const qAssign = query(collection(db, 'assignments'), where('teacherId', '==', user.uid));
-    const unsubAssign = onSnapshot(qAssign, async (snap) => {
-      // Clean up previous inner listeners before setting up new ones
-      unsubPending();
-      unsubEnrolled();
-      unsubAttendance();
-      unsubSubjects();
-
-      if (snap.empty) {
-        setStudents([]);
-        setAttendance([]);
-        setCurrentSection('');
-        setCurrentGradeLevel('');
-        setCurrentSectionName('');
-        setAcademicYear('');
-        setLoading(false);
-        return;
-      }
-
-      const assign = snap.docs[0].data();
-      const sectionId = assign.sectionId;
-      setCurrentSection(sectionId);
-
-      // 2. Get section gradeLevel
+    const loadData = async () => {
       try {
-        const secSnap = await getDoc(doc(db, 'sections', sectionId));
+        const secSnap = await getDoc(doc(db, 'sections', currentSection));
         if (cancelled || !secSnap.exists()) {
           setLoading(false);
           return;
         }
+        
         const gradeLevel = secSnap.data().gradeLevel;
         const sName = secSnap.data().name || secSnap.data().sectionName || '';
         const aYear = secSnap.data().schoolYear || '';
@@ -142,7 +226,6 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         let pendingStudents: Student[] = [];
         let enrolledStudents: Student[] = [];
 
-        // 3a. Pending students for this gradeLevel
         const normalizedGradeLevel = gradeLevel ? gradeLevel.replace(/Grade /i, '').trim() : '';
         const qPending = query(
           collection(db, 'enrollments'),
@@ -154,10 +237,9 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
           setStudents([...pendingStudents, ...enrolledStudents]);
         });
 
-        // 3b. Enrolled students for this sectionId
         const qEnrolled = query(
           collection(db, 'enrollments'),
-          where('sectionId', '==', sectionId),
+          where('sectionId', '==', currentSection),
           where('status', 'in', ['Enrolled', 'Dropped', 'Transferred'])
         );
         unsubEnrolled = onSnapshot(qEnrolled, (sSnap) => {
@@ -165,13 +247,11 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
           setStudents([...pendingStudents, ...enrolledStudents]);
         });
 
-        // 4. Attendance for this section
-        const qAttendance = query(collection(db, 'attendance'), where('sectionId', '==', sectionId));
+        const qAttendance = query(collection(db, 'attendance'), where('sectionId', '==', currentSection));
         unsubAttendance = onSnapshot(qAttendance, (aSnap) => {
           setAttendance(aSnap.docs.map(d => ({ id: d.id, ...d.data() } as AttendanceEntry)));
         });
 
-        // 5. All subjects
         unsubSubjects = onSnapshot(query(collection(db, 'subjects')), (sSnap) => {
           setSubjects(sSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherSubject)));
         });
@@ -181,20 +261,17 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         console.error('[teacherData] Error fetching section:', err);
         setLoading(false);
       }
-    }, (err) => {
-      console.error('[teacherData] Assignment listener error:', err);
-      setLoading(false);
-    });
+    };
+    loadData();
 
     return () => {
       cancelled = true;
-      unsubAssign();
       unsubPending();
       unsubEnrolled();
       unsubAttendance();
       unsubSubjects();
     };
-  }, [user]);
+  }, [currentSection]);
 
   const updateAttendance = async (studentId: string, date: string, amStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked', pmStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked') => {
     if (!currentSection) return;
@@ -311,6 +388,10 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         subjects,
         attendance,
         currentSection,
+        setCurrentSection,
+        assignedSections,
+        isAdvisorForCurrentSection: currentSectionData.isAdvisor,
+        assignedSubjectCodes: currentSectionData.subjectCodes,
         updateAttendance,
         deleteAttendance,
         updateStudentStatus,

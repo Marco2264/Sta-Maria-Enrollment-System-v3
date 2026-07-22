@@ -27,6 +27,12 @@ export function StudentsView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('All Statuses');
   const [gradeFilter, setGradeFilter] = useState<string>('All Grades');
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, gradeFilter]);
 
   useEffect(() => {
     // Fetch all enrollments
@@ -70,6 +76,9 @@ export function StudentsView() {
     return result;
   }, [students, searchQuery, statusFilter, gradeFilter]);
 
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const currentStudents = filteredStudents.slice((currentPage - 1) * studentsPerPage, currentPage * studentsPerPage);
+
   const handleEditClick = (student: any) => {
     setSelectedStudentId(student.id);
     setIsModalOpen(true);
@@ -96,32 +105,32 @@ export function StudentsView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-6 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-2">
+      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+          <div className="space-y-1">
             <div className="flex items-center gap-2 text-primary">
-              <GraduationCap className="w-6 h-6" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Students Management</h1>
+              <GraduationCap className="w-5 h-5" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Students Management</h1>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed">
+            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
               View and manage all student enrollments, edit information, and transfer sections.
             </p>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
-            <div className="relative w-full sm:max-w-md">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input 
                 placeholder="Search name or LRN..." 
-                className="pl-9 bg-white border border-slate-300 ring-2 ring-slate-100 shadow-sm w-full"
+                className="pl-9 bg-white border border-slate-300 ring-2 ring-slate-100 shadow-sm w-full h-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Select value={gradeFilter} onValueChange={setGradeFilter}>
-                <SelectTrigger className="w-full sm:w-[150px] bg-white border border-slate-300 shadow-sm">
+                <SelectTrigger className="w-full sm:w-[130px] bg-white border border-slate-300 shadow-sm h-9">
                   <SelectValue placeholder="Grade Level" />
                 </SelectTrigger>
                 <SelectContent>
@@ -133,7 +142,7 @@ export function StudentsView() {
               </Select>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[150px] bg-white border border-slate-300 shadow-sm">
+                <SelectTrigger className="w-full sm:w-[130px] bg-white border border-slate-300 shadow-sm h-9">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -147,7 +156,7 @@ export function StudentsView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1600px] mx-auto w-full">
         <Card className="bg-white border-border rounded-2xl overflow-hidden shadow-md">
           <div className="p-5 border-b border-border flex items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-2 text-slate-800">
@@ -181,12 +190,13 @@ export function StudentsView() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudents.map((s, idx) => {
+                  currentStudents.map((s, idx) => {
                     const assignedSection = sections.find(sec => sec.id === s.sectionId);
+                    const globalIdx = (currentPage - 1) * studentsPerPage + idx + 1;
                     
                     return (
                       <TableRow key={s.id} className="border-b border-border/40 hover:bg-slate-50/50">
-                        <TableCell className="pl-6 text-slate-400 font-semibold">{idx + 1}</TableCell>
+                        <TableCell className="pl-6 text-slate-400 font-semibold">{globalIdx}</TableCell>
                         <TableCell className="font-medium text-slate-800">
                           {s.lastName}, {s.firstName} {s.middleName?.charAt(0)}.
                         </TableCell>
@@ -221,6 +231,37 @@ export function StudentsView() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          {/* Pagination Footer */}
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-slate-500">
+              Showing <strong className="text-slate-700">{Math.min((currentPage - 1) * studentsPerPage + 1, filteredStudents.length)}</strong> to <strong className="text-slate-700">{Math.min(currentPage * studentsPerPage, filteredStudents.length)}</strong> of <strong className="text-slate-700">{filteredStudents.length}</strong> students
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 rounded-lg"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-slate-600 font-medium px-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 rounded-lg"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
       </div>
