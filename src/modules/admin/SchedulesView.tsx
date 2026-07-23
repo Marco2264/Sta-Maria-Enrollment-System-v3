@@ -3,6 +3,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '../../components/ui/Select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/Dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
 import { Label } from '../../components/ui/Label';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
@@ -11,6 +12,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAdminData } from '../../lib/adminData';
 import { getCurrentSchoolYear } from '../../lib/utils';
+import toast from 'react-hot-toast';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -28,6 +30,12 @@ const isOverlapping = (start1: string, end1: string, start2: string, end2: strin
   return s1 < e2 && s2 < e1;
 };
 
+const formatGradeLevel = (gl: any) => {
+  if (gl === 'undefined' || !gl) return 'Unassigned Grade';
+  if (!gl.toString().startsWith('Grade')) return `Grade ${gl}`;
+  return gl.toString();
+};
+
 export function SchedulesView() {
   const { users, subjects, sections, schedules, addSchedule, updateSchedule, deleteSchedule, schoolYear, batchAddSchedules, clearSchedulesForYear } = useAdminData();
   const syName = schoolYear?.name ?? getCurrentSchoolYear();
@@ -38,6 +46,12 @@ export function SchedulesView() {
   const itemsPerPage = 10;
   
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const [activeTab, setActiveTab] = useState('teachers');
+  const [selectedSectionScheduleId, setSelectedSectionScheduleId] = useState<string | null>(null);
+  const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
+  const [confirmGenerate, setConfirmGenerate] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleDownloadAllPDF = () => {
     const doc = new jsPDF();
@@ -92,11 +106,12 @@ export function SchedulesView() {
     doc.save(`Faculty_Teaching_Load_${syName}.pdf`);
   };
 
-  const handleAutoGenerateSchedules = async () => {
-    if (!window.confirm(`This will clear ALL existing schedules for Academic Year ${syName} and auto-generate new ones. Are you sure you want to proceed?`)) {
-      return;
-    }
-    
+  const handleAutoGenerateSchedules = () => {
+    setConfirmGenerate(true);
+  };
+
+  const executeAutoGenerate = async () => {
+    setConfirmGenerate(false);
     setIsGenerating(true);
     setError('');
 
@@ -347,14 +362,61 @@ export function SchedulesView() {
       return;
     }
 
-    // Check conflicts
-    const hasConflict = scheduleForm.daysOfWeek.some(day => {
+    // Check Teacher conflicts
+    const hasTeacherConflict = scheduleForm.daysOfWeek.some(day => {
       const daySchedules = teacherSchedules.filter(s => s.dayOfWeek === day && s.id !== editingScheduleId);
       return daySchedules.some(s => isOverlapping(scheduleForm.startTime, scheduleForm.endTime, s.startTime, s.endTime));
     });
 
-    if (hasConflict) {
+    if (hasTeacherConflict) {
       setError('This schedule overlaps with an existing schedule for this teacher on one or more selected days.');
+      return;
+    }
+
+    // Check Section conflicts
+    const hasSectionConflict = scheduleForm.daysOfWeek.some(day => {
+      const sectionDaySchedules = schedules.filter(s => 
+        s.sectionId === scheduleForm.sectionId && 
+        s.academicYear === syName && 
+        s.dayOfWeek === day && 
+        s.id !== editingScheduleId
+      );
+      return sectionDaySchedules.some(s => isOverlapping(scheduleForm.startTime, scheduleForm.endTime, s.startTime, s.endTime));
+    });
+
+    if (hasSectionConflict) {
+      setError('The selected section already has a class scheduled during this time slot on one or more selected days.');
+      return;
+    }
+
+    // Check Subject Duplicate per Day
+    const hasSubjectDuplicatePerDay = scheduleForm.daysOfWeek.some(day => {
+      return schedules.some(s => 
+        s.sectionId === scheduleForm.sectionId &&
+        s.subjectId === scheduleForm.subjectId &&
+        s.academicYear === syName &&
+        s.dayOfWeek === day &&
+        s.id !== editingScheduleId
+      );
+    });
+
+    if (hasSubjectDuplicatePerDay) {
+      setError('This section already has this subject scheduled on one or more of the selected days. A section can only have a subject once per day.');
+      return;
+    }
+
+    // Check Teacher consistency for Subject/Section
+    const existingSubjectSchedules = schedules.filter(s => 
+      s.sectionId === scheduleForm.sectionId &&
+      s.subjectId === scheduleForm.subjectId &&
+      s.academicYear === syName &&
+      s.id !== editingScheduleId
+    );
+    
+    const hasDifferentTeacher = existingSubjectSchedules.some(s => s.teacherId !== selectedTeacherId);
+    
+    if (hasDifferentTeacher) {
+      setError('This subject is already assigned to a different teacher for this section. Only one teacher can teach a specific subject per section.');
       return;
     }
 
@@ -388,14 +450,20 @@ export function SchedulesView() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to remove this schedule entry?')) {
-      try {
-        await deleteSchedule(id);
-        if (editingScheduleId === id) resetForm();
-      } catch (err) {
-        console.error('Error deleting schedule:', err);
-      }
+  const handleDelete = (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const executeDelete = async (id: string) => {
+    try {
+      await deleteSchedule(id);
+      if (editingScheduleId === id) resetForm();
+      toast.success('Schedule deleted successfully');
+    } catch (err) {
+      console.error('Error deleting schedule:', err);
+      toast.error('Failed to delete schedule');
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -443,7 +511,14 @@ export function SchedulesView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full">
+        <Tabs defaultValue="teachers" value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+          <TabsList className="bg-slate-200/50 p-1 rounded-xl inline-flex h-11 items-center justify-center">
+            <TabsTrigger value="teachers" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-semibold transition-all">Teachers</TabsTrigger>
+            <TabsTrigger value="sections" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-semibold transition-all">Section Schedules</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="teachers" className="space-y-6 outline-none">
         <Card className="bg-white border-slate-200/60 shadow-sm rounded-3xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -538,7 +613,152 @@ export function SchedulesView() {
             </div>
           )}
         </Card>
+          </TabsContent>
+
+          <TabsContent value="sections" className="space-y-8 outline-none pb-8">
+            {(() => {
+              const groupedSectionsForView = sections.reduce((acc, section) => {
+                const gl = formatGradeLevel(section.gradeLevel);
+                if (!acc[gl]) acc[gl] = [];
+                acc[gl].push(section);
+                return acc;
+              }, {} as Record<string, typeof sections>);
+              
+              const sortedGrades = Object.keys(groupedSectionsForView).sort((a, b) => {
+                const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
+                const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
+                if (numA === numB) return a.localeCompare(b);
+                return numA - numB;
+              });
+
+              if (sortedGrades.length === 0) {
+                return (
+                  <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-3xl shadow-sm">
+                    <CalendarClock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium">No sections available.</p>
+                  </div>
+                );
+              }
+
+              return sortedGrades.map(grade => (
+                <section key={grade} className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px bg-slate-200 flex-1"></div>
+                    <h3 className="font-bold text-slate-800 text-lg px-2 text-primary">{grade}</h3>
+                    <div className="h-px bg-slate-200 flex-1"></div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {groupedSectionsForView[grade].map(section => {
+                      const sectionSchedules = schedules.filter(s => s.sectionId === section.id && s.academicYear === syName);
+                      return (
+                        <div 
+                          key={section.id}
+                          onClick={() => {
+                            setSelectedSectionScheduleId(section.id);
+                            setIsSectionModalOpen(true);
+                          }}
+                          className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-bold text-slate-900 group-hover:text-primary transition-colors">{section.name}</h4>
+                            <Badge variant="outline" className={sectionSchedules.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-500"}>
+                              {sectionSchedules.length}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-500 line-clamp-2">
+                            {sectionSchedules.length === 0 ? 'No schedules assigned.' : 'Click to view class schedule.'}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ));
+            })()}
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Section Schedule View Modal */}
+      <Dialog open={isSectionModalOpen} onOpenChange={setIsSectionModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 py-5 border-b border-slate-100 bg-slate-50/80 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold border border-primary/20 shadow-inner">
+                <CalendarClock className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-900">
+                  Class Schedule
+                </DialogTitle>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {(() => {
+                    const sec = sections.find(s => s.id === selectedSectionScheduleId);
+                    return sec ? `${formatGradeLevel(sec.gradeLevel)} - ${sec.name}` : 'Unknown Section';
+                  })()}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 custom-scrollbar">
+            <div className="space-y-6">
+              {(() => {
+                const secSchedules = schedules.filter(s => s.sectionId === selectedSectionScheduleId && s.academicYear === syName);
+                if (secSchedules.length === 0) {
+                  return (
+                    <div className="text-center py-10 bg-white border border-dashed border-slate-200 rounded-2xl">
+                      <p className="text-sm font-medium text-slate-500">No classes scheduled for this section.</p>
+                    </div>
+                  );
+                }
+
+                const grouped = secSchedules.reduce((acc, schedule) => {
+                  if (!acc[schedule.dayOfWeek]) acc[schedule.dayOfWeek] = [];
+                  acc[schedule.dayOfWeek].push(schedule);
+                  return acc;
+                }, {} as Record<string, typeof secSchedules>);
+                
+                const sortedDays = Object.keys(grouped).sort((a, b) => DAYS_OF_WEEK.indexOf(a) - DAYS_OF_WEEK.indexOf(b));
+                
+                return sortedDays.map(day => (
+                  <div key={day} className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary/40"></div>
+                      {day}
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {grouped[day].sort((a, b) => a.startTime.localeCompare(b.startTime)).map(schedule => {
+                        const subject = subjects.find(s => s.id === schedule.subjectId);
+                        const teacher = users.find(u => u.id === schedule.teacherId);
+                        return (
+                          <div key={schedule.id} className="p-3.5 rounded-xl border bg-white border-slate-200 shadow-sm flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5 text-primary font-bold text-xs bg-primary/5 px-2 py-1 rounded-md border border-primary/10 w-fit">
+                              <Clock className="w-3.5 h-3.5" />
+                              {schedule.startTime} - {schedule.endTime}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900 leading-snug mb-1 text-sm line-clamp-1">{subject?.name || 'Unknown Subject'}</p>
+                              <p className="text-xs font-semibold text-slate-500 truncate">
+                                Teacher: {teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Unknown'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+          
+          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white shrink-0">
+            <Button variant="outline" onClick={() => setIsSectionModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Manage Schedule Modal */}
       <Dialog open={isModalOpen} onOpenChange={(open) => {
@@ -548,7 +768,7 @@ export function SchedulesView() {
           resetForm();
         }
       }}>
-        <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="w-[95vw] sm:max-w-[1000px] h-[90vh] sm:h-[800px] overflow-hidden flex flex-col p-0">
           <DialogHeader className="px-6 py-5 border-b border-slate-100 bg-slate-50/80 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border border-primary/20 shadow-inner">
@@ -568,7 +788,7 @@ export function SchedulesView() {
           <div className="flex-1 overflow-hidden p-6 bg-slate-50/50">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.2fr,1fr] gap-6 h-full">
               {/* Form Section */}
-              <div className="overflow-y-auto pr-1 h-full custom-scrollbar">
+              <div className="overflow-y-auto overflow-x-hidden pr-1 h-full custom-scrollbar">
                 <section className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
               <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                 {editingScheduleId ? <><Edit2 className="w-4 h-4 text-primary" /> Edit Schedule Entry</> : <><Plus className="w-4 h-4 text-primary" /> Add Schedule Entry</>}
@@ -582,16 +802,21 @@ export function SchedulesView() {
                   </div>
                 )}
                 
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Days of Week</Label>
-                  <div className="flex flex-wrap gap-2">
+                <div className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-5 ${editingScheduleId ? 'bg-amber-50/50 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.05)]' : 'bg-transparent border-transparent p-0 sm:p-0'}`}>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Days of Week</Label>
+                      {!editingScheduleId && <span className="text-[10px] text-slate-400 font-medium italic">(Select multiple)</span>}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                     {DAYS_OF_WEEK.map(day => {
                       const isSelected = scheduleForm.daysOfWeek.includes(day);
                       return (
                         <Button
                           key={day}
                           type="button"
-                          variant="outline"
+                          variant={isSelected ? "default" : "outline"}
                           size="sm"
                           disabled={!!editingScheduleId && !isSelected}
                           onClick={() => {
@@ -603,64 +828,65 @@ export function SchedulesView() {
                                 : [...prev.daysOfWeek, day]
                             }));
                           }}
-                          className={`rounded-full px-4 h-8 text-xs font-semibold transition-all border ${isSelected ? 'bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary/90 hover:text-primary-foreground' : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'}`}
+                          className={`rounded-full px-5 h-8 text-xs font-bold transition-all ${isSelected ? 'shadow-sm' : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-50'}`}
                         >
                           {day}
                         </Button>
                       );
                     })}
                   </div>
-                  {editingScheduleId && <p className="text-xs text-amber-600 italic">Day cannot be changed while editing. To move, please create a new schedule.</p>}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Start Time</Label>
-                    <Input type="time" required value={scheduleForm.startTime} onChange={e => setScheduleForm({...scheduleForm, startTime: e.target.value})} className="bg-white" />
+                    {editingScheduleId && <p className="text-xs text-amber-600 italic">Day cannot be changed while editing. To move, please create a new schedule.</p>}
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">End Time</Label>
-                    <Input type="time" required value={scheduleForm.endTime} onChange={e => setScheduleForm({...scheduleForm, endTime: e.target.value})} className="bg-white" />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Start Time</Label>
+                      <Input type="time" required value={scheduleForm.startTime} onChange={e => setScheduleForm({...scheduleForm, startTime: e.target.value})} className="bg-white" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">End Time</Label>
+                      <Input type="time" required value={scheduleForm.endTime} onChange={e => setScheduleForm({...scheduleForm, endTime: e.target.value})} className="bg-white" />
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
                     <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subject</Label>
                     <Select value={scheduleForm.subjectId} onValueChange={v => setScheduleForm({...scheduleForm, subjectId: v})}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Select Subject" />
+                      <SelectTrigger className="bg-white w-full [&>span]:truncate [&>span]:text-left [&>span]:w-[calc(100%-20px)]">
+                        <SelectValue placeholder="Select Subject">
+                          {scheduleForm.subjectId ? subjects.find(s => s.id === scheduleForm.subjectId)?.name : null}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent className="max-h-[200px]">
                         {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name} {s.code ? `(${s.code})` : ''}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                  </div>
+                    </div>
 
-                  <div className="space-y-2">
+                    <div className="space-y-2">
                     <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Section / Class</Label>
                     <Select value={scheduleForm.sectionId} onValueChange={v => setScheduleForm({...scheduleForm, sectionId: v})}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Select Section" />
+                      <SelectTrigger className="bg-white w-full [&>span]:truncate [&>span]:text-left [&>span]:w-[calc(100%-20px)]">
+                        <SelectValue placeholder="Select Section">
+                          {scheduleForm.sectionId ? (
+                            (() => {
+                              const sec = sections.find(s => s.id === scheduleForm.sectionId);
+                              return sec ? `${formatGradeLevel(sec.gradeLevel)} - ${sec.name}` : null;
+                            })()
+                          ) : null}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent className="max-h-[300px]">
                         {(() => {
-                          const grouped = sections.reduce((acc, section) => {
-                            let gl = section.gradeLevel;
-                            if (gl === 'undefined' || !gl) {
-                              gl = 'Unassigned Grade';
-                            } else if (!gl.toString().startsWith('Grade')) {
-                              gl = `Grade ${gl}`;
-                            } else {
-                              gl = gl.toString();
-                            }
-                            
+                          const groupedSectionsForView = sections.reduce((acc, section) => {
+                            const gl = formatGradeLevel(section.gradeLevel);
                             if (!acc[gl]) acc[gl] = [];
                             acc[gl].push(section);
                             return acc;
                           }, {} as Record<string, typeof sections>);
                           
-                          const sortedGrades = Object.keys(grouped).sort((a, b) => {
+                          const sortedGrades = Object.keys(groupedSectionsForView).sort((a, b) => {
                             const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
                             const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
                             if (numA === numB) return a.localeCompare(b);
@@ -670,7 +896,7 @@ export function SchedulesView() {
                           return sortedGrades.map(grade => (
                             <SelectGroup key={grade}>
                               <SelectLabel className="bg-slate-50/95 backdrop-blur-sm sticky -top-1 z-10 font-bold text-primary border-b border-slate-100 py-1.5">{grade}</SelectLabel>
-                              {grouped[grade].map(s => (
+                              {groupedSectionsForView[grade].map(s => (
                                 <SelectItem key={s.id} value={s.id} className="pl-6">{s.name}</SelectItem>
                               ))}
                             </SelectGroup>
@@ -679,6 +905,7 @@ export function SchedulesView() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
@@ -696,7 +923,7 @@ export function SchedulesView() {
           </div>
 
           {/* Existing Schedule List Section */}
-          <div className="overflow-y-auto pr-1 h-full custom-scrollbar">
+          <div className="overflow-y-auto overflow-x-hidden pr-1 h-full custom-scrollbar">
             <section className="h-full flex flex-col">
               <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 pb-4">
                 <h3 className="font-bold text-slate-800 flex items-center justify-between">
@@ -738,10 +965,13 @@ export function SchedulesView() {
                     
                     return sortedDays.map(day => (
                       <div key={day} className="space-y-3">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-primary/40"></div>
-                          {day}
-                        </h4>
+                        <div className="sticky top-12 z-10 bg-slate-50/95 backdrop-blur-sm py-1.5 border-y border-slate-200/60 shadow-sm mt-4 first:mt-0 mb-3 rounded-lg flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-primary/40"></div>
+                            {day}
+                          </h4>
+                          <span className="text-[10px] font-semibold text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{groupedSchedules[day].length} classes</span>
+                        </div>
                         <div className="space-y-2">
                           {groupedSchedules[day].sort((a, b) => a.startTime.localeCompare(b.startTime)).map(schedule => {
                             const subject = subjects.find(s => s.id === schedule.subjectId);
@@ -753,13 +983,13 @@ export function SchedulesView() {
                                 key={schedule.id} 
                                 className={`p-3.5 rounded-xl border transition-all flex items-center justify-between group ${
                                   isEditing 
-                                    ? 'bg-primary/5 border-primary/40 ring-4 ring-primary/10 shadow-sm relative z-0' 
-                                    : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+                                    ? 'bg-amber-50/80 border-amber-300 ring-4 ring-amber-100 shadow-sm relative z-0' 
+                                    : 'bg-white border-slate-200 hover:border-primary/30 shadow-sm hover:shadow-md'
                                 }`}
                               >
                                 <div className="flex flex-col gap-2 w-full">
                                   <div className="flex items-center justify-between w-full">
-                                    <div className="flex items-center gap-1.5 text-primary font-bold text-xs bg-primary/5 px-2 py-1 rounded-md border border-primary/10">
+                                    <div className={`flex items-center gap-1.5 font-bold text-xs px-2 py-1 rounded-md border ${isEditing ? 'text-amber-700 bg-amber-100/50 border-amber-200' : 'text-primary bg-primary/5 border-primary/10'} w-fit`}>
                                       <Clock className="w-3.5 h-3.5" />
                                       {schedule.startTime} - {schedule.endTime}
                                     </div>
@@ -768,7 +998,7 @@ export function SchedulesView() {
                                         variant="ghost" 
                                         size="icon" 
                                         onClick={() => handleEditClick(schedule)}
-                                        className={`h-7 w-7 rounded-lg ${isEditing ? "text-primary bg-primary/10" : "text-slate-400 hover:text-primary hover:bg-primary/10"}`}
+                                        className={`h-7 w-7 rounded-lg ${isEditing ? "text-amber-600 bg-amber-100 hover:bg-amber-200 hover:text-amber-700" : "text-slate-400 hover:text-primary hover:bg-primary/10"}`}
                                       >
                                         <Edit2 className="w-3.5 h-3.5" />
                                       </Button>
@@ -786,7 +1016,7 @@ export function SchedulesView() {
                                   <div>
                                     <p className="font-bold text-slate-900 leading-snug mb-1 text-sm">{subject?.name || 'Unknown Subject'}</p>
                                     <p className="text-xs font-semibold text-slate-500">
-                                      {section ? `${section.gradeLevel} - ${section.name}` : 'Unknown Section'}
+                                      {section ? `${formatGradeLevel(section.gradeLevel)} - ${section.name}` : 'Unknown Section'}
                                     </p>
                                   </div>
                                 </div>
@@ -803,9 +1033,45 @@ export function SchedulesView() {
           </div>
         </div>
       </div>
-          
-          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 shrink-0">
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Close</Button>
+    </DialogContent>
+      </Dialog>
+      {/* Auto-Generate Confirmation Modal */}
+      <Dialog open={confirmGenerate} onOpenChange={setConfirmGenerate}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Auto-Generate Schedules</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-slate-500 leading-relaxed">
+              This will clear ALL existing schedules for Academic Year <span className="font-bold text-slate-700">{syName}</span> and auto-generate new ones. Are you sure you want to proceed?
+            </p>
+          </div>
+          <DialogFooter className="flex space-x-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setConfirmGenerate(false)}>Cancel</Button>
+            <Button onClick={executeAutoGenerate}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-rose-600 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Confirm Deletion
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-slate-600">
+              Are you sure you want to remove this schedule entry? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter className="flex space-x-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+            <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => confirmDeleteId && executeDelete(confirmDeleteId)}>
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

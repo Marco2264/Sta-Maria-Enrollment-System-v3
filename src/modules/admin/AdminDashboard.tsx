@@ -14,7 +14,8 @@ import {
   Menu,
   GraduationCap,
   LogOut,
-  CalendarDays
+  CalendarDays,
+  Database
 } from
   'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
@@ -52,6 +53,26 @@ function AdminDashboardContent() {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const adminData = useAdminData();
+
+  const handleBackupDb = () => {
+    const backup = {
+      users: adminData.users,
+      classrooms: adminData.classrooms,
+      sections: adminData.sections,
+      subjects: adminData.subjects,
+      schedules: adminData.schedules,
+      assignments: adminData.assignments,
+      subjectAssignments: adminData.subjectAssignments,
+      schoolYear: adminData.schoolYear
+    };
+    
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    import('file-saver').then(({ saveAs }) => {
+      saveAs(blob, `sta_maria_db_backup_${new Date().toISOString().split('T')[0]}.json`);
+    });
   };
 
   const navItems = [
@@ -117,6 +138,13 @@ function AdminDashboardContent() {
       <div className="border-t border-border p-3 shrink-0">
         {showUserMenu && (
           <div className="mb-2 space-y-1 animate-in slide-in-from-bottom-2 duration-200">
+            <button
+              onClick={handleBackupDb}
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-md transition-colors"
+            >
+              <Database className="w-4 h-4" />
+              Backup DB (JSON)
+            </button>
             <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-md transition-colors">
               <Settings className="w-4 h-4" />
               Settings

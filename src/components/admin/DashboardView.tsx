@@ -10,7 +10,8 @@ import {
   LayoutDashboard,
   TrendingUp,
   Activity,
-  RotateCcw
+  RotateCcw,
+  Database
 } from 'lucide-react';
 import { useAdminData } from '../../lib/adminData';
 import { useAuth } from '../../lib/AuthContext';
@@ -27,6 +28,8 @@ export function DashboardView() {
   
   const isSubAdmin = normalizeRole(currentUserRole) === 'subadmin';
   const assignedGrade = isSubAdmin ? (userData?.assignedGrade as string | undefined) : undefined;
+  
+  const adminData = useAdminData(); // Extract to variable so we can use for backup
   
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
   const [enrollmentTrends, setEnrollmentTrends] = useState<EnrollmentTrendData[]>([]);
@@ -50,6 +53,29 @@ export function DashboardView() {
     if (!ts) return new Date();
     if (typeof ts === 'object' && 'toDate' in ts && typeof ts.toDate === 'function') return ts.toDate();
     return new Date(ts as string | number | Date);
+  };
+
+  const handleBackupDb = () => {
+    const backup = {
+      users: adminData.users,
+      classrooms: adminData.classrooms,
+      sections: adminData.sections,
+      subjects: adminData.subjects,
+      schedules: adminData.schedules,
+      assignments: adminData.assignments,
+      subjectAssignments: adminData.subjectAssignments,
+      schoolYear: adminData.schoolYear
+    };
+    
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sta_maria_db_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -173,15 +199,24 @@ export function DashboardView() {
               System overview, statistics, and recent administrative activities.
             </p>
           </div>
-          
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto rounded-xl px-6 bg-white shadow-sm border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold transition-all"
-            onClick={() => setSetupComplete(false)}
-          >
-            <RotateCcw className="w-4 h-4 mr-2 text-slate-400" />
-            Rerun Setup Wizard
-          </Button>
+          <div className="flex items-center gap-3 w-full sm:w-auto flex-col sm:flex-row">
+            <Button
+              variant="default"
+              className="w-full sm:w-auto rounded-xl px-6 shadow-sm font-semibold transition-all"
+              onClick={handleBackupDb}
+            >
+              <Database className="w-4 h-4 mr-2" />
+              Backup All Database Data
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto rounded-xl px-6 bg-white shadow-sm border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold transition-all"
+              onClick={() => setSetupComplete(false)}
+            >
+              <RotateCcw className="w-4 h-4 mr-2 text-slate-400" />
+              Rerun Setup
+            </Button>
+          </div>
         </div>
       </header>
 

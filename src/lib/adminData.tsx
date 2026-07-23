@@ -297,11 +297,13 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
   };
 
   const addSchedule = async (s: Omit<Schedule, 'id'>) => {
-    await addDoc(collection(db, 'schedules'), s);
+    const safeData = Object.fromEntries(Object.entries(s).filter(([_, v]) => v !== undefined));
+    await addDoc(collection(db, 'schedules'), safeData);
   };
 
   const updateSchedule = async (id: string, updates: Partial<Schedule>) => {
-    await updateDoc(doc(db, 'schedules', id), updates);
+    const safeUpdates = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined));
+    await updateDoc(doc(db, 'schedules', id), safeUpdates);
   };
 
   const deleteSchedule = async (id: string) => {

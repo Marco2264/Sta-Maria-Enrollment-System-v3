@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignUpPage } from './pages/auth/SignUpPage';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
@@ -12,6 +13,7 @@ const ParentPortal = React.lazy(() => import('./pages/parent/ParentPortal').then
 export function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Toaster position="top-center" />
       <Suspense fallback={<div className="h-screen w-screen"><LoadingSpinner message="Loading School Portal..." /></div>}>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
