@@ -6,7 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '../../components/ui/Label';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
-import { CalendarClock, Plus, Trash2, Clock, AlertCircle, Search, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarClock, Plus, Trash2, Clock, AlertCircle, Search, Edit2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useAdminData } from '../../lib/adminData';
 import { getCurrentSchoolYear } from '../../lib/utils';
 
@@ -27,13 +29,192 @@ const isOverlapping = (start1: string, end1: string, start2: string, end2: strin
 };
 
 export function SchedulesView() {
-  const { users, subjects, sections, schedules, addSchedule, updateSchedule, deleteSchedule, schoolYear } = useAdminData();
+  const { users, subjects, sections, schedules, addSchedule, updateSchedule, deleteSchedule, schoolYear, batchAddSchedules, clearSchedulesForYear } = useAdminData();
   const syName = schoolYear?.name ?? getCurrentSchoolYear();
 
   const [searchQuery, setSearchQuery] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleDownloadAllPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`Faculty Teaching Load - All Teachers`, 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Academic Year: ${syName}`, 14, 30);
+    
+    let currentY = 36;
+    
+    const activeTeachers = teachers.filter(t => schedules.some(s => s.teacherId === t.id && s.academicYear === syName));
+    
+    if (activeTeachers.length === 0) {
+      doc.text("No schedules found.", 14, currentY);
+    } else {
+      activeTeachers.forEach((teacher, idx) => {
+        if (idx > 0) {
+          doc.addPage();
+          currentY = 22;
+        }
+        
+        doc.setFontSize(14);
+        doc.text(`Teacher: ${teacher.firstName} ${teacher.lastName}`, 14, currentY);
+        
+        const tScheds = schedules.filter(s => s.teacherId === teacher.id && s.academicYear === syName)
+          .sort((a, b) => {
+            const dayDiff = DAYS_OF_WEEK.indexOf(a.dayOfWeek) - DAYS_OF_WEEK.indexOf(b.dayOfWeek);
+            if (dayDiff !== 0) return dayDiff;
+            return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+          });
+          
+        const tableData = tScheds.map(sched => {
+          const subject = subjects.find(s => s.id === sched.subjectId);
+          const section = sections.find(s => s.id === sched.sectionId);
+          return [
+            sched.dayOfWeek,
+            `${sched.startTime} - ${sched.endTime}`,
+            subject?.name || 'Unknown',
+            section ? `${section.gradeLevel} - ${section.name}` : 'Unknown'
+          ];
+        });
+
+        autoTable(doc, {
+          startY: currentY + 6,
+          head: [['Day', 'Time', 'Subject', 'Section']],
+          body: tableData,
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 14;
+      });
+    }
+
+    doc.save(`Faculty_Teaching_Load_${syName}.pdf`);
+  };
+
+  const handleAutoGenerateSchedules = async () => {
+    if (!window.confirm(`This will clear ALL existing schedules for Academic Year ${syName} and auto-generate new ones. Are you sure you want to proceed?`)) {
+      return;
+    }
+    
+    setIsGenerating(true);
+    setError('');
+
+    try {
+      await clearSchedulesForYear(syName);
+
+      const newSchedules: any[] = [];
+      const schoolHours = { start: 8, end: 16 };
+      const lunchBreak = 12;
+      const classDuration = 1;
+
+      const subjectsByGrade: Record<string, typeof subjects> = {};
+      subjects.forEach(s => {
+        const gl = s.gradeLevel?.replace(/Grade /i, '').trim() || '';
+        if (!subjectsByGrade[gl]) subjectsByGrade[gl] = [];
+        subjectsByGrade[gl].push(s);
+      });
+
+      const teachersByGrade: Record<string, typeof teachers> = {};
+      const unassignedTeachers: typeof teachers = [];
+      teachers.forEach(t => {
+        const grade = t.assignedGrade?.replace(/Grade /i, '').trim();
+        if (grade) {
+          if (!teachersByGrade[grade]) teachersByGrade[grade] = [];
+          teachersByGrade[grade].push(t);
+        } else {
+          unassignedTeachers.push(t);
+        }
+      });
+
+      const teacherSchedulesTemp: Record<string, { day: string, start: number, end: number }[]> = {};
+      const sectionSchedulesTemp: Record<string, { day: string, start: number, end: number }[]> = {};
+
+      const hasConflict = (teacherId: string, sectionId: string, day: string, startHr: number, endHr: number) => {
+        const tScheds = teacherSchedulesTemp[teacherId] || [];
+        const sScheds = sectionSchedulesTemp[sectionId] || [];
+        
+        const overlaps = (scheds: { day: string, start: number, end: number }[]) => {
+          return scheds.some(s => s.day === day && Math.max(s.start, startHr) < Math.min(s.end, endHr));
+        };
+
+        return overlaps(tScheds) || overlaps(sScheds);
+      };
+
+      const recordSchedule = (teacherId: string, sectionId: string, day: string, startHr: number, endHr: number) => {
+        if (!teacherSchedulesTemp[teacherId]) teacherSchedulesTemp[teacherId] = [];
+        if (!sectionSchedulesTemp[sectionId]) sectionSchedulesTemp[sectionId] = [];
+        teacherSchedulesTemp[teacherId].push({ day, start: startHr, end: endHr });
+        sectionSchedulesTemp[sectionId].push({ day, start: startHr, end: endHr });
+      };
+
+      for (const section of sections) {
+        const gradeLevel = section.gradeLevel?.replace(/Grade /i, '').trim() || '';
+        const requiredSubjects = subjectsByGrade[gradeLevel] || [];
+        const availableTeachers = [...(teachersByGrade[gradeLevel] || []), ...unassignedTeachers];
+
+        if (availableTeachers.length === 0 || requiredSubjects.length === 0) continue;
+
+        let subjectIdx = 0;
+        let dayIdx = 0;
+        let hour = schoolHours.start;
+
+        while (subjectIdx < requiredSubjects.length) {
+          if (hour === lunchBreak) {
+            hour++;
+            continue;
+          }
+          if (hour >= schoolHours.end) {
+            hour = schoolHours.start;
+            dayIdx++;
+            if (dayIdx >= DAYS_OF_WEEK.length) {
+              break;
+            }
+            continue;
+          }
+
+          const day = DAYS_OF_WEEK[dayIdx];
+          const subject = requiredSubjects[subjectIdx];
+          
+          let assignedTeacher = null;
+          for (const teacher of availableTeachers) {
+            if (!hasConflict(teacher.id, section.id, day, hour, hour + classDuration)) {
+              assignedTeacher = teacher;
+              break;
+            }
+          }
+
+          if (assignedTeacher) {
+            recordSchedule(assignedTeacher.id, section.id, day, hour, hour + classDuration);
+            newSchedules.push({
+              teacherId: assignedTeacher.id,
+              subjectId: subject.id,
+              sectionId: section.id,
+              dayOfWeek: day,
+              startTime: `${hour.toString().padStart(2, '0')}:00`,
+              endTime: `${(hour + classDuration).toString().padStart(2, '0')}:00`,
+              academicYear: syName
+            });
+            subjectIdx++;
+          }
+          
+          hour++;
+        }
+      }
+
+      if (newSchedules.length > 0) {
+        await batchAddSchedules(newSchedules);
+      } else {
+         setError('Could not auto-generate schedules. Make sure sections and subjects share matching grade levels.');
+      }
+      
+    } catch (err) {
+      console.error('Error auto-generating schedules:', err);
+      setError('Failed to auto-generate schedules. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
   
   // Modal State
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
@@ -87,6 +268,38 @@ export function SchedulesView() {
                       return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
                     });
   }, [schedules, selectedTeacherId, syName]);
+
+  const handleDownloadTeacherPDF = () => {
+    if (!selectedTeacher) return;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`Teaching Load - ${selectedTeacher.firstName} ${selectedTeacher.lastName}`, 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Academic Year: ${syName}`, 14, 30);
+    
+    const tableData = teacherSchedules.map(sched => {
+      const subject = subjects.find(s => s.id === sched.subjectId);
+      const section = sections.find(s => s.id === sched.sectionId);
+      return [
+        sched.dayOfWeek,
+        `${sched.startTime} - ${sched.endTime}`,
+        subject?.name || 'Unknown',
+        section ? `${section.gradeLevel} - ${section.name}` : 'Unknown'
+      ];
+    });
+
+    if (tableData.length === 0) {
+      doc.text("No classes assigned yet.", 14, 40);
+    } else {
+      autoTable(doc, {
+        startY: 36,
+        head: [['Day', 'Time', 'Subject', 'Section']],
+        body: tableData,
+      });
+    }
+
+    doc.save(`Schedule_${selectedTeacher.lastName}_${selectedTeacher.firstName}.pdf`);
+  };
 
   const openManageModal = (teacherId: string) => {
     setSelectedTeacherId(teacherId);
@@ -201,6 +414,22 @@ export function SchedulesView() {
           </div>
           
           <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Button
+              onClick={handleDownloadAllPDF}
+              variant="outline"
+              className="bg-white text-slate-700 hover:bg-slate-50 border-slate-200 shadow-sm whitespace-nowrap"
+            >
+              <Download className="w-4 h-4 mr-2 text-slate-500" />
+              Download PDF
+            </Button>
+            <Button
+              onClick={handleAutoGenerateSchedules}
+              disabled={isGenerating}
+              className="bg-primary text-primary-foreground shadow-sm whitespace-nowrap"
+            >
+              {isGenerating ? <span className="animate-pulse mr-2">⏳</span> : <CalendarClock className="w-4 h-4 mr-2" />}
+              {isGenerating ? 'Generating...' : 'Auto-Generate'}
+            </Button>
             <div className="relative w-full sm:w-96 group">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
               <Input
@@ -471,10 +700,21 @@ export function SchedulesView() {
             <section className="h-full flex flex-col">
               <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 pb-4">
                 <h3 className="font-bold text-slate-800 flex items-center justify-between">
-                  Current Assignments
-                  <Badge variant="outline" className="bg-white text-primary border-primary/20 shadow-sm">
-                    {teacherSchedules.length} Total
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    Current Assignments
+                    <Badge variant="outline" className="bg-white text-primary border-primary/20 shadow-sm">
+                      {teacherSchedules.length} Total
+                    </Badge>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleDownloadTeacherPDF}
+                    className="h-8 text-xs font-semibold text-primary hover:bg-primary/10"
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1.5" />
+                    Export PDF
+                  </Button>
                 </h3>
               </div>
               

@@ -10,7 +10,8 @@ import {
   doc, 
   setDoc,
   serverTimestamp,
-  orderBy
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import { getCurrentSchoolYear } from './utils';
 import { useAuth } from './AuthContext';
@@ -114,6 +115,8 @@ type AdminContextType = {
   addSchedule: (s: Omit<Schedule, 'id'>) => Promise<void>;
   updateSchedule: (id: string, updates: Partial<Schedule>) => Promise<void>;
   deleteSchedule: (id: string) => Promise<void>;
+  batchAddSchedules: (newSchedules: Omit<Schedule, 'id'>[]) => Promise<void>;
+  clearSchedulesForYear: (academicYear: string) => Promise<void>;
   setupComplete: boolean;
   setSetupComplete: (val: boolean) => void;
   isSystemInitialized: boolean;
@@ -305,6 +308,39 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
     await deleteDoc(doc(db, 'schedules', id));
   };
 
+  const batchAddSchedules = async (newSchedules: Omit<Schedule, 'id'>[]) => {
+    const chunks = [];
+    for (let i = 0; i < newSchedules.length; i += 400) {
+      chunks.push(newSchedules.slice(i, i + 400));
+    }
+    
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      for (const schedule of chunk) {
+        const docRef = doc(collection(db, 'schedules'));
+        batch.set(docRef, schedule);
+      }
+      await batch.commit();
+    }
+  };
+
+  const clearSchedulesForYear = async (academicYear: string) => {
+    const schedulesToDelete = schedules.filter(s => s.academicYear === academicYear);
+    const chunks = [];
+    for (let i = 0; i < schedulesToDelete.length; i += 400) {
+      chunks.push(schedulesToDelete.slice(i, i + 400));
+    }
+
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      for (const schedule of chunk) {
+        const docRef = doc(db, 'schedules', schedule.id);
+        batch.delete(docRef);
+      }
+      await batch.commit();
+    }
+  };
+
   const isSubAdmin = normalizeRole(currentUserRole) === 'subadmin';
   const assignedGrade = userData?.assignedGrade as string | undefined;
 
@@ -356,6 +392,8 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
       addSchedule,
       updateSchedule,
       deleteSchedule,
+      batchAddSchedules,
+      clearSchedulesForYear,
       setupComplete,
       setSetupComplete,
       isSystemInitialized,

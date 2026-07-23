@@ -85,6 +85,14 @@ service cloud.firestore {
     match /subjects/{doc} {
       allow read, write: if hasAdminAccess() || isTeacher();
     }
+    match /schedules/{doc} {
+      allow read: if isAuthed();
+      allow write: if hasAdminAccess();
+    }
+    match /subjectAssignments/{doc} {
+      allow read: if isAuthed();
+      allow write: if hasAdminAccess();
+    }
     
     // School Years
     match /school_years/{doc} {
