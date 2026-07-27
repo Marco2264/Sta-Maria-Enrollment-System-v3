@@ -38,8 +38,9 @@ service cloud.firestore {
 
     // Users
     // Users can read their own profile; Admins can read all and write.
+    // Teachers can read other teachers' profiles to see who is assigned to a subject.
     match /users/{uid} {
-      allow read: if isAuthed() && (request.auth.uid == uid || hasAdminAccess());
+      allow read: if isAuthed() && (request.auth.uid == uid || hasAdminAccess() || (isTeacher() && resource.data.role == 'Teacher'));
       allow write: if isAdmin(); // Only main admin can write to users (since Subadmins shouldn't manage users)
       allow create: if isAuthed() && request.auth.uid == uid && request.resource.data.role == 'parent';
       allow update: if isAuthed() && request.auth.uid == uid && request.resource.data.role == resource.data.role;
@@ -67,6 +68,9 @@ service cloud.firestore {
     // Grades
     // Admins and Teachers can manage grades.
     match /grades/{doc} {
+      allow read, write: if hasAdminAccess() || isTeacher();
+    }
+    match /gradeConfigurations/{doc} {
       allow read, write: if hasAdminAccess() || isTeacher();
     }
     

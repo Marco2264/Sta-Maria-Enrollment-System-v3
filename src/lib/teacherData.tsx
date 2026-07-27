@@ -10,7 +10,8 @@ import {
   doc, 
   serverTimestamp,
   getDoc,
-  deleteDoc
+  deleteDoc,
+  setDoc
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 
@@ -57,6 +58,8 @@ export type AssignedSection = {
   sectionId: string;
   isAdvisor: boolean;
   subjectCodes: string[];
+  taughtSubjectCodes: string[];
+  advisedSubjectCodes: string[];
   name?: string;
   gradeLevel?: string;
 };
@@ -76,10 +79,20 @@ type TeacherContextType = {
   updateStudentGrade: (id: string, subjectCode: string, quarter: string, grade: number | null) => Promise<void>;
   updateStudentObservedValue: (id: string, statementKey: string, quarter: string, value: string | null) => Promise<void>;
   updateStudentBmi: (id: string, height: string, weight: string) => Promise<void>;
+  gradeConfigurations: any[];
+  addGradeColumn: (subjectCode: string, term: string, name: string, weight: number) => Promise<void>;
+  editGradeColumn: (id: string, name: string, weight: number) => Promise<void>;
+  deleteGradeColumn: (id: string) => Promise<void>;
+  submitGradesToAdviser: (subjectCode: string, term: string) => Promise<void>;
+  requestUnlockGrades: (subjectCode: string, term: string) => Promise<void>;
+  grantUnlockGrades: (subjectCode: string, term: string) => Promise<void>;
+  updateDynamicStudentGrade: (id: string, subjectCode: string, term: string, columnId: string, grade: number | null) => Promise<void>;
   loading: boolean;
   currentGradeLevel: string;
   currentSectionName: string;
   academicYear: string;
+  advisorSectionSchedules: any[];
+  allTeachers: any[];
 };
 
 const TeacherContext = createContext<TeacherContextType | undefined>(undefined);
@@ -110,16 +123,63 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
       setAdvisorAssignments(snap.docs.map(d => d.data()));
     });
     
-    const qSubjAssign = query(collection(db, 'subjectAssignments'), where('teacherId', '==', user.uid));
+    const qSubjAssign = query(
+      collection(db, 'schedules'),
+      where('teacherId', '==', user.uid),
+      where('status', '==', 'published')
+    );
     const unsubSubjAssign = onSnapshot(qSubjAssign, (snap) => {
       setSubjectAssignments(snap.docs.map(d => d.data()));
+    });
+
+    const qSubjects = query(collection(db, 'subjects'));
+    const unsubSubjects = onSnapshot(qSubjects, (snap) => {
+      setSubjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherSubject)));
+    });
+
+    const qTeachers = query(collection(db, 'users'), where('role', 'in', ['Teacher', 'teacher']));
+    const unsubTeachers = onSnapshot(qTeachers, (snap) => {
+      setAllTeachers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
     return () => {
       unsubAssign();
       unsubSubjAssign();
+      unsubSubjects();
+      unsubTeachers();
     };
   }, [user]);
+
+  const [advisorSectionSchedules, setAdvisorSectionSchedules] = useState<any[]>([]);
+  const [allTeachers, setAllTeachers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (advisorAssignments.length === 0) {
+      setAdvisorSectionSchedules([]);
+      return;
+    }
+    const sectionIds = advisorAssignments.map(a => a.sectionId);
+    
+    const chunks = [];
+    for (let i = 0; i < sectionIds.length; i += 10) {
+      chunks.push(sectionIds.slice(i, i + 10));
+    }
+    
+    const unsubs: (() => void)[] = [];
+    const allSchedulesMap = new Map<string, any[]>();
+    
+    chunks.forEach((chunk, idx) => {
+      const q = query(collection(db, 'schedules'), where('sectionId', 'in', chunk), where('status', '==', 'published'));
+      const unsub = onSnapshot(q, (snap) => {
+        allSchedulesMap.set(idx.toString(), snap.docs.map(d => d.data()));
+        const merged = Array.from(allSchedulesMap.values()).flat();
+        setAdvisorSectionSchedules(merged);
+      });
+      unsubs.push(unsub);
+    });
+    
+    return () => unsubs.forEach(u => u());
+  }, [advisorAssignments]);
 
   const [assignedSections, setAssignedSections] = useState<AssignedSection[]>([]);
 
@@ -127,16 +187,34 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const map = new Map<string, AssignedSection>();
     advisorAssignments.forEach(a => {
-      map.set(a.sectionId, { sectionId: a.sectionId, isAdvisor: true, subjectCodes: [] });
+      map.set(a.sectionId, { sectionId: a.sectionId, isAdvisor: true, subjectCodes: [], taughtSubjectCodes: [], advisedSubjectCodes: [] });
     });
+
     subjectAssignments.forEach(sa => {
+      const subject = subjects.find(s => s.id === sa.subjectId);
+      const subjectCode = subject ? (subject.code || subject.name) : (sa.subjectCode || 'Unknown');
+      
       if (map.has(sa.sectionId)) {
         const existing = map.get(sa.sectionId)!;
-        if (!existing.subjectCodes.includes(sa.subjectCode)) {
-           existing.subjectCodes.push(sa.subjectCode);
+        if (!existing.taughtSubjectCodes.includes(subjectCode)) {
+           existing.taughtSubjectCodes.push(subjectCode);
+           if (!existing.subjectCodes.includes(subjectCode)) existing.subjectCodes.push(subjectCode);
         }
       } else {
-        map.set(sa.sectionId, { sectionId: sa.sectionId, isAdvisor: false, subjectCodes: [sa.subjectCode] });
+        map.set(sa.sectionId, { sectionId: sa.sectionId, isAdvisor: false, subjectCodes: [subjectCode], taughtSubjectCodes: [subjectCode], advisedSubjectCodes: [] });
+      }
+    });
+
+    advisorSectionSchedules.forEach(sa => {
+      if (map.has(sa.sectionId)) {
+         const subject = subjects.find(s => s.id === sa.subjectId);
+         const subjectCode = subject ? (subject.code || subject.name) : (sa.subjectCode || 'Unknown');
+         const existing = map.get(sa.sectionId)!;
+         
+         if (!existing.taughtSubjectCodes.includes(subjectCode) && !existing.advisedSubjectCodes.includes(subjectCode)) {
+           existing.advisedSubjectCodes.push(subjectCode);
+           if (!existing.subjectCodes.includes(subjectCode)) existing.subjectCodes.push(subjectCode);
+         }
       }
     });
     
@@ -170,7 +248,7 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     fetchNames();
 
     return () => { isMounted = false; };
-  }, [advisorAssignments, subjectAssignments]);
+  }, [advisorAssignments, subjectAssignments, subjects, advisorSectionSchedules]);
 
   // 3. Auto-select current section
   useEffect(() => {
@@ -188,10 +266,13 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
   }, [assignedSections, currentSection]);
 
   // 4. Load current section details
+  const [gradeConfigurations, setGradeConfigurations] = useState<any[]>([]);
+
   useEffect(() => {
     if (!currentSection) {
       setStudents([]);
       setAttendance([]);
+      setGradeConfigurations([]);
       setCurrentGradeLevel('');
       setCurrentSectionName('');
       setAcademicYear('');
@@ -205,6 +286,7 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     let unsubEnrolled = () => {};
     let unsubAttendance = () => {};
     let unsubSubjects = () => {};
+    let unsubGradeConfigs = () => {};
     let cancelled = false;
 
     const loadData = async () => {
@@ -252,8 +334,9 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
           setAttendance(aSnap.docs.map(d => ({ id: d.id, ...d.data() } as AttendanceEntry)));
         });
 
-        unsubSubjects = onSnapshot(query(collection(db, 'subjects')), (sSnap) => {
-          setSubjects(sSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherSubject)));
+        const qGradeConfigs = query(collection(db, 'gradeConfigurations'), where('sectionId', '==', currentSection));
+        unsubGradeConfigs = onSnapshot(qGradeConfigs, (snap) => {
+          setGradeConfigurations(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         });
 
         setLoading(false);
@@ -270,6 +353,7 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
       unsubEnrolled();
       unsubAttendance();
       unsubSubjects();
+      unsubGradeConfigs();
     };
   }, [currentSection]);
 
@@ -375,34 +459,117 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateStudentBmi = async (id: string, height: string, weight: string) => {
-    const student = students.find(s => s.id === id);
-    if (!student) return;
-    const medical = { ...(student.medical || {}), height, weight };
-    await updateDoc(doc(db, 'enrollments', id), { medical });
+    const studentRef = doc(db, 'enrollments', id);
+    await updateDoc(studentRef, {
+      'medical.height': height,
+      'medical.weight': weight
+    });
+  };
+
+  const addGradeColumn = async (subjectCode: string, term: string, name: string, weight: number) => {
+    if (!currentSection) return;
+    await addDoc(collection(db, 'gradeConfigurations'), {
+      sectionId: currentSection,
+      subjectCode,
+      term,
+      name,
+      weight,
+      createdAt: serverTimestamp()
+    });
+  };
+
+  const deleteGradeColumn = async (id: string) => {
+    await deleteDoc(doc(db, 'gradeConfigurations', id));
+  };
+
+  const editGradeColumn = async (id: string, name: string, weight: number) => {
+    await updateDoc(doc(db, 'gradeConfigurations', id), {
+      name,
+      weight
+    });
+  };
+
+  const submitGradesToAdviser = async (subjectCode: string, term: string) => {
+    if (!currentSection) return;
+    const safeSubjectCode = subjectCode.replace(/[^a-zA-Z0-9]/g, '');
+    const safeTerm = term.replace(/\s+/g, '');
+    const docId = `sub_${currentSection}_${safeSubjectCode}_${safeTerm}`;
+    
+    await setDoc(doc(db, 'gradeConfigurations', docId), {
+      type: 'submission',
+      sectionId: currentSection,
+      subjectCode,
+      term,
+      status: 'submitted',
+      createdAt: serverTimestamp()
+    });
+  };
+
+  const requestUnlockGrades = async (subjectCode: string, term: string) => {
+    if (!currentSection) return;
+    const safeSubjectCode = subjectCode.replace(/[^a-zA-Z0-9]/g, '');
+    const safeTerm = term.replace(/\s+/g, '');
+    const docId = `sub_${currentSection}_${safeSubjectCode}_${safeTerm}`;
+    await updateDoc(doc(db, 'gradeConfigurations', docId), {
+      status: 'unlock-requested'
+    });
+  };
+
+  const grantUnlockGrades = async (subjectCode: string, term: string) => {
+    if (!currentSection) return;
+    const safeSubjectCode = subjectCode.replace(/[^a-zA-Z0-9]/g, '');
+    const safeTerm = term.replace(/\s+/g, '');
+    const docId = `sub_${currentSection}_${safeSubjectCode}_${safeTerm}`;
+    await deleteDoc(doc(db, 'gradeConfigurations', docId));
+  };
+
+  const updateDynamicStudentGrade = async (id: string, subjectCode: string, term: string, columnId: string, grade: number | null) => {
+    if (!currentGradeLevel) return;
+    const studentRef = doc(db, 'enrollments', id);
+    const normalizedGradeLevel = currentGradeLevel.trim().replace(/Grade /i, 'Grade ');
+    
+    // Check if it's the old nested grade structure (grades -> Grade Level -> Subject -> Term -> Column)
+    const fieldPath = `grades.${normalizedGradeLevel}.${subjectCode}.${term}.${columnId}`;
+    
+    await updateDoc(studentRef, {
+      [fieldPath]: grade
+    });
+  };
+
+  const value = {
+    students,
+    subjects,
+    attendance,
+    currentSection,
+    setCurrentSection,
+    assignedSections,
+    isAdvisorForCurrentSection: currentSectionData.isAdvisor,
+    assignedSubjectCodes: currentSectionData.subjectCodes,
+    updateAttendance,
+    deleteAttendance,
+    updateStudentStatus,
+    updateStudentGrade,
+    updateStudentObservedValue,
+    updateStudentBmi,
+    gradeConfigurations,
+    addGradeColumn,
+    editGradeColumn,
+    deleteGradeColumn,
+    submitGradesToAdviser,
+    requestUnlockGrades,
+    grantUnlockGrades,
+    updateDynamicStudentGrade,
+    loading,
+    currentGradeLevel,
+    currentSectionName,
+    academicYear,
+    advisorSectionSchedules,
+    allTeachers
   };
 
   return (
     <TeacherContext.Provider
-      value={{
-        students,
-        subjects,
-        attendance,
-        currentSection,
-        setCurrentSection,
-        assignedSections,
-        isAdvisorForCurrentSection: currentSectionData.isAdvisor,
-        assignedSubjectCodes: currentSectionData.subjectCodes,
-        updateAttendance,
-        deleteAttendance,
-        updateStudentStatus,
-        updateStudentGrade,
-        updateStudentObservedValue,
-        updateStudentBmi,
-        loading,
-        currentGradeLevel,
-        currentSectionName,
-        academicYear
-      }}>
+      value={value}>
       {children}
     </TeacherContext.Provider>
   );

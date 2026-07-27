@@ -214,7 +214,7 @@ export function UsersView() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 100;
+  const itemsPerPage = 50;
 
   useEffect(() => {
     setCurrentPage(1);

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { EnrollmentTrendData } from '../../../lib/services/analyticsService';
 
 interface EnrollmentTrendChartProps {
@@ -21,21 +21,16 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = React.m
   return (
     <div className="w-full h-[300px] p-4">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
+        <BarChart
           data={data}
           margin={{
-            top: 10,
+            top: 20,
             right: 10,
             left: -20,
             bottom: 0,
           }}
+          barGap={4}
         >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
           <XAxis 
             dataKey="month" 
@@ -51,20 +46,30 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = React.m
           />
           <Tooltip 
             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-            itemStyle={{ color: '#0ea5e9', fontWeight: 'bold' }}
-            cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }}
+            itemStyle={{ fontWeight: 'bold' }}
+            cursor={{ fill: '#f1f5f9' }}
           />
-          <Area 
-            type="monotone" 
-            dataKey="enrolled" 
-            name="Enrolled Students"
-            stroke="#0ea5e9" 
-            strokeWidth={3}
-            fillOpacity={1} 
-            fill={`url(#${gradientId})`} 
-            activeDot={{ r: 6, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }}
+          <Legend 
+            verticalAlign="top" 
+            height={36} 
+            iconType="circle"
+            wrapperStyle={{ fontSize: '12px', color: '#64748b' }}
           />
-        </AreaChart>
+          <Bar 
+            dataKey="previousYear" 
+            name="Previous Year" 
+            fill="#94a3b8" 
+            radius={[4, 4, 0, 0]}
+            maxBarSize={40}
+          />
+          <Bar 
+            dataKey="currentYear" 
+            name="Current Year" 
+            fill="#0ea5e9" 
+            radius={[4, 4, 0, 0]}
+            maxBarSize={40}
+          />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

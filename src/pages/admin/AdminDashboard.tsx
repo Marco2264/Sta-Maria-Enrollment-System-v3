@@ -60,7 +60,7 @@ function AdminDashboardContent() {
     { id: 'classrooms', label: 'Classrooms', icon: Home, category: 'Management' },
     { id: 'subjects', label: 'Subjects', icon: BookOpen, category: 'Management' },
     { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
-    { id: 'schedules', label: 'Faculty Teaching Load', icon: CalendarDays, category: 'Management' },
+    { id: 'schedules', label: 'Teachers Load', icon: CalendarDays, category: 'Management' },
     { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
   ];

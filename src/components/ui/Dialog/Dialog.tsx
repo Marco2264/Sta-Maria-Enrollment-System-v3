@@ -110,7 +110,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+            className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-500 transition-colors hover:text-slate-700 z-[100]">
             
               <X className="size-4" />
               <span className="sr-only">Close</span>

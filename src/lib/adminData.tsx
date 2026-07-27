@@ -85,6 +85,7 @@ export type Schedule = {
   startTime: string;
   endTime: string;
   academicYear: string;
+  status?: 'draft' | 'published';
 };
 type AdminContextType = {
   schoolYear: SchoolYear | null;
@@ -94,7 +95,7 @@ type AdminContextType = {
   updateClassroom: (id: string, updates: Partial<Classroom>) => Promise<void>;
   deleteClassroom: (id: string) => Promise<void>;
   sections: Section[];
-  addSection: (s: Omit<Section, 'id'>) => Promise<void>;
+  addSection: (s: Omit<Section, 'id'>) => Promise<string>;
   updateSection: (id: string, updates: Partial<Section>) => Promise<void>;
   deleteSection: (id: string) => Promise<void>;
   subjects: Subject[];
@@ -217,7 +218,8 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
   };
 
   const addSection = async (s: Omit<Section, 'id'>) => {
-    await addDoc(collection(db, 'sections'), s);
+    const docRef = await addDoc(collection(db, 'sections'), s);
+    return docRef.id;
   };
 
   const updateSection = async (id: string, updates: Partial<Section>) => {
@@ -233,6 +235,11 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
     const subjAssignmentsToDelete = subjectAssignments.filter(a => a.sectionId === id);
     for (const a of subjAssignmentsToDelete) {
       await deleteSubjectAssignment(a.id);
+    }
+    // Cascade delete schedules for this section
+    const schedulesToDelete = schedules.filter(s => s.sectionId === id);
+    for (const s of schedulesToDelete) {
+      await deleteSchedule(s.id);
     }
     await deleteDoc(doc(db, 'sections', id));
   };
@@ -297,7 +304,8 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
   };
 
   const addSchedule = async (s: Omit<Schedule, 'id'>) => {
-    const safeData = Object.fromEntries(Object.entries(s).filter(([_, v]) => v !== undefined));
+    const data = { status: 'draft', ...s };
+    const safeData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
     await addDoc(collection(db, 'schedules'), safeData);
   };
 
@@ -311,9 +319,10 @@ export function AdminDataProvider({ children }: {children: ReactNode;}) {
   };
 
   const batchAddSchedules = async (newSchedules: Omit<Schedule, 'id'>[]) => {
+    const schedulesWithStatus = newSchedules.map(s => ({ status: 'draft', ...s }));
     const chunks = [];
-    for (let i = 0; i < newSchedules.length; i += 400) {
-      chunks.push(newSchedules.slice(i, i + 400));
+    for (let i = 0; i < schedulesWithStatus.length; i += 400) {
+      chunks.push(schedulesWithStatus.slice(i, i + 400));
     }
     
     for (const chunk of chunks) {

@@ -253,18 +253,7 @@ export function SubjectsView() {
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Initial Status</Label>
-                <Select
-                  value={newSubject.status}
-                  onValueChange={(v) => setNewSubject({ ...newSubject, status: v as 'Active' | 'Inactive' })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
               <div className="space-y-2">
                 <Label>Academic Year</Label>
                 <div className="flex items-center gap-2">
@@ -328,9 +317,8 @@ export function SubjectsView() {
               <TableHeader className="bg-slate-50/80 border-b border-slate-200">
                 <TableRow className="hover:bg-transparent border-none h-12">
                   <TableHead className="w-[5%] text-center font-bold text-slate-400 text-[10px] uppercase tracking-widest">#</TableHead>
-                  <TableHead className="w-[45%] font-bold text-slate-500 whitespace-nowrap text-[10px] uppercase tracking-widest">Subject Name</TableHead>
-                  <TableHead className="w-[10%] font-bold text-slate-500 whitespace-nowrap text-[10px] uppercase tracking-widest">Grade</TableHead>
-                  <TableHead className="w-[10%] font-bold text-slate-500 whitespace-nowrap text-[10px] uppercase tracking-widest">Status</TableHead>
+                  <TableHead className="w-[50%] font-bold text-slate-500 whitespace-nowrap text-[10px] uppercase tracking-widest">Subject Name</TableHead>
+                  <TableHead className="w-[15%] font-bold text-slate-500 whitespace-nowrap text-[10px] uppercase tracking-widest">Grade</TableHead>
                   <TableHead className="w-[15%] font-bold text-slate-500 whitespace-nowrap text-[10px] uppercase tracking-widest">Date Created</TableHead>
                   <TableHead className="w-[15%] text-right pr-6 font-bold text-slate-500 text-[10px] uppercase tracking-widest">Actions</TableHead>
                 </TableRow>
@@ -365,16 +353,7 @@ export function SubjectsView() {
                           {subject.gradeLevel}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider",
-                            subject.status === 'Active' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-50 text-slate-400 border border-slate-100"
-                          )}>
-                          {subject.status}
-                        </Badge>
-                      </TableCell>
+
                       <TableCell className="text-slate-500 text-sm">
                         {getDateString(subject.createdAt)}
                       </TableCell>
@@ -515,18 +494,7 @@ export function SubjectsView() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={editingSubject.status}
-                  onValueChange={(v) => setEditingSubject({ ...editingSubject, status: v as 'Active' | 'Inactive' })}>
-                  <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
                 <Button type="submit">Update Subject</Button>
@@ -557,17 +525,7 @@ export function SubjectsView() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Grade Level</p>
                   <p className="font-bold text-slate-700">{viewingSubject.gradeLevel}</p>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status</p>
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider mt-1",
-                      viewingSubject.status === 'Active' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-50 text-slate-400 border border-slate-100"
-                    )}>
-                    {viewingSubject.status}
-                  </Badge>
-                </div>
+
                 <div className="p-3 rounded-xl border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">A.Y.</p>
                   <p className="font-bold text-slate-700">{viewingSubject.academicYear}</p>

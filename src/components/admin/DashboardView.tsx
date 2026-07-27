@@ -21,6 +21,7 @@ import { EnrollmentTrendChart } from './analytics/EnrollmentTrendChart';
 import { AttendanceStatsChart } from './analytics/AttendanceStatsChart';
 import { DemographicCharts } from './analytics/DemographicCharts';
 import { GradeLevelChart } from './analytics/GradeLevelChart';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 
 export function DashboardView() {
   const { setSetupComplete, users, classrooms, loading } = useAdminData();
@@ -37,6 +38,7 @@ export function DashboardView() {
   const [demographicStats, setDemographicStats] = useState<DemographicStats | null>(null);
   const [gradeLevelStats, setGradeLevelStats] = useState<GradeLevelStatData[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState('2026-2027');
 
   interface ActivityItem {
     id: string;
@@ -55,28 +57,7 @@ export function DashboardView() {
     return new Date(ts as string | number | Date);
   };
 
-  const handleBackupDb = () => {
-    const backup = {
-      users: adminData.users,
-      classrooms: adminData.classrooms,
-      sections: adminData.sections,
-      subjects: adminData.subjects,
-      schedules: adminData.schedules,
-      assignments: adminData.assignments,
-      subjectAssignments: adminData.subjectAssignments,
-      schoolYear: adminData.schoolYear
-    };
-    
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sta_maria_db_backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+
 
   useEffect(() => {
     if (loading) return;
@@ -114,7 +95,7 @@ export function DashboardView() {
     const fetchAnalytics = async () => {
       setAnalyticsLoading(true);
       const [trends, stats, demog, gradeStats] = await Promise.all([
-        AnalyticsService.getEnrollmentTrends(assignedGrade),
+        AnalyticsService.getEnrollmentTrends(assignedGrade, selectedYear),
         AnalyticsService.getAttendanceStats(assignedGrade),
         AnalyticsService.getDemographicStats(assignedGrade),
         AnalyticsService.getGradeLevelStats(assignedGrade)
@@ -126,7 +107,7 @@ export function DashboardView() {
       setAnalyticsLoading(false);
     };
     fetchAnalytics();
-  }, [assignedGrade]);
+  }, [assignedGrade, selectedYear]);
 
   if (loading || analyticsLoading) {
     return (
@@ -146,7 +127,7 @@ export function DashboardView() {
     {
       label: 'Total Students',
       value: studentCount.toString(),
-      change: 'enrolled in system',
+      change: demographicStats ? `♂ ${demographicStats.totalMale.toLocaleString()} | ♀ ${demographicStats.totalFemale.toLocaleString()}` : 'Updated just now',
       icon: Users,
       positive: true,
       color: 'blue'
@@ -154,7 +135,7 @@ export function DashboardView() {
     {
       label: 'Active Teachers',
       value: teachersCount.toString(),
-      change: 'live from firestore',
+      change: 'Updated just now',
       icon: GraduationCap,
       positive: true,
       color: 'indigo'
@@ -162,7 +143,7 @@ export function DashboardView() {
     {
       label: 'Enrolled Parents',
       value: parentsCount.toString(),
-      change: 'live from firestore',
+      change: 'Updated just now',
       icon: Heart,
       positive: true,
       color: 'rose'
@@ -170,7 +151,7 @@ export function DashboardView() {
     {
       label: 'Active Classrooms',
       value: classrooms.filter(c => c.status === 'Active').length.toString(),
-      change: 'live from firestore',
+      change: 'Updated just now',
       icon: Home,
       positive: true,
       color: 'emerald'
@@ -201,20 +182,12 @@ export function DashboardView() {
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto flex-col sm:flex-row">
             <Button
-              variant="default"
-              className="w-full sm:w-auto rounded-xl px-6 shadow-sm font-semibold transition-all"
-              onClick={handleBackupDb}
-            >
-              <Database className="w-4 h-4 mr-2" />
-              Backup All Database Data
-            </Button>
-            <Button
               variant="outline"
               className="w-full sm:w-auto rounded-xl px-6 bg-white shadow-sm border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold transition-all"
-              onClick={() => setSetupComplete(false)}
+              onClick={() => window.location.reload()}
             >
               <RotateCcw className="w-4 h-4 mr-2 text-slate-400" />
-              Rerun Setup
+              Refresh System
             </Button>
           </div>
         </div>
@@ -256,9 +229,20 @@ export function DashboardView() {
 
         <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-7">
           <Card className="lg:col-span-4 bg-white border-slate-200/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">System Overview</h3>
-              <p className="text-sm text-slate-500 mt-1">Historical enrollment trends</p>
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">System Overview</h3>
+                <p className="text-sm text-slate-500 mt-1">Historical enrollment trends</p>
+              </div>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2026-2027">AY 2026-2027 vs 2025-2026</SelectItem>
+                  <SelectItem value="2025-2026">AY 2025-2026 vs 2024-2025</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="h-[300px] w-full relative flex-1">
               <EnrollmentTrendChart data={enrollmentTrends} />

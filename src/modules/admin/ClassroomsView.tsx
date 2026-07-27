@@ -22,12 +22,13 @@ import {
   SelectValue
 } from
   '../../components/ui/Select';
-import { Plus, Home, Users, Edit, Trash2, UserMinus, Search, X, BookOpen } from 'lucide-react';
+import { Plus, Home, Users, Edit, Trash2, UserMinus, Search, X, BookOpen, AlertCircle } from 'lucide-react';
 import { useAdminData, Classroom, Section } from '../../lib/adminData';
 import { getCurrentSchoolYear } from '../../lib/utils';
 import { cn } from '../../components/ui/utils';
 import { db } from '../../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 export function ClassroomsView() {
   const {
@@ -58,8 +59,12 @@ export function ClassroomsView() {
     return new Date(ts as string | number | Date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const [selectedYear, setSelectedYear] = useState<string>('All');
-  const uniqueYears = Array.from(new Set(classrooms.map(c => c.academicYear).filter(Boolean))).sort().reverse() as string[];
+  const [selectedGrade, setSelectedGrade] = useState<string>('All');
+  const uniqueGrades = Array.from(new Set(classrooms.map(c => c.gradeLevel).filter(Boolean))).sort((a, b) => {
+    const numA = parseInt(a.replace(/\D/g, '')) || 99;
+    const numB = parseInt(b.replace(/\D/g, '')) || 99;
+    return numA - numB;
+  }) as string[];
 
   const [isAddClassroomOpen, setIsAddClassroomOpen] = useState(false);
   const [newClassroom, setNewClassroom] = useState({
@@ -69,6 +74,8 @@ export function ClassroomsView() {
     gradeLevel: '',
     academicYear: getCurrentSchoolYear()
   });
+  const [newClassroomSection, setNewClassroomSection] = useState<{name: string, gradeLevel: string, adviserId?: string}>({name: '', gradeLevel: ''});
+  const [editClassroomSection, setEditClassroomSection] = useState<{id?: string, name: string, gradeLevel: string, adviserId?: string, originalAdviserId?: string}>({name: '', gradeLevel: ''});
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [newSection, setNewSection] = useState({
     name: '',
@@ -95,8 +102,10 @@ export function ClassroomsView() {
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [editSectionAdviserId, setEditSectionAdviserId] = useState<string>('');
   const [editSectionTeacherSearch, setEditSectionTeacherSearch] = useState('');
+  const [classroomTeacherSearch, setClassroomTeacherSearch] = useState('');
 
   const [mainClassroomSearchQuery, setMainClassroomSearchQuery] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [detailsClassroom, setDetailsClassroom] = useState<Classroom | null>(null);
   const [classroomStudents, setClassroomStudents] = useState<any[]>([]);
@@ -143,10 +152,36 @@ export function ClassroomsView() {
 
   const handleAddClassroom = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!newClassroom.gradeLevel) {
+      toast.error("Please select a Grade Level for this classroom.");
+      return;
+    }
+
+    if (!newClassroomSection.name.trim()) {
+      toast.error("Please provide a Section Name. A classroom needs at least one section.");
+      return;
+    }
+
     try {
-      await addClassroom(newClassroom);
+      const classroomId = await addClassroom(newClassroom);
+      
+      if (newClassroomSection.name.trim()) {
+        const sectionId = await addSection({
+          name: newClassroomSection.name.trim(),
+          gradeLevel: newClassroomSection.gradeLevel || newClassroom.gradeLevel || 'Grade 1',
+          status: 'Active',
+          classroomId: classroomId
+        });
+        
+        if (newClassroomSection.adviserId) {
+          await addAssignment({ teacherId: newClassroomSection.adviserId, classroomId: classroomId, sectionId: sectionId });
+        }
+      }
+
       setIsAddClassroomOpen(false);
       setNewClassroom({ roomName: '', roomType: 'Lecture', status: 'Available', gradeLevel: '', academicYear: getCurrentSchoolYear() });
+      setNewClassroomSection({name: '', gradeLevel: ''});
     } catch (err) {
       console.error("Error adding classroom", err);
     }
@@ -169,6 +204,33 @@ export function ClassroomsView() {
       try {
         const { id, ...dataToUpdate } = editingClassroom;
         await updateClassroom(id, dataToUpdate);
+        
+        if (editClassroomSection.name.trim()) {
+          let sectionId = editClassroomSection.id;
+          if (sectionId) {
+            await updateSection(sectionId, { name: editClassroomSection.name.trim(), gradeLevel: editClassroomSection.gradeLevel || editingClassroom.gradeLevel || 'Grade 1' });
+          } else {
+            sectionId = await addSection({
+              name: editClassroomSection.name.trim(),
+              gradeLevel: editClassroomSection.gradeLevel || editingClassroom.gradeLevel || 'Grade 1',
+              status: 'Active',
+              classroomId: id
+            });
+          }
+          
+          if (editClassroomSection.adviserId !== editClassroomSection.originalAdviserId) {
+            const existingAssignment = assignments.find(a => a.sectionId === sectionId);
+            if (editClassroomSection.adviserId) {
+              if (existingAssignment) await deleteAssignment(existingAssignment.id);
+              await addAssignment({ teacherId: editClassroomSection.adviserId, classroomId: id, sectionId: sectionId });
+            } else if (existingAssignment) {
+              await deleteAssignment(existingAssignment.id);
+            }
+          }
+        } else if (editClassroomSection.id) {
+           await deleteSection(editClassroomSection.id);
+        }
+
         setIsEditClassroomOpen(false);
       } catch (err) {
         console.error("Error updating classroom", err);
@@ -183,21 +245,17 @@ export function ClassroomsView() {
         const { id, ...dataToUpdate } = editingSection;
         await updateSection(id, dataToUpdate);
 
-        // Handle adviser assignment
         const existingAssignment = assignments.find(a => a.sectionId === id);
         if (editSectionAdviserId) {
           if (existingAssignment) {
-            // If adviser changed, remove old and add new
             if (existingAssignment.teacherId !== editSectionAdviserId) {
               await deleteAssignment(existingAssignment.id);
               await addAssignment({ teacherId: editSectionAdviserId, classroomId: editingSection.classroomId, sectionId: id });
             }
           } else {
-            // No existing assignment, create new
             await addAssignment({ teacherId: editSectionAdviserId, classroomId: editingSection.classroomId, sectionId: id });
           }
         } else if (existingAssignment) {
-          // Adviser cleared, remove existing assignment
           await deleteAssignment(existingAssignment.id);
         }
 
@@ -217,14 +275,12 @@ export function ClassroomsView() {
       return;
     }
 
-    // Check if section already has a teacher
     const existingSectionAssignment = assignments.find(a => a.sectionId === newAssign.sectionId);
     if (existingSectionAssignment) {
       alert("This section already has a teacher assigned. Please remove the current assignment first.");
       return;
     }
 
-    // Check if teacher is already assigned to another section (and cleanup ghost assignments)
     const existingTeacherAssignments = assignments.filter(a => a.teacherId === newAssign.teacherId);
     let isAlreadyAssigned = false;
 
@@ -233,7 +289,6 @@ export function ClassroomsView() {
       if (sectionExists) {
         isAlreadyAssigned = true;
       } else {
-        // This is a ghost/orphaned assignment (section was deleted). Let's clean it up automatically!
         try {
           await deleteAssignment(assignment.id);
         } catch (e) {
@@ -274,7 +329,7 @@ export function ClassroomsView() {
           <div className="space-y-1">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Classrooms & Sections</h1>
             <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
-              Manage physical classrooms, logical sections, and teacher assignments {selectedYear === 'All' ? 'across all academic years' : `for Academic Year ${selectedYear}`}.
+              Manage physical classrooms, logical sections, and teacher assignments {selectedGrade === 'All' ? 'across all grade levels' : `for ${selectedGrade}`}.
             </p>
           </div>
 
@@ -291,281 +346,19 @@ export function ClassroomsView() {
 
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto shrink-0">
               <div className="flex items-center bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl w-full sm:w-auto">
-                <Select value={selectedYear} onValueChange={(val) => setSelectedYear(val)}>
+                <Select value={selectedGrade} onValueChange={(val) => setSelectedGrade(val)}>
                   <SelectTrigger className="h-8 border-none bg-transparent shadow-none w-full sm:w-[130px] text-xs font-bold">
-                    <SelectValue placeholder="Academic Year" />
+                    <SelectValue placeholder="Grade Level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="All">All Years</SelectItem>
-                    {uniqueYears.map(year => (
-                      <SelectItem key={year} value={year}>{year}</SelectItem>
+                    <SelectItem value="All">All Grades</SelectItem>
+                    {uniqueGrades.map(grade => (
+                      <SelectItem key={grade} value={grade}>{grade}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <Dialog open={isAssignOpen} onOpenChange={(open) => {
-                setIsAssignOpen(open);
-                if (!open) {
-                  setAssignSearchQuery('');
-                  setClassroomAssignSearchQuery('');
-                  setSectionAssignSearchQuery('');
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto rounded-xl px-5 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm font-semibold transition-all">
-                    <UserMinus className="w-4 h-4 mr-2" /> Assign Teacher
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Assign Teacher to Section</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAssign} className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label>Teacher</Label>
-                      <Select
-                        value={newAssign.teacherId || undefined}
-                        onValueChange={(v) =>
-                          setNewAssign({
-                            ...newAssign,
-                            teacherId: v
-                          })
-                        }>
-
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select teacher">
-                            {newAssign.teacherId ? (() => { const t = teachers.find(t => t.id === newAssign.teacherId); return t ? `${t.firstName} ${t.lastName}` : undefined; })() : undefined}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px] overflow-y-auto">
-                          <div className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100">
-                            <Input
-                              placeholder="Search teacher..."
-                              value={assignSearchQuery}
-                              onChange={(e) => setAssignSearchQuery(e.target.value)}
-                              onKeyDown={(e) => e.stopPropagation()}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          {teachers
-                            .filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(assignSearchQuery.toLowerCase()))
-                            .map((t) => (
-                              <SelectItem key={t.id} value={t.id}>
-                                {t.firstName} {t.lastName}
-                              </SelectItem>
-                            ))}
-                          {teachers.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(assignSearchQuery.toLowerCase())).length === 0 && (
-                            <div className="p-2 text-sm text-center text-slate-500">No teachers found.</div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Classroom</Label>
-                      <Select
-                        value={newAssign.classroomId || undefined}
-                        onValueChange={(v) =>
-                          setNewAssign({
-                            ...newAssign,
-                            classroomId: v,
-                            sectionId: ''
-                          })
-                        }>
-
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select classroom">
-                            {newAssign.classroomId ? classrooms.find(c => c.id === newAssign.classroomId)?.roomName : undefined}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px] overflow-y-auto">
-                          <div className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100">
-                            <Input
-                              placeholder="Search classroom..."
-                              value={classroomAssignSearchQuery}
-                              onChange={(e) => setClassroomAssignSearchQuery(e.target.value)}
-                              onKeyDown={(e) => e.stopPropagation()}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          {classrooms
-                            .filter((c) => (c.roomName || '').toLowerCase().includes(classroomAssignSearchQuery.toLowerCase()))
-                            .map((c) =>
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.roomName || 'Unnamed Room'}
-                              </SelectItem>
-                            )}
-                          {classrooms.filter((c) => (c.roomName || '').toLowerCase().includes(classroomAssignSearchQuery.toLowerCase())).length === 0 && (
-                            <div className="p-2 text-sm text-center text-slate-500">No classrooms found.</div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Section</Label>
-                      <Select
-                        value={newAssign.sectionId || undefined}
-                        onValueChange={(v) =>
-                          setNewAssign({
-                            ...newAssign,
-                            sectionId: v
-                          })
-                        }
-                        disabled={!newAssign.classroomId}>
-
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select section">
-                            {newAssign.sectionId ? sections.find(s => s.id === newAssign.sectionId)?.name : undefined}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px] overflow-y-auto">
-                          <div className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100">
-                            <Input
-                              placeholder="Search section..."
-                              value={sectionAssignSearchQuery}
-                              onChange={(e) => setSectionAssignSearchQuery(e.target.value)}
-                              onKeyDown={(e) => e.stopPropagation()}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          {sections.
-                            filter((s) => s.classroomId === newAssign.classroomId).
-                            filter((s) => s.name.toLowerCase().includes(sectionAssignSearchQuery.toLowerCase())).
-                            map((s) =>
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.name}
-                              </SelectItem>
-                            )}
-                          {sections.filter((s) => s.classroomId === newAssign.classroomId).filter((s) => s.name.toLowerCase().includes(sectionAssignSearchQuery.toLowerCase())).length === 0 && (
-                            <div className="p-2 text-sm text-center text-slate-500">No sections found.</div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsAssignOpen(false)}
-                        className="w-full sm:w-auto">
-
-                        Cancel
-                      </Button>
-                      <Button type="submit" className="w-full sm:w-auto">
-                        Assign
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={isAddSectionOpen} onOpenChange={(open) => {
-                setIsAddSectionOpen(open);
-                if (!open) setAddSectionClassroomSearchQuery('');
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto rounded-xl px-5 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm font-semibold transition-all">
-                    <Plus className="w-4 h-4 mr-2" /> Add Section
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Section</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAddSection} className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label>Section Name</Label>
-                      <Input
-                        required
-                        value={newSection.name}
-                        onChange={(e) => setNewSection({ ...newSection, name: e.target.value })}
-                        placeholder="e.g. Section A" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Grade Level</Label>
-                        <Select
-                          value={newSection.gradeLevel}
-                          onValueChange={(v) => setNewSection({ ...newSection, gradeLevel: v })}>
-                          <SelectTrigger><SelectValue placeholder="Grade">
-                            {newSection.gradeLevel ? `Grade ${newSection.gradeLevel}` : undefined}
-                          </SelectValue></SelectTrigger>
-                          <SelectContent className="max-h-[200px] overflow-y-auto">
-                            {[1, 2, 3, 4, 5, 6].map(level => (
-                              <SelectItem key={level} value={`Grade ${level}`}>Grade {level}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <Select
-                          value={newSection.status}
-                          onValueChange={(v) => setNewSection({ ...newSection, status: v as 'Active' | 'Inactive' })}>
-                          <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Active">Active</SelectItem>
-                            <SelectItem value="Inactive">Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Classroom</Label>
-                      <Select
-                        value={newSection.classroomId || undefined}
-                        onValueChange={(v) =>
-                          setNewSection({
-                            ...newSection,
-                            classroomId: v
-                          })
-                        }>
-
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select classroom">
-                            {newSection.classroomId ? classrooms.find(c => c.id === newSection.classroomId)?.roomName : undefined}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px] overflow-y-auto">
-                          <div className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100">
-                            <Input
-                              placeholder="Search classroom..."
-                              value={addSectionClassroomSearchQuery}
-                              onChange={(e) => setAddSectionClassroomSearchQuery(e.target.value)}
-                              onKeyDown={(e) => e.stopPropagation()}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          {classrooms
-                            .filter(c => c.status === 'Available' || !c.status)
-                            .filter(c => (c.roomName || 'Unnamed Room').toLowerCase().includes(addSectionClassroomSearchQuery.toLowerCase()))
-                            .map((c) =>
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.roomName || 'Unnamed Room'}
-                              </SelectItem>
-                            )}
-                          {classrooms.filter(c => c.status === 'Available' || !c.status).filter(c => (c.roomName || 'Unnamed Room').toLowerCase().includes(addSectionClassroomSearchQuery.toLowerCase())).length === 0 && (
-                            <div className="p-2 text-sm text-center text-slate-500">No classrooms found.</div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsAddSectionOpen(false)}
-                        className="w-full sm:w-auto">
-
-                        Cancel
-                      </Button>
-                      <Button type="submit" className="w-full sm:w-auto">
-                        Save Section
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
 
               <Dialog open={isAddClassroomOpen} onOpenChange={setIsAddClassroomOpen}>
                 <DialogTrigger asChild>
@@ -573,146 +366,36 @@ export function ClassroomsView() {
                     <Plus className="w-4 h-4 mr-2" /> Add Classroom
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Classroom</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAddClassroom} className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label>Room Name</Label>
-                      <Input
-                        required
-                        value={newClassroom.roomName}
-                        onChange={(e) => setNewClassroom({ ...newClassroom, roomName: e.target.value })}
-                        placeholder="e.g. Grade 1 - Room 101" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
+                  <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-slate-800 text-lg">
+                        <Home className="w-5 h-5 text-primary" />
+                        Add New Classroom
+                      </DialogTitle>
+                    </DialogHeader>
+                  </div>
+                  <form onSubmit={handleAddClassroom} className="px-6 py-4 space-y-6">
+                    <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label>Room Type</Label>
-                        <Select
-                          value={newClassroom.roomType}
-                          onValueChange={(v) => setNewClassroom({ ...newClassroom, roomType: v as 'Lecture' | 'Laboratory' | 'Multipurpose' })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Lecture">Lecture</SelectItem>
-                            <SelectItem value="Laboratory">Laboratory</SelectItem>
-                            <SelectItem value="Multipurpose">Multipurpose</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Grade Level</Label>
-                        <Select
-                          value={newClassroom.gradeLevel}
-                          onValueChange={(v) => setNewClassroom({ ...newClassroom, gradeLevel: v })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Grade" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[200px] overflow-y-auto">
-                            {['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map(g => (
-                              <SelectItem key={g} value={g}>{g}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <Select
-                          value={newClassroom.status}
-                          onValueChange={(v) => setNewClassroom({ ...newClassroom, status: v as 'Available' | 'Full' | 'Maintenance' })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Available">Available</SelectItem>
-                            <SelectItem value="Full">Full</SelectItem>
-                            <SelectItem value="Maintenance">Maintenance</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Academic Year</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          required
-                          placeholder="Start"
-                          value={newClassroom.academicYear.split('-')[0] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '' || /^\d*$/.test(val)) {
-                              const end = newClassroom.academicYear.split('-')[1] || '';
-                              setNewClassroom({ ...newClassroom, academicYear: `${val}-${end}` });
-                            }
-                          }}
-                          className="h-9"
-                        />
-                        <span className="text-muted-foreground">-</span>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          required
-                          placeholder="End"
-                          value={newClassroom.academicYear.split('-')[1] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '' || /^\d*$/.test(val)) {
-                              const start = newClassroom.academicYear.split('-')[0] || '';
-                              setNewClassroom({ ...newClassroom, academicYear: `${start}-${val}` });
-                            }
-                          }}
-                          className="h-9"
-                        />
-                      </div>
-                    </div>
-
-                    <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsAddClassroomOpen(false)}
-                        className="w-full sm:w-auto">
-
-                        Cancel
-                      </Button>
-                      <Button type="submit" className="w-full sm:w-auto">
-                        Save Classroom
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
-              {/* Edit Classroom Dialog */}
-              <Dialog open={isEditClassroomOpen} onOpenChange={setIsEditClassroomOpen}>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Edit Classroom</DialogTitle>
-                  </DialogHeader>
-                  {editingClassroom && (
-                    <form onSubmit={handleUpdateClassroom} className="space-y-4 pt-4">
-                      <div className="space-y-2">
-                        <Label>Room Name</Label>
+                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Room Name</Label>
                         <Input
                           required
-                          value={editingClassroom.roomName}
-                          onChange={(e) => setEditingClassroom({ ...editingClassroom, roomName: e.target.value })}
-                        />
+                          value={newClassroom.roomName}
+                          onChange={(e) => setNewClassroom({ ...newClassroom, roomName: e.target.value })}
+                          placeholder="e.g. Grade 1 - Room 101"
+                          className="bg-slate-50/50 focus:bg-white" />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Room Type</Label>
+                          <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Room Type</Label>
                           <Select
-                            value={editingClassroom.roomType}
-                            onValueChange={(v) => setEditingClassroom({ ...editingClassroom, roomType: v as 'Lecture' | 'Laboratory' | 'Multipurpose' })}>
-                            <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+                            value={newClassroom.roomType}
+                            onValueChange={(v) => setNewClassroom({ ...newClassroom, roomType: v as 'Lecture' | 'Laboratory' | 'Multipurpose' })}>
+                            <SelectTrigger className="bg-slate-50/50 focus:bg-white">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Lecture">Lecture</SelectItem>
                               <SelectItem value="Laboratory">Laboratory</SelectItem>
@@ -721,11 +404,13 @@ export function ClassroomsView() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Grade Level</Label>
+                          <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Grade Level</Label>
                           <Select
-                            value={editingClassroom.gradeLevel}
-                            onValueChange={(v) => setEditingClassroom({ ...editingClassroom, gradeLevel: v })}>
-                            <SelectTrigger><SelectValue placeholder="Grade" /></SelectTrigger>
+                            value={newClassroom.gradeLevel}
+                            onValueChange={(v) => setNewClassroom({ ...newClassroom, gradeLevel: v })}>
+                            <SelectTrigger className="bg-slate-50/50 focus:bg-white">
+                              <SelectValue placeholder="Grade" />
+                            </SelectTrigger>
                             <SelectContent className="max-h-[200px] overflow-y-auto">
                               {['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map(g => (
                                 <SelectItem key={g} value={g}>{g}</SelectItem>
@@ -734,11 +419,13 @@ export function ClassroomsView() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Status</Label>
+                          <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</Label>
                           <Select
-                            value={editingClassroom.status}
-                            onValueChange={(v) => setEditingClassroom({ ...editingClassroom, status: v as 'Available' | 'Full' | 'Maintenance' })}>
-                            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                            value={newClassroom.status}
+                            onValueChange={(v) => setNewClassroom({ ...newClassroom, status: v as 'Available' | 'Full' | 'Maintenance' })}>
+                            <SelectTrigger className="bg-slate-50/50 focus:bg-white">
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Available">Available</SelectItem>
                               <SelectItem value="Full">Full</SelectItem>
@@ -746,55 +433,292 @@ export function ClassroomsView() {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Academic Year</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              required
+                              placeholder="Start"
+                              value={newClassroom.academicYear.split('-')[0] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d*$/.test(val)) {
+                                  const end = newClassroom.academicYear.split('-')[1] || '';
+                                  setNewClassroom({ ...newClassroom, academicYear: `${val}-${end}` });
+                                }
+                              }}
+                              className="h-9 bg-slate-50/50 focus:bg-white text-center"
+                            />
+                            <span className="text-muted-foreground font-medium">-</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              required
+                              placeholder="End"
+                              value={newClassroom.academicYear.split('-')[1] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d*$/.test(val)) {
+                                  const start = newClassroom.academicYear.split('-')[0] || '';
+                                  setNewClassroom({ ...newClassroom, academicYear: `${start}-${val}` });
+                                }
+                              }}
+                              className="h-9 bg-slate-50/50 focus:bg-white text-center"
+                            />
+                          </div>
+                        </div>
                       </div>
+                    </div>
 
-                      <div className="space-y-2">
-                        <Label>Academic Year</Label>
-                        <div className="flex items-center gap-2">
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-4">
+                      <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        Class Section Details
+                      </Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Section Name</Label>
                           <Input
-                            type="text"
-                            inputMode="numeric"
-                            required
-                            placeholder="Start"
-                            value={(editingClassroom.academicYear || '').split('-')[0] || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === '' || /^\d*$/.test(val)) {
-                                const end = (editingClassroom.academicYear || '').split('-')[1] || '';
-                                setEditingClassroom({ ...editingClassroom, academicYear: `${val}-${end}` });
-                              }
-                            }}
-                            className="h-9"
+                            placeholder="e.g. Section A"
+                            value={newClassroomSection.name}
+                            onChange={e => setNewClassroomSection({...newClassroomSection, name: e.target.value})}
+                            className="h-9 bg-white"
                           />
-                          <span className="text-muted-foreground">-</span>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Adviser (Teacher)</Label>
+                          <Select
+                            value={newClassroomSection.adviserId || 'none'}
+                            onValueChange={v => setNewClassroomSection({...newClassroomSection, adviserId: v === 'none' ? undefined : v})}
+                          >
+                            <SelectTrigger className="h-9 bg-white">
+                              <SelectValue placeholder="Assign Adviser">
+                                {newClassroomSection.adviserId && newClassroomSection.adviserId !== 'none'
+                                  ? (() => {
+                                      const t = teachers.find(t => t.id === newClassroomSection.adviserId);
+                                      return t ? `${t.firstName} ${t.lastName}` : undefined;
+                                    })()
+                                  : undefined}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px] overflow-y-auto">
+                              <div className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100">
+                                <Input
+                                  placeholder="Search teacher..."
+                                  value={classroomTeacherSearch}
+                                  onChange={(e) => setClassroomTeacherSearch(e.target.value)}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              <div
+                                className="px-2 py-1.5 text-sm text-slate-500 cursor-pointer hover:bg-accent rounded-md"
+                                onClick={() => setNewClassroomSection({...newClassroomSection, adviserId: undefined})}>
+                                No Adviser (Remove)
+                              </div>
+                              {teachers
+                                .filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(classroomTeacherSearch.toLowerCase()))
+                                .map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+                                ))}
+                              {teachers.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(classroomTeacherSearch.toLowerCase())).length === 0 && (
+                                <div className="p-2 text-sm text-center text-slate-500">No teachers found.</div>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <DialogFooter className="pt-2 border-t border-slate-100 mt-2 flex-col sm:flex-row gap-2 sm:gap-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setIsAddClassroomOpen(false)}
+                        className="w-full sm:w-auto hover:bg-slate-100 text-slate-600">
+                        Cancel
+                      </Button>
+                      <Button type="submit" className="w-full sm:w-auto rounded-xl">
+                        Save Classroom
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isEditClassroomOpen} onOpenChange={setIsEditClassroomOpen}>
+                <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
+                  <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-slate-800 text-lg">
+                        <Edit className="w-5 h-5 text-primary" />
+                        Edit Classroom
+                      </DialogTitle>
+                    </DialogHeader>
+                  </div>
+                  {editingClassroom && (
+                    <form onSubmit={handleUpdateClassroom} className="px-6 py-4 space-y-6">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Room Name</Label>
                           <Input
-                            type="text"
-                            inputMode="numeric"
                             required
-                            placeholder="End"
-                            value={(editingClassroom.academicYear || '').split('-')[1] || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === '' || /^\d*$/.test(val)) {
-                                const start = (editingClassroom.academicYear || '').split('-')[0] || '';
-                                setEditingClassroom({ ...editingClassroom, academicYear: `${start}-${val}` });
-                              }
-                            }}
-                            className="h-9"
+                            value={editingClassroom.roomName}
+                            onChange={(e) => setEditingClassroom({ ...editingClassroom, roomName: e.target.value })}
+                            className="bg-slate-50/50 focus:bg-white"
                           />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Room Type</Label>
+                            <Select
+                              value={editingClassroom.roomType}
+                              onValueChange={(v) => setEditingClassroom({ ...editingClassroom, roomType: v as 'Lecture' | 'Laboratory' | 'Multipurpose' })}>
+                              <SelectTrigger className="bg-slate-50/50 focus:bg-white"><SelectValue placeholder="Type" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Lecture">Lecture</SelectItem>
+                                <SelectItem value="Laboratory">Laboratory</SelectItem>
+                                <SelectItem value="Multipurpose">Multipurpose</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Grade Level</Label>
+                            <Select
+                              value={editingClassroom.gradeLevel}
+                              onValueChange={(v) => setEditingClassroom({ ...editingClassroom, gradeLevel: v })}>
+                              <SelectTrigger className="bg-slate-50/50 focus:bg-white"><SelectValue placeholder="Grade" /></SelectTrigger>
+                              <SelectContent className="max-h-[200px] overflow-y-auto">
+                                {['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map(g => (
+                                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</Label>
+                            <Select
+                              value={editingClassroom.status}
+                              onValueChange={(v) => setEditingClassroom({ ...editingClassroom, status: v as 'Available' | 'Full' | 'Maintenance' })}>
+                              <SelectTrigger className="bg-slate-50/50 focus:bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Available">Available</SelectItem>
+                                <SelectItem value="Full">Full</SelectItem>
+                                <SelectItem value="Maintenance">Maintenance</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Academic Year</Label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                required
+                                placeholder="Start"
+                                value={(editingClassroom.academicYear || '').split('-')[0] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === '' || /^\d*$/.test(val)) {
+                                    const end = (editingClassroom.academicYear || '').split('-')[1] || '';
+                                    setEditingClassroom({ ...editingClassroom, academicYear: `${val}-${end}` });
+                                  }
+                                }}
+                                className="h-9 bg-slate-50/50 focus:bg-white text-center"
+                              />
+                              <span className="text-muted-foreground font-medium">-</span>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                required
+                                placeholder="End"
+                                value={(editingClassroom.academicYear || '').split('-')[1] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === '' || /^\d*$/.test(val)) {
+                                    const start = (editingClassroom.academicYear || '').split('-')[0] || '';
+                                    setEditingClassroom({ ...editingClassroom, academicYear: `${start}-${val}` });
+                                  }
+                                }}
+                                className="h-9 bg-slate-50/50 focus:bg-white text-center"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsEditClassroomOpen(false)}>Cancel</Button>
-                        <Button type="submit">Update Classroom</Button>
+                      <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-4">
+                        <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                          <Users className="w-4 h-4 text-slate-400" />
+                          Class Section Details
+                        </Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Section Name</Label>
+                            <Input
+                              placeholder="e.g. Section A"
+                              value={editClassroomSection.name}
+                              onChange={e => setEditClassroomSection({...editClassroomSection, name: e.target.value})}
+                              className="h-9 bg-white"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Adviser (Teacher)</Label>
+                            <Select
+                              value={editClassroomSection.adviserId || 'none'}
+                              onValueChange={v => setEditClassroomSection({...editClassroomSection, adviserId: v === 'none' ? undefined : v})}
+                            >
+                              <SelectTrigger className="h-9 bg-white">
+                                <SelectValue placeholder="Assign Adviser">
+                                  {editClassroomSection.adviserId && editClassroomSection.adviserId !== 'none'
+                                    ? (() => {
+                                        const t = teachers.find(t => t.id === editClassroomSection.adviserId);
+                                        return t ? `${t.firstName} ${t.lastName}` : undefined;
+                                      })()
+                                    : undefined}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[300px] overflow-y-auto">
+                                <div className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100">
+                                  <Input
+                                    placeholder="Search teacher..."
+                                    value={classroomTeacherSearch}
+                                    onChange={(e) => setClassroomTeacherSearch(e.target.value)}
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                <div
+                                  className="px-2 py-1.5 text-sm text-slate-500 cursor-pointer hover:bg-accent rounded-md"
+                                  onClick={() => setEditClassroomSection({...editClassroomSection, adviserId: undefined})}>
+                                  No Adviser (Remove)
+                                </div>
+                                {teachers
+                                  .filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(classroomTeacherSearch.toLowerCase()))
+                                  .map((t) => (
+                                    <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+                                  ))}
+                                {teachers.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(classroomTeacherSearch.toLowerCase())).length === 0 && (
+                                  <div className="p-2 text-sm text-center text-slate-500">No teachers found.</div>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <DialogFooter className="pt-2 border-t border-slate-100 mt-2">
+                        <Button type="button" variant="ghost" className="hover:bg-slate-100 text-slate-600 w-full sm:w-auto" onClick={() => setIsEditClassroomOpen(false)}>Cancel</Button>
+                        <Button type="submit" className="rounded-xl w-full sm:w-auto">Update Classroom</Button>
                       </DialogFooter>
                     </form>
                   )}
                 </DialogContent>
               </Dialog>
 
-              {/* Edit Section Dialog */}
               <Dialog open={isEditSectionOpen} onOpenChange={setIsEditSectionOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
@@ -901,7 +825,6 @@ export function ClassroomsView() {
                 </DialogContent>
               </Dialog>
 
-              {/* Manage Subject Teachers Dialog */}
               <Dialog open={isSubjectTeacherOpen} onOpenChange={setIsSubjectTeacherOpen}>
                 <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
@@ -964,140 +887,99 @@ export function ClassroomsView() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {classrooms
-            .filter(c => selectedYear === 'All' || c.academicYear === selectedYear)
+        {(() => {
+          const filteredClassrooms = classrooms
+            .filter(c => selectedGrade === 'All' || c.gradeLevel === selectedGrade)
             .filter(c => (c.roomName || '').toLowerCase().includes(mainClassroomSearchQuery.toLowerCase()))
             .sort((a, b) => {
               const gradeA = parseInt((a.gradeLevel || '').replace(/\D/g, '')) || 99;
               const gradeB = parseInt((b.gradeLevel || '').replace(/\D/g, '')) || 99;
               if (gradeA !== gradeB) return gradeA - gradeB;
               return (a.roomName || '').localeCompare(b.roomName || '');
-            })
-            .map((classroom) => {
-              const classSections = sections.filter(
-                (s) => s.classroomId === classroom.id
-              );
-              return (
-                <Card
-                  key={classroom.id}
-                  onClick={() => setTimeout(() => setDetailsClassroom(classroom), 0)}
-                  className="bg-card border-border p-6 shadow-sm rounded-xl flex flex-col cursor-pointer hover:shadow-md hover:border-slate-300 transition-all hover:translate-y-[-2px] duration-150">
+            });
 
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
-                        <Home className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg leading-tight">
-                          {classroom.roomName || 'Standard Classroom'}
-                        </h3>
-                        {classroom.academicYear && (
-                          <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            AY {classroom.academicYear}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 items-end">
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5"
-                          onClick={(e) => { e.stopPropagation(); setEditingClassroom(classroom); setIsEditClassroomOpen(true); }}
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50"
-                          onClick={(e) => { e.stopPropagation(); deleteClassroom(classroom.id); }}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md",
-                            classroom.status === 'Available' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                              classroom.status === 'Full' ? "bg-amber-50 text-amber-600 border border-amber-100" :
-                                "bg-rose-50 text-rose-600 border border-rose-100"
-                          )}>
-                          {classroom.status || 'Available'}
-                        </Badge>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          {classroom.roomType || 'Lecture'}
-                        </span>
-                        {classroom.gradeLevel && (
-                          <Badge variant="outline" className="text-[10px] uppercase font-bold text-slate-500 border-slate-200 bg-white">
-                            {classroom.gradeLevel}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+          if (filteredClassrooms.length === 0) {
+            return (
+              <div className="text-center py-12">
+                <p className="text-slate-500 font-medium">No classrooms found.</p>
+              </div>
+            );
+          }
 
-                  <div className="flex items-center justify-between py-3 mb-4 border-y border-slate-50">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Created Date</span>
-                      <span className="text-xs font-semibold text-slate-600">
-                        {getDateString(classroom.createdAt)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sections</span>
-                      <span className="text-xs font-bold text-primary">{classSections.length} Active</span>
-                    </div>
-                  </div>
+          const grouped = filteredClassrooms.reduce((acc, curr) => {
+            const grade = curr.gradeLevel || 'Unspecified Grade';
+            if (!acc[grade]) acc[grade] = [];
+            acc[grade].push(curr);
+            return acc;
+          }, {} as Record<string, any[]>);
 
-                  <div className="space-y-3 flex-1">
-                    {classSections.length === 0 ?
-                      <p className="text-sm text-muted-foreground italic">
-                        No sections added yet.
-                      </p> :
+          const sortedGrades = Object.keys(grouped).sort((a, b) => {
+            const numA = parseInt(a.replace(/\D/g, '')) || 99;
+            const numB = parseInt(b.replace(/\D/g, '')) || 99;
+            return numA - numB;
+          });
 
-                      classSections.map((section) => {
-                        const assignment = assignments.find(
-                          (a) => a.sectionId === section.id
-                        );
-                        const teacher = assignment ?
-                          teachers.find((t) => t.id === assignment.teacherId) :
-                          null;
-                        return (
-                          <div
-                            key={section.id}
-                            className="group flex flex-col p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md hover:shadow-slate-200/50 hover:border-primary/20 transition-all duration-200">
+          return (
+            <div className="space-y-10 w-full">
+              {sortedGrades.map(grade => (
+                <div key={grade} className="space-y-4">
+                  <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <div className="w-1.5 h-5 bg-primary rounded-full"></div>
+                    {grade}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {grouped[grade].map((classroom) => {
+                      const classSections = sections.filter(
+                        (s) => s.classroomId === classroom.id
+                      );
+                      return (
+                        <Card
+                          key={classroom.id}
+                          onClick={() => setTimeout(() => setDetailsClassroom(classroom), 0)}
+                          className="bg-card border-border p-6 shadow-sm rounded-xl flex flex-col cursor-pointer hover:shadow-md hover:border-slate-300 transition-all hover:translate-y-[-2px] duration-150">
 
-                            <div className="flex items-center justify-between">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-sm text-slate-900 leading-tight">
-                                  {section.name}
-                                </span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className={cn(
-                                    "w-1.5 h-1.5 rounded-full",
-                                    section.status === 'Active' ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
-                                  )} />
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{section.status}</span>
-                                </div>
+                          <div className="flex justify-between items-start mb-6">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+                                <Home className="w-5 h-5" />
                               </div>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div>
+                                <h3 className="font-semibold text-lg leading-tight">
+                                  {classroom.roomName || 'Standard Classroom'}
+                                </h3>
+                                {classroom.academicYear && (
+                                  <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    AY {classroom.academicYear}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2 items-end">
+                              <div className="flex items-center gap-1">
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingSection(section);
-                                    const existingAssignment = assignments.find(a => a.sectionId === section.id);
-                                    setEditSectionAdviserId(existingAssignment?.teacherId || '');
-                                    setEditSectionTeacherSearch('');
-                                    setIsEditSectionOpen(true);
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setEditingClassroom(classroom);
+                                    const section = classSections[0];
+                                    if (section) {
+                                      const assignment = assignments.find(a => a.sectionId === section.id);
+                                      setEditClassroomSection({
+                                        id: section.id,
+                                        name: section.name,
+                                        gradeLevel: section.gradeLevel || classroom.gradeLevel || 'Grade 1',
+                                        adviserId: assignment?.teacherId,
+                                        originalAdviserId: assignment?.teacherId
+                                      });
+                                    } else {
+                                      setEditClassroomSection({
+                                        name: '',
+                                        gradeLevel: classroom.gradeLevel || 'Grade 1',
+                                      });
+                                    }
+                                    setIsEditClassroomOpen(true); 
                                   }}
                                 >
                                   <Edit className="w-3.5 h-3.5" />
@@ -1106,59 +988,57 @@ export function ClassroomsView() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50"
-                                  onClick={(e) => { e.stopPropagation(); deleteSection(section.id); }}
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setDeleteConfirmId(classroom.id);
+                                  }}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                  {classroom.roomType || 'Lecture'}
+                                </span>
+                                {classroom.gradeLevel && (
+                                  <Badge variant="outline" className="text-[10px] uppercase font-bold text-slate-500 border-slate-200 bg-white">
+                                    {classroom.gradeLevel}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
+                          </div>
 
-                            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                              {teacher ?
-                                <div className="flex items-center justify-between w-full">
-                                  <div className="flex items-center text-xs text-slate-600 font-medium">
-                                    <Users className="w-3.5 h-3.5 mr-2 text-slate-400" />
-                                    {teacher.firstName} {teacher.lastName}
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 rounded-md text-slate-300 hover:text-rose-600 hover:bg-rose-50"
-                                    onClick={(e) => { e.stopPropagation(); assignment && deleteAssignment(assignment.id); }}
-                                    title="Remove Assignment"
-                                  >
-                                    <UserMinus className="w-3 h-3" />
-                                  </Button>
-                                </div> :
-
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] font-bold uppercase tracking-wider text-orange-600 border-orange-100 bg-orange-50/50 px-2 py-0.5 rounded-md">
-                                  Unassigned
-                                </Badge>
-                              }
+                          <div className="flex items-center justify-between py-3 border-t border-slate-50 mt-auto">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Created Date</span>
+                              <span className="text-xs font-semibold text-slate-600">
+                                {getDateString(classroom.createdAt)}
+                              </span>
                             </div>
-                            
-                            <Button 
-                              variant="ghost" 
-                              className="w-full mt-2 h-7 text-[10px] uppercase font-bold text-slate-500 bg-slate-50 border border-slate-100 hover:bg-slate-100 hover:text-primary transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSubjectTeacherSectionId(section.id);
-                                setIsSubjectTeacherOpen(true);
-                              }}
-                            >
-                              <BookOpen className="w-3 h-3 mr-1.5" /> Manage Subject Teachers
-                            </Button>
-                          </div>);
-
-                      })
-                    }
+                            {classSections.length > 0 && (() => {
+                              const section = classSections[0];
+                              const assignment = assignments.find((a) => a.sectionId === section.id);
+                              const teacher = assignment ? teachers.find((t) => t.id === assignment.teacherId) : null;
+                              return (
+                                <div className="flex flex-col items-end text-right">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Adviser</span>
+                                  <span className="text-xs font-semibold text-slate-600 truncate max-w-[140px]" title={teacher ? `${teacher.firstName} ${teacher.lastName}` : 'No Adviser'}>
+                                    {teacher ? `${teacher.firstName} ${teacher.lastName}` : 'No Adviser'}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
-                </Card>);
-
-            })}
-        </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Classroom Details Modal - Direct Portal (bypasses Dialog event issues) */}
@@ -1196,19 +1076,12 @@ export function ClassroomsView() {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Grade Level</span>
                   <span className="text-sm font-semibold text-slate-800">{detailsClassroom.gradeLevel || 'Any'}</span>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Status</span>
-                  <span className="text-sm font-semibold text-slate-800">{detailsClassroom.status || 'Available'}</span>
-                </div>
               </div>
 
               {/* Sections list with Advisers and Students */}
               <div className="space-y-6">
                 <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
-                  <span>Sections &amp; Enrolled Students</span>
-                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                    {sections.filter(s => s.classroomId === detailsClassroom.id).length} Sections
-                  </span>
+                  <span>Section &amp; Enrolled Students</span>
                 </h3>
 
                 {sections.filter(s => s.classroomId === detailsClassroom.id).length === 0 ? (
@@ -1226,12 +1099,6 @@ export function ClassroomsView() {
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-slate-900">{section.name}</h4>
-                              <span className={cn(
-                                "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
-                                section.status === 'Active' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-100 text-slate-500"
-                              )}>
-                                {section.status}
-                              </span>
                             </div>
                             <p className="text-xs text-slate-500 mt-0.5">
                               Adviser: <span className="font-semibold text-slate-700">{teacher ? `${teacher.firstName} ${teacher.lastName}` : 'No Adviser Assigned'}</span>
@@ -1307,6 +1174,40 @@ export function ClassroomsView() {
         </div>,
         document.body
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-rose-200 p-0 overflow-hidden">
+          <div className="bg-rose-50/50 px-6 py-4 border-b border-rose-100">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-rose-700 text-lg">
+                <AlertCircle className="w-5 h-5 text-rose-600" />
+                Confirm Deletion
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="px-6 py-6">
+            <p className="text-sm text-slate-600">
+              Are you sure you want to delete this classroom? This action cannot be undone and will remove all associated sections and teacher assignments.
+            </p>
+          </div>
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button 
+              className="bg-rose-600 hover:bg-rose-700 text-white" 
+              onClick={async () => {
+                if (deleteConfirmId) {
+                  await deleteClassroom(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                  toast.success("Classroom deleted successfully");
+                }
+              }}
+            >
+              Delete Classroom
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>);
 
 }

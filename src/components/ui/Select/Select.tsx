@@ -175,7 +175,7 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
           minWidth: `${coords.width}px`
         }}
         className={cn(
-          "z-[102] overflow-hidden rounded-lg bg-background border border-border text-popover-foreground shadow-md animate-in fade-in zoom-in-95 duration-100",
+          "z-[102] overflow-y-auto custom-scrollbar rounded-lg bg-background border border-border text-popover-foreground shadow-md animate-in fade-in zoom-in-95 duration-100",
           className
         )}
         {...props}>
