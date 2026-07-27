@@ -1,16 +1,95 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Label } from '../../components/ui/Label';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { Loader2, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ArrowRight, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { normalizeRole } from '../../lib/roles';
 import { motion } from 'framer-motion';
 
+// ── Floating Label Input Component ──────────────────────────────────────────
+interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  icon?: React.ReactNode;
+  suffix?: React.ReactNode;
+}
+
+function FloatInput({
+  id,
+  type = 'text',
+  label,
+  value,
+  onChange,
+  icon,
+  suffix,
+  autoFocus,
+  required,
+  ...props
+}: FloatInputProps) {
+  const [focused, setFocused] = useState(false);
+  const lifted = focused || (value !== undefined && value !== null && String(value).length > 0);
+
+  return (
+    <div className="relative w-full text-left">
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        autoFocus={autoFocus}
+        {...props}
+        style={{
+          paddingTop: lifted ? '22px' : '14px',
+          paddingBottom: lifted ? '6px' : '14px',
+        }}
+        className={`
+          w-full h-14 bg-slate-50 border rounded-xl text-sm text-slate-900 font-medium
+          outline-none transition-all duration-200 ${icon ? 'pl-11' : 'pl-4'} ${suffix ? 'pr-11' : 'pr-4'}
+          ${focused
+            ? 'border-blue-500 ring-2 ring-blue-500/15 bg-white'
+            : 'border-slate-200 hover:border-slate-300'
+          }
+        `}
+      />
+      {/* Floating Label */}
+      <label
+        htmlFor={id}
+        className={`absolute pointer-events-none transition-all duration-200 origin-left ${icon ? 'left-11' : 'left-4'}`}
+        style={{
+          top: lifted ? '6px' : '50%',
+          transform: lifted ? 'translateY(0) scale(0.75)' : 'translateY(-50%) scale(1)',
+          color: focused ? '#2563eb' : '#94a3b8',
+          fontWeight: 700,
+          fontSize: '0.75rem',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </label>
+      {icon && (
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          {icon}
+        </div>
+      )}
+      {suffix && (
+        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 z-10">
+          {suffix}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -23,9 +102,7 @@ export function LoginPage() {
   const { user, role } = useAuth();
 
   useEffect(() => {
-    if (roleParam) {
-      setEmail(`${roleParam}@school.edu`);
-    }
+    if (roleParam) setEmail(`${roleParam}@school.edu`);
   }, [roleParam]);
 
   useEffect(() => {
@@ -43,15 +120,11 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setIsLoggingIn(true);
-
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const loggedUser = userCredential.user;
-
-      // Fetch user role from Firestore
       const docRef = doc(db, 'users', loggedUser.uid);
       const docSnap = await getDoc(docRef);
-
       if (docSnap.exists()) {
         const rawRole = docSnap.data().role;
         const normalizedRole = normalizeRole(rawRole);
@@ -60,168 +133,188 @@ export function LoginPage() {
         } else if (normalizedRole) {
           navigate(`/${normalizedRole}`);
         } else {
-          setError("Invalid user role. Please contact administrator.");
+          setError('Invalid user role. Please contact administrator.');
         }
       } else {
-        setError("User role not found. Please contact administrator.");
+        setError('User role not found. Please contact administrator.');
       }
     } catch (err) {
-      console.error(err);
       const errorObj = err as Error & { message?: string };
-      setError(errorObj.message || "Failed to sign in. Please check your credentials.");
+      setError(errorObj.message || 'Failed to sign in. Please check your credentials.');
     } finally {
       setIsLoggingIn(false);
     }
   };
 
   return (
-    <div 
-      className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-950 bg-cover bg-center font-sans"
-      style={{ backgroundImage: 'url(/STA_maria_background.jpg)' }}
+    <div
+      className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: "url('/images/sta_maria_bulding.png')" }}
     >
-      {/* Glass Backdrop Blur Overlay */}
-      <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-[4px] z-0" />
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" />
 
-      {/* Floating Centered Split-Card */}
+      {/* Card */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        initial={{ opacity: 0, scale: 0.96, y: 18 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-4xl min-h-[500px] bg-white/95 backdrop-blur-md rounded-[32px] shadow-[0_30px_70px_rgba(0,0,0,0.5)] border border-white/20 overflow-hidden flex flex-col md:flex-row"
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="relative z-10 w-full max-w-4xl overflow-hidden flex flex-col md:flex-row"
+        style={{ borderRadius: '28px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}
       >
-        {/* Left Side: Brand Showcase Panel */}
-        <div 
-          className="hidden md:flex md:w-[42%] p-10 flex-col justify-between text-white relative overflow-hidden bg-slate-900 bg-cover bg-center"
-          style={{ backgroundImage: 'url(/login_img.png)' }}
+        {/* ── LEFT PANEL ── modern deep royal blue gradient with ambient lighting ── */}
+        <div
+          className="hidden md:flex md:w-[42%] flex-col justify-between p-10 text-white relative overflow-hidden"
+          style={{ background: 'linear-gradient(145deg, #0a192f 0%, #003078 50%, #004ac6 100%)' }}
         >
-          {/* Glass Gradient overlay (Just like the second picture) */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0c2a50]/85 via-[#103a6c]/90 to-[#1e60aa]/95 z-0" />
-          
-          {/* Logo Brand Header */}
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="p-1.5 bg-white/10 rounded-2xl border border-white/20 shadow-sm shrink-0">
-              <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-xl object-cover" />
+          {/* Ambient lighting & sleek visual accents */}
+          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
+
+          {/* TOP: Both logos + school name */}
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
+                <img src="/images/deped_logo.png" alt="DepEd Logo" className="w-full h-full object-contain" />
+              </div>
+              <div className="w-px h-10 bg-white/20" />
+              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
+                <img src="/images/sta_maria_school_logo.jpg" alt="School Logo" className="w-full h-full object-cover rounded-lg" />
+              </div>
+              {/* School name */}
+              <div className="flex flex-col leading-tight">
+                <span className="font-black text-sm text-white uppercase tracking-wide">STA. MARIA</span>
+                <span className="font-black text-sm text-white uppercase tracking-wide">CENTRAL SCHOOL</span>
+                <span className="text-[11px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">SPED Center</span>
+              </div>
             </div>
-            <div className="flex flex-col text-left">
-              <span className="font-extrabold text-sm tracking-tight leading-none text-white">Sta. Maria</span>
-              <span className="text-[10px] font-bold text-sky-300 uppercase tracking-widest leading-none mt-1">SPED Center</span>
-            </div>
+            <div className="h-px bg-white/15 w-full" />
           </div>
 
-          {/* Slogan & Values */}
-          <div className="relative z-10 space-y-4 my-auto text-left">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/15 text-[9px] font-extrabold uppercase tracking-widest text-sky-200">
-              Secure Portal
+          {/* MIDDLE: Main content */}
+          <div className="relative z-10 space-y-5 my-auto">
+            {/* Official Portal badge */}
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-300/30 bg-amber-400/10 text-[10px] font-extrabold uppercase tracking-[0.15em] text-amber-300 backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
+              Official Portal
             </span>
-            <h3 className="text-2xl font-black leading-tight tracking-tight text-white">
-              Believe, Educate, and Transform
+
+            {/* Motto */}
+            <h3 className="text-3xl font-black leading-tight tracking-tight text-white">
+              Believe, Educate,<br />
+              <span className="text-blue-200">and Transform</span>
             </h3>
-            <p className="text-xs text-slate-200/90 font-medium leading-relaxed">
+
+            <p className="text-sm text-blue-100/90 font-medium leading-relaxed max-w-[220px]">
               Access school modules, encoding dashboards, child records, and attendance logs.
             </p>
           </div>
 
-          {/* Footer details */}
-          <div className="relative z-10 text-left">
-            <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Founded since 1920</p>
+          {/* BOTTOM: Founded — highlighted without dot */}
+          <div className="relative z-10">
+            <div className="h-px bg-white/15 w-full mb-4" />
+            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
+              <p className="text-[10px] font-extrabold text-white uppercase tracking-[0.18em]">Founded Since 1920</p>
+            </div>
           </div>
         </div>
 
-        {/* Right Side: Form Panel */}
-        <div className="w-full md:w-[58%] bg-white/70 backdrop-blur-md flex flex-col justify-center p-8 sm:p-12 md:p-14 overflow-y-auto">
+        {/* ── RIGHT PANEL ── */}
+        <div className="w-full md:w-[58%] bg-white flex flex-col justify-center p-8 sm:p-12 md:p-14 overflow-y-auto">
           <div className="w-full max-w-sm mx-auto space-y-8">
-            {/* Header Text */}
-            <div className="text-left space-y-1">
-              <div className="md:hidden flex items-center gap-2 mb-4">
-                <img src="/pasted-image.jpg" alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
-                <span className="font-extrabold text-xs text-slate-800 tracking-tight">Sta. Maria SPED</span>
-              </div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Welcome Back</h2>
+
+            {/* Mobile logo */}
+            <div className="md:hidden flex items-center gap-2 mb-2">
+              <img src="/images/sta_maria_school_logo.jpg" alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
+              <span className="font-extrabold text-xs text-slate-800 tracking-tight">Sta. Maria SPED</span>
+            </div>
+
+            {/* Header */}
+            <div className="space-y-1.5 text-left">
+              <h2 className="text-3xl font-black tracking-tight text-slate-900">Welcome Back</h2>
               <p className="text-sm text-slate-400 font-medium">Sign in to your school account portal.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-4">
-                <div className="space-y-1.5 text-left">
-                  <Label htmlFor="email" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="name@school.edu"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11 bg-white/60 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Floating Email */}
+              <FloatInput
+                id="email"
+                type="email"
+                label="Email Address *"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+              />
 
-                <div className="space-y-1.5 text-left">
-                  <Label htmlFor="password" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="h-11 bg-white/60 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors pr-10 rounded-xl text-sm" 
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {/* Floating Password */}
+              <FloatInput
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                label="Password *"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                suffix={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   </button>
-                </div>
-              </div>
-            </div>
+                }
+              />
 
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="text-xs font-semibold text-rose-600 bg-rose-50/80 border border-rose-100 p-3 rounded-xl text-center"
-              >
-                {error}
-              </motion.div>
-            )}
-
-            <Button 
-              type="submit" 
-              className="w-full h-11 text-sm font-bold rounded-xl shadow-md bg-gradient-to-r from-[#1e60aa] to-[#2575cd] hover:from-[#195292] hover:to-[#1e63b0] text-white transition-all active:scale-98 flex items-center justify-center gap-1.5 border-none mt-2" 
-              disabled={isLoggingIn}
-            >
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Signing In...
-                </>
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+              {/* Error */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 p-3 rounded-xl text-center"
+                >
+                  {error}
+                </motion.div>
               )}
-            </Button>
-          </form>
 
-          {/* Account Creation Block */}
-          <div className="pt-6 border-t border-slate-200/60 space-y-3">
-            <p className="text-xs text-slate-400 font-semibold text-center">New to Sta. Maria Portal?</p>
-            <Button
-              variant="outline"
-              type="button"
-              className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#1e60aa] hover:bg-[#1e60aa]/5 hover:border-[#1e60aa]/30 transition-all active:scale-98"
-              onClick={() => navigate('/signup')}
-            >
-              Create parent account
-            </Button>
+              {/* Sign In */}
+              <Button
+                type="submit"
+                className="w-full h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none mt-1"
+                style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
+                disabled={isLoggingIn}
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  <>
+                    Sign In
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {/* Create account */}
+            <div className="pt-6 border-t border-slate-100 space-y-3 text-center">
+              <p className="text-xs text-slate-400 font-semibold">New to Sta. Maria Portal?</p>
+              <Button
+                variant="outline"
+                type="button"
+                className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#1040a0] hover:bg-blue-50 hover:border-blue-200 transition-all active:scale-[0.98]"
+                onClick={() => navigate('/signup')}
+              >
+                Create parent account
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </motion.div>
-  </div>
+      </motion.div>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './pages/auth/LoginPage';
+import { LandingPage } from './pages/LandingPage';
 import { SignUpPage } from './pages/auth/SignUpPage';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -16,7 +17,7 @@ export function App() {
       <Toaster position="top-center" />
       <Suspense fallback={<div className="h-screen w-screen"><LoadingSpinner message="Loading School Portal..." /></div>}>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/admin" element={<ProtectedRoute requiredRole={['admin', 'subadmin']}><AdminDashboard /></ProtectedRoute>} />

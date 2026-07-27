@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import {
   Select,
@@ -17,20 +16,129 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  User,
   Phone,
   Mail,
-  Lock,
-  ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  MapPin,
+  Building,
+  UserCheck,
+  Clock,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { normalizeRole } from '../../lib/roles';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Province & City Data for Zamboanga Region
+const PROVINCES_CITIES: Record<string, string[]> = {
+  'Zamboanga City': ['Zamboanga City'],
+  'Zamboanga del Sur': [
+    'Pagadian City', 'Aurora', 'Bayog', 'Dimataling', 'Dinas', 'Dumalinao',
+    'Dumingag', 'Guipos', 'Josefina', 'Kumalarang', 'Labangan', 'Lakewood',
+    'Lapuyan', 'Mahayag', 'Margosatubig', 'Midsalip', 'Molave', 'Pitogo',
+    'Ramon Magsaysay', 'San Pablo', 'San Miguel', 'Tabina', 'Tamboulig',
+    'Tigbao', 'Tukuran', 'Vincenzo A. Sagun'
+  ],
+  'Zamboanga del Norte': [
+    'Dipolog City', 'Dapitan City', 'Bacungan', 'Baliguian', 'Godod', 'Gutalac',
+    'Jose Dalman', 'Kalawit', 'Katipunan', 'La Libertad', 'Labason', 'Leon B. Postigo',
+    'Liloy', 'Manukan', 'Mutia', 'Pinan', 'Polanco', 'President Manuel A. Roxas',
+    'Rizal', 'Salug', 'Sergio Osmena Sr.', 'Siayan', 'Sibuco', 'Sirawai', 'Siocon'
+  ],
+  'Zamboanga Sibugay': [
+    'Ipil', 'Alicia', 'Buug', 'Diplahan', 'Imelda', 'Kabasalan', 'Mabuhay',
+    'Malangas', 'Naga', 'Olutanga', 'Payao', 'Roseller Lim', 'Siay', 'Talusan',
+    'Titay', 'Tungawan'
+  ]
+};
+
+// ── Floating Label Input Component ──────────────────────────────────────────
+interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  icon?: React.ReactNode;
+  suffix?: React.ReactNode;
+}
+
+function FloatInput({
+  id,
+  type = 'text',
+  label,
+  value,
+  onChange,
+  icon,
+  suffix,
+  autoFocus,
+  required,
+  ...props
+}: FloatInputProps) {
+  const [focused, setFocused] = useState(false);
+  const lifted = focused || (value !== undefined && value !== null && String(value).length > 0);
+
+  return (
+    <div className="relative w-full text-left">
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        autoFocus={autoFocus}
+        {...props}
+        style={{
+          paddingTop: lifted ? '22px' : '14px',
+          paddingBottom: lifted ? '6px' : '14px',
+        }}
+        className={`
+          w-full h-14 bg-slate-50 border rounded-xl text-sm text-slate-900 font-medium
+          outline-none transition-all duration-200 ${icon ? 'pl-11' : 'pl-4'} ${suffix ? 'pr-11' : 'pr-4'}
+          ${focused
+            ? 'border-blue-500 ring-2 ring-blue-500/15 bg-white'
+            : 'border-slate-200 hover:border-slate-300'
+          }
+        `}
+      />
+      {/* Floating Label */}
+      <label
+        htmlFor={id}
+        className={`absolute pointer-events-none transition-all duration-200 origin-left ${icon ? 'left-11' : 'left-4'}`}
+        style={{
+          top: lifted ? '6px' : '50%',
+          transform: lifted ? 'translateY(0) scale(0.75)' : 'translateY(-50%) scale(1)',
+          color: focused ? '#2563eb' : '#94a3b8',
+          fontWeight: 700,
+          fontSize: '0.75rem',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </label>
+      {icon && (
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          {icon}
+        </div>
+      )}
+      {suffix && (
+        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 z-10">
+          {suffix}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SignUpPage() {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const [step, setStep] = useState(1);
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -49,12 +157,18 @@ export function SignUpPage() {
 
   const [formData, setFormData] = useState({
     firstName: '',
-    middleName: '',
     lastName: '',
+    middleName: '',
     suffix: 'None',
     relationship: 'Father',
     contactNumber: '',
     email: '',
+    province: 'Zamboanga City',
+    city: 'Zamboanga City',
+    barangay: '',
+    streetAddress: '',
+    zipCode: '',
+    username: '',
     password: '',
     confirmPassword: ''
   });
@@ -62,7 +176,6 @@ export function SignUpPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     
-    // Contact number validation (11 digits only)
     if (id === 'contactNumber') {
       const cleaned = value.replace(/\D/g, '').slice(0, 11);
       setFormData(prev => ({ ...prev, [id]: cleaned }));
@@ -73,22 +186,100 @@ export function SignUpPage() {
   };
 
   const handleSelectChange = (id: string, value: string) => {
+    if (id === 'province') {
+      const availableCities = PROVINCES_CITIES[value] || [];
+      setFormData(prev => ({
+        ...prev,
+        province: value,
+        city: availableCities[0] || ''
+      }));
+      return;
+    }
+
+    if (id === 'city') {
+      let matchedProvince = formData.province;
+      for (const [prov, cities] of Object.entries(PROVINCES_CITIES)) {
+        if (cities.includes(value)) {
+          matchedProvince = prov;
+          break;
+        }
+      }
+      setFormData(prev => ({ ...prev, province: matchedProvince, city: value }));
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  // Password Validation Rules
+  const passLength = formData.password.length >= 8;
+  const passUpper = /[A-Z]/.test(formData.password);
+  const passNumber = /[0-9]/.test(formData.password);
+  const passValid = passLength && passUpper && passNumber;
+
+  // Step Validation Logic
+  const handleNext = () => {
+    setError(null);
+
+    if (step === 1) {
+      if (!formData.firstName.trim() || !formData.lastName.trim()) {
+        setError('Please enter both your First Name and Last Name.');
+        return;
+      }
+    } else if (step === 3) {
+      if (!formData.relationship) {
+        setError('Please select your relationship to the student.');
+        return;
+      }
+    } else if (step === 4) {
+      if (formData.contactNumber.length !== 11) {
+        setError('Mobile number must be exactly 11 digits (e.g. 09123456789).');
+        return;
+      }
+      if (!formData.email.trim() || !formData.email.includes('@')) {
+        setError('Please enter a valid email address.');
+        return;
+      }
+    } else if (step === 5) {
+      if (!formData.province || !formData.city) {
+        setError('Please select your province and city/municipality.');
+        return;
+      }
+    } else if (step === 6) {
+      if (!formData.barangay.trim()) {
+        setError('Please enter your Barangay.');
+        return;
+      }
+      if (!formData.streetAddress.trim()) {
+        setError('Please enter your Street Address.');
+        return;
+      }
+    } else if (step === 7) {
+      if (!formData.username.trim()) {
+        setError('Please choose a Username.');
+        return;
+      }
+      if (!passValid) {
+        setError('Password does not meet all security requirements.');
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+    }
+
+    setStep(prev => Math.min(prev + 1, 8));
+  };
+
+  const handleBack = () => {
+    setError(null);
+    setStep(prev => Math.max(prev - 1, 1));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    if (formData.contactNumber.length !== 11) {
-      setError("Contact number must be exactly 11 digits.");
-      return;
-    }
 
     setIsRegistering(true);
 
@@ -108,6 +299,12 @@ export function SignUpPage() {
         relationship: formData.relationship,
         contactNumber: formData.contactNumber,
         email: formData.email,
+        province: formData.province,
+        city: formData.city,
+        barangay: formData.barangay,
+        streetAddress: formData.streetAddress,
+        zipCode: formData.zipCode,
+        username: formData.username,
         role: 'parent',
         createdAt: new Date().toISOString()
       });
@@ -115,21 +312,17 @@ export function SignUpPage() {
       navigate('/parent');
     } catch (err: unknown) {
       console.error(err);
-      let message = "Failed to create account. Please try again.";
-      
-      const error = err as { code?: string; message?: string };
-      if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered. Please use another or sign in.";
-      } else if (error.code === 'auth/invalid-email') {
-        message = "Invalid email address format.";
-      } else if (error.code === 'auth/weak-password') {
-        message = "Password is too weak. Please use at least 6 characters.";
-      } else if (error.code === 'auth/network-request-failed') {
-        message = "Connection error. Please check your internet.";
-      } else if (error.message) {
-        message = error.message;
+      let message = 'Failed to create account. Please try again.';
+      const errorObj = err as { code?: string; message?: string };
+      if (errorObj.code === 'auth/email-already-in-use') {
+        message = 'This email is already registered. Please sign in or use another email.';
+      } else if (errorObj.code === 'auth/invalid-email') {
+        message = 'Invalid email address format.';
+      } else if (errorObj.code === 'auth/weak-password') {
+        message = 'Password is too weak. Please use at least 6 characters.';
+      } else if (errorObj.message) {
+        message = errorObj.message;
       }
-      
       setError(message);
     } finally {
       setIsRegistering(false);
@@ -138,235 +331,542 @@ export function SignUpPage() {
 
   return (
     <div 
-      className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-950 bg-cover bg-center font-sans"
-      style={{ backgroundImage: 'url(/STA_maria_background.jpg)' }}
+      className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: "url('/images/sta_maria_bulding.png')" }}
     >
-      {/* Glass Backdrop Blur Overlay */}
-      <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-[4px] z-0" />
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" />
 
       {/* Floating Centered Split-Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-5xl bg-white/95 backdrop-blur-md rounded-[32px] shadow-[0_30px_70px_rgba(0,0,0,0.5)] border border-white/20 overflow-hidden flex flex-col md:flex-row my-6"
+        className="relative z-10 w-full max-w-5xl overflow-hidden flex flex-col md:flex-row my-6"
+        style={{ borderRadius: '28px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}
       >
-        {/* Left Side: Brand Showcase Panel */}
+        {/* ── LEFT PANEL (EXACTLY PRESERVED BRANDING) ── */}
         <div 
-          className="hidden md:flex md:w-[38%] p-10 flex-col justify-between text-white relative overflow-hidden bg-slate-900 bg-cover bg-center"
-          style={{ backgroundImage: 'url(/login_img.png)' }}
+          className="hidden md:flex md:w-[38%] flex-col justify-between p-10 text-white relative overflow-hidden shrink-0"
+          style={{ background: 'linear-gradient(145deg, #0a192f 0%, #003078 50%, #004ac6 100%)' }}
         >
-          {/* Glass Gradient overlay (Just like the second picture) */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0c2a50]/85 via-[#103a6c]/90 to-[#1e60aa]/95 z-0" />
+          {/* Ambient lighting & sleek visual accents */}
+          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
           
-          {/* Logo Brand Header */}
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="p-1.5 bg-white/10 rounded-2xl border border-white/20 shadow-sm shrink-0">
-              <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-xl object-cover" />
+          {/* TOP: Both logos + school name */}
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
+                <img src="/images/deped_logo.png" alt="DepEd Logo" className="w-full h-full object-contain" />
+              </div>
+              <div className="w-px h-10 bg-white/20" />
+              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
+                <img src="/images/sta_maria_school_logo.jpg" alt="School Logo" className="w-full h-full object-cover rounded-lg" />
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="font-black text-sm text-white uppercase tracking-wide">STA. MARIA</span>
+                <span className="font-black text-sm text-white uppercase tracking-wide">CENTRAL SCHOOL</span>
+                <span className="text-[11px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">SPED Center</span>
+              </div>
             </div>
-            <div className="flex flex-col text-left">
-              <span className="font-extrabold text-sm tracking-tight leading-none text-white">Sta. Maria</span>
-              <span className="text-[10px] font-bold text-sky-300 uppercase tracking-widest leading-none mt-1">SPED Center</span>
-            </div>
+            <div className="h-px bg-white/15 w-full" />
           </div>
 
-          {/* Slogan & Values */}
-          <div className="relative z-10 space-y-4 my-auto text-left">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/15 text-[9px] font-extrabold uppercase tracking-widest text-sky-200">
+          {/* MIDDLE: Main content */}
+          <div className="relative z-10 space-y-5 my-auto">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-300/30 bg-amber-400/10 text-[10px] font-extrabold uppercase tracking-[0.15em] text-amber-300 backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
               Parent Portal
             </span>
-            <h3 className="text-2xl font-black leading-tight tracking-tight text-white">
-              Believe, Educate, and Transform
+            <h3 className="text-3xl font-black leading-tight tracking-tight text-white">
+              Create Parent<br />
+              <span className="text-blue-200">Account</span>
             </h3>
-            <p className="text-xs text-slate-200/90 font-medium leading-relaxed">
-              Access student portals, request quick online enrollments, and check academic progress grade cards.
+            <p className="text-sm text-blue-100/90 font-medium leading-relaxed max-w-[260px]">
+              Join the portal to register students, monitor academic progress, track attendance, and receive school announcements.
             </p>
           </div>
 
-          {/* Footer details */}
-          <div className="relative z-10 text-left">
-            <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Founded since 1920</p>
+          {/* BOTTOM: Founded */}
+          <div className="relative z-10">
+            <div className="h-px bg-white/15 w-full mb-4" />
+            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
+              <p className="text-[10px] font-extrabold text-white uppercase tracking-[0.18em]">Founded Since 1920</p>
+            </div>
           </div>
         </div>
 
-        {/* Right Side: Form Panel */}
-        <div className="w-full md:w-[62%] bg-white/70 backdrop-blur-md flex flex-col justify-center p-8 sm:p-12 overflow-y-auto max-h-[90vh]">
-          <div className="w-full max-w-md mx-auto space-y-6 text-left">
-            {/* Header Text */}
-            <div className="text-left space-y-1">
-              <div className="md:hidden flex items-center gap-2 mb-4">
-                <img src="/pasted-image.jpg" alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
-                <span className="font-extrabold text-xs text-slate-800 tracking-tight">Sta. Maria SPED</span>
-              </div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Create Parent Account</h2>
-              <p className="text-xs text-slate-400 font-medium">Join the portal to register and track student enrollment updates.</p>
+        {/* ── RIGHT PANEL: GUIDED ONBOARDING MULTI-STEP CONTENT SECTION ── */}
+        <div className="w-full md:w-[62%] bg-white flex flex-col justify-between p-8 sm:p-12 min-h-[520px] overflow-y-auto">
+          <div className="w-full max-w-md mx-auto space-y-6 text-left my-auto">
+            
+            {/* Mobile logo header (shown only on small screens) */}
+            <div className="md:hidden flex items-center gap-2 mb-2">
+              <img src="/images/sta_maria_school_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
+              <span className="font-extrabold text-xs text-slate-800 tracking-tight">Sta. Maria SPED — Parent Account</span>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Personal Info Grid */}
-              <div className="space-y-3.5">
-                <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
-                  <User className="w-4 h-4 text-slate-400 shrink-0" />
-                  <h3 className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Personal Details</h3>
-                </div>
+            {/* ── PROGRESS BAR & ESTIMATED TIME ── */}
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#1040a0]">
+                  STEP {step} OF 8
+                </span>
+                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  Estimated completion: 2–3 mins
+                </span>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <Label htmlFor="firstName" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">First Name</Label>
-                    <Input
-                      id="firstName"
-                      placeholder="First name"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      required
-                      className="h-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="middleName" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Middle Name</Label>
-                    <Input
-                      id="middleName"
-                      placeholder="Middle name"
-                      value={formData.middleName}
-                      onChange={handleInputChange}
-                      className="h-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
-                    />
-                  </div>
-                </div>
+              {/* Smooth Progress Bar */}
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-[#1040a0] rounded-full"
+                  initial={{ width: '12.5%' }}
+                  animate={{ width: `${(step / 8) * 100}%` }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <Label htmlFor="lastName" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Last name"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      required
-                      className="h-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Suffix</Label>
-                    <Select
-                      value={formData.suffix}
-                      onValueChange={(v) => handleSelectChange('suffix', v)}>
-                      <SelectTrigger className="h-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm text-slate-700">
-                        <SelectValue placeholder="Select suffix" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-200">
-                        <SelectItem value="None">None</SelectItem>
-                        <SelectItem value="Jr.">Jr.</SelectItem>
-                        <SelectItem value="Sr.">Sr.</SelectItem>
-                        <SelectItem value="II">II</SelectItem>
-                        <SelectItem value="III">III</SelectItem>
-                        <SelectItem value="IV">IV</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+            {/* ── STEP CONTENT WITH ANIMATION ── */}
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-6 pt-2">
+              <AnimatePresence mode="wait">
+                
+                {/* STEP 1 OF 8 */}
+                {step === 1 && (
+                  <motion.div
+                    key="step1"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">What is your name?</h3>
+                      <p className="text-xs text-slate-400">Please enter your legal first and last name.</p>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Relationship</Label>
-                    <Select
-                      value={formData.relationship}
-                      onValueChange={(v) => handleSelectChange('relationship', v)}>
-                      <SelectTrigger className="h-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm text-slate-700">
-                        <SelectValue placeholder="Select relation" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-200">
-                        <SelectItem value="Father">Father</SelectItem>
-                        <SelectItem value="Mother">Mother</SelectItem>
-                        <SelectItem value="Guardian">Guardian</SelectItem>
-                        <SelectItem value="Others">Others</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="contactNumber" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Contact Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
+                    <div className="space-y-3.5 pt-2">
+                      <FloatInput
+                        id="firstName"
+                        label="First Name *"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        autoFocus
+                      />
+                      <FloatInput
+                        id="lastName"
+                        label="Last Name *"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 2 OF 8 */}
+                {step === 2 && (
+                  <motion.div
+                    key="step2"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">Additional Information</h3>
+                      <p className="text-xs text-slate-400">Optional name details for your profile.</p>
+                    </div>
+
+                    <div className="space-y-3.5 pt-2">
+                      <FloatInput
+                        id="middleName"
+                        label="Middle Initial / Name (Optional)"
+                        value={formData.middleName}
+                        onChange={handleInputChange}
+                        autoFocus
+                      />
+                      <div className="space-y-1.5 text-left">
+                        <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Suffix (Optional)</Label>
+                        <Select
+                          value={formData.suffix}
+                          onValueChange={(v) => handleSelectChange('suffix', v)}
+                        >
+                          <SelectTrigger className="h-14 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 rounded-xl text-sm font-medium text-slate-900">
+                            <SelectValue placeholder="Select suffix" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-slate-200">
+                            <SelectItem value="None">None</SelectItem>
+                            <SelectItem value="Jr.">Jr.</SelectItem>
+                            <SelectItem value="Sr.">Sr.</SelectItem>
+                            <SelectItem value="II">II</SelectItem>
+                            <SelectItem value="III">III</SelectItem>
+                            <SelectItem value="IV">IV</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 3 OF 8 */}
+                {step === 3 && (
+                  <motion.div
+                    key="step3"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">What is your relationship to the student?</h3>
+                      <p className="text-xs text-slate-400">This helps the school verify student guardianship.</p>
+                    </div>
+
+                    <div className="space-y-1.5 pt-2 text-left">
+                      <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Relationship *</Label>
+                      <Select
+                        value={formData.relationship}
+                        onValueChange={(v) => handleSelectChange('relationship', v)}
+                      >
+                        <SelectTrigger className="h-14 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 rounded-xl text-sm font-medium text-slate-900">
+                          <SelectValue placeholder="Select relationship" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-slate-200">
+                          <SelectItem value="Father">Father</SelectItem>
+                          <SelectItem value="Mother">Mother</SelectItem>
+                          <SelectItem value="Guardian">Guardian</SelectItem>
+                          <SelectItem value="Grandparent">Grandparent</SelectItem>
+                          <SelectItem value="Relative">Relative</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 4 OF 8 */}
+                {step === 4 && (
+                  <motion.div
+                    key="step4"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">How can we contact you?</h3>
+                      <p className="text-xs text-slate-400">Used for official announcements and emergency notices.</p>
+                    </div>
+
+                    <div className="space-y-3.5 pt-2">
+                      <FloatInput
                         id="contactNumber"
-                        placeholder="09123456789"
+                        label="Mobile Number *"
                         value={formData.contactNumber}
                         onChange={handleInputChange}
-                        required
-                        className="h-10 pl-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
+                        icon={<Phone className="h-4 w-4 text-slate-400" />}
+                        autoFocus
+                      />
+                      <FloatInput
+                        id="email"
+                        type="email"
+                        label="Email Address *"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        icon={<Mail className="h-4 w-4 text-slate-400" />}
                       />
                     </div>
-                  </div>
-                </div>
-              </div>
+                  </motion.div>
+                )}
 
-              {/* Account Credentials */}
-              <div className="space-y-3.5 pt-1">
-                <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
-                  <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                  <h3 className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Account Credentials</h3>
-                </div>
+                {/* STEP 5 OF 8 */}
+                {step === 5 && (
+                  <motion.div
+                    key="step5"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">Where do you live?</h3>
+                      <p className="text-xs text-slate-400">Select your province and city or municipality.</p>
+                    </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="email" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="name@example.com"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      required
-                      className="h-10 pl-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
-                    />
-                  </div>
-                </div>
+                    <div className="space-y-3.5 pt-2">
+                      <div className="space-y-1.5 text-left">
+                        <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Province *</Label>
+                        <Select
+                          value={formData.province}
+                          onValueChange={(v) => handleSelectChange('province', v)}
+                        >
+                          <SelectTrigger className="h-14 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 rounded-xl text-sm font-medium text-slate-900">
+                            <SelectValue placeholder="Select province" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-slate-200">
+                            {Object.keys(PROVINCES_CITIES).map((prov) => (
+                              <SelectItem key={prov} value={prov}>{prov}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <Label htmlFor="password" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Password</Label>
-                    <div className="relative">
-                      <Input
+                      <div className="space-y-1.5 text-left">
+                        <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">City / Municipality *</Label>
+                        <Select
+                          value={formData.city}
+                          onValueChange={(v) => handleSelectChange('city', v)}
+                        >
+                          <SelectTrigger className="h-14 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 rounded-xl text-sm font-medium text-slate-900">
+                            <SelectValue placeholder="Select city / municipality" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-slate-200 max-h-56 overflow-y-auto">
+                            {(PROVINCES_CITIES[formData.province] || []).map((ct) => (
+                              <SelectItem key={ct} value={ct}>{ct}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 6 OF 8 */}
+                {step === 6 && (
+                  <motion.div
+                    key="step6"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">Complete your address</h3>
+                      <p className="text-xs text-slate-400">Enter your barangay and street address details.</p>
+                    </div>
+
+                    <div className="space-y-3.5 pt-2">
+                      <FloatInput
+                        id="barangay"
+                        label="Barangay *"
+                        value={formData.barangay}
+                        onChange={handleInputChange}
+                        autoFocus
+                      />
+                      <FloatInput
+                        id="streetAddress"
+                        label="Street Address *"
+                        value={formData.streetAddress}
+                        onChange={handleInputChange}
+                      />
+                      <FloatInput
+                        id="zipCode"
+                        label="ZIP Code (Optional)"
+                        value={formData.zipCode}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 7 OF 8 */}
+                {step === 7 && (
+                  <motion.div
+                    key="step7"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">Create your account</h3>
+                      <p className="text-xs text-slate-400">Set up your username and password for future logins.</p>
+                    </div>
+
+                    <div className="space-y-3.5 pt-2">
+                      <FloatInput
+                        id="username"
+                        label="Username *"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        autoFocus
+                      />
+
+                      <FloatInput
                         id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        type={showPassword ? 'text' : 'password'}
+                        label="Password *"
                         value={formData.password}
                         onChange={handleInputChange}
-                        required
-                        className="h-10 pr-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
+                        suffix={
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="text-slate-400 hover:text-slate-600 focus:outline-none"
+                          >
+                            {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                        }
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="confirmPassword" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Confirm Password</Label>
-                    <div className="relative">
-                      <Input
+
+                      <FloatInput
                         id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        label="Confirm Password *"
                         value={formData.confirmPassword}
                         onChange={handleInputChange}
-                        required
-                        className="h-10 pr-10 bg-white/80 border-slate-200 focus:border-[#1e60aa] focus:ring-[#1e60aa]/10 transition-colors rounded-xl text-sm" 
+                        suffix={
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="text-slate-400 hover:text-slate-600 focus:outline-none"
+                          >
+                            {showConfirmPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                        }
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
+                      {/* Live Password Rules Validation */}
+                      <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs font-medium transition-all">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          PASSWORD REQUIREMENTS:
+                        </p>
+                        <div className="flex items-center gap-2 transition-all">
+                          {passLength ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-slate-300 shrink-0" />
+                          )}
+                          <span className={passLength ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+                            Minimum 8 characters
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 transition-all">
+                          {passUpper ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-slate-300 shrink-0" />
+                          )}
+                          <span className={passUpper ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+                            At least one uppercase letter (A-Z)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 transition-all">
+                          {passNumber ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-slate-300 shrink-0" />
+                          )}
+                          <span className={passNumber ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+                            At least one number (0-9)
+                          </span>
+                        </div>
+                        {formData.confirmPassword.length > 0 && (
+                          <div className="flex items-center gap-2 transition-all pt-1 border-t border-slate-200/60">
+                            {formData.password === formData.confirmPassword ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                            )}
+                            <span className={formData.password === formData.confirmPassword ? 'text-emerald-700 font-bold' : 'text-rose-600 font-semibold'}>
+                              {formData.password === formData.confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STEP 8 OF 8 */}
+                {step === 8 && (
+                  <motion.div
+                    key="step8"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-slate-900">Review and Submit</h3>
+                      <p className="text-xs text-slate-400">Please review your information before completing registration.</p>
+                    </div>
+
+                    {/* Summary Card */}
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4 text-xs">
+                      
+                      {/* Personal Info */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
+                          <UserCheck className="w-3.5 h-3.5 text-[#1040a0]" />
+                          Personal Information
+                        </div>
+                        <div className="pl-5 text-slate-600 leading-relaxed">
+                          <p><span className="font-semibold text-slate-800">Full Name:</span> {formData.firstName} {formData.middleName ? `${formData.middleName} ` : ''}{formData.lastName} {formData.suffix !== 'None' ? formData.suffix : ''}</p>
+                          <p><span className="font-semibold text-slate-800">Relationship:</span> {formData.relationship}</p>
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-slate-200/70" />
+
+                      {/* Contact Info */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
+                          <Phone className="w-3.5 h-3.5 text-[#1040a0]" />
+                          Contact Information
+                        </div>
+                        <div className="pl-5 text-slate-600 leading-relaxed">
+                          <p><span className="font-semibold text-slate-800">Mobile Number:</span> {formData.contactNumber}</p>
+                          <p><span className="font-semibold text-slate-800">Email Address:</span> {formData.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-slate-200/70" />
+
+                      {/* Address Info */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
+                          <MapPin className="w-3.5 h-3.5 text-[#1040a0]" />
+                          Address Information
+                        </div>
+                        <div className="pl-5 text-slate-600 leading-relaxed">
+                          <p><span className="font-semibold text-slate-800">Address:</span> {formData.streetAddress}, Brgy. {formData.barangay}</p>
+                          <p><span className="font-semibold text-slate-800">Location:</span> {formData.city}, {formData.province} {formData.zipCode ? `(${formData.zipCode})` : ''}</p>
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-slate-200/70" />
+
+                      {/* Account Info */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
+                          <Building className="w-3.5 h-3.5 text-[#1040a0]" />
+                          Account Information
+                        </div>
+                        <div className="pl-5 text-slate-600 leading-relaxed">
+                          <p><span className="font-semibold text-slate-800">Username:</span> {formData.username}</p>
+                        </div>
+                      </div>
+
+                    </div>
+                  </motion.div>
+                )}
+
+              </AnimatePresence>
+
+              {/* Error Banner */}
               {error && (
                 <motion.div 
                   initial={{ opacity: 0, height: 0 }}
@@ -377,29 +877,58 @@ export function SignUpPage() {
                 </motion.div>
               )}
 
-              <div className="pt-4 border-t border-slate-200/60 space-y-3">
-                <Button 
-                  type="submit" 
-                  className="w-full h-11 text-sm font-bold rounded-xl shadow-md bg-gradient-to-r from-[#1e60aa] to-[#2575cd] hover:from-[#195292] hover:to-[#1e63b0] text-white transition-all active:scale-98 flex items-center justify-center gap-1.5 border-none" 
-                  disabled={isRegistering}
-                >
-                  {isRegistering ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Creating Account...
-                    </>
-                  ) : (
-                    <>
-                      <span>Create Account</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
+              {/* Navigation Actions */}
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <div className="flex gap-3">
+                  {step > 1 && (
+                    <Button 
+                      type="button" 
+                      onClick={handleBack}
+                      variant="outline"
+                      className="w-1/3 h-12 text-sm font-bold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5" 
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Back</span>
+                    </Button>
                   )}
-                </Button>
+
+                  {step < 8 ? (
+                    <Button 
+                      type="button" 
+                      onClick={handleNext}
+                      className={`${step === 1 ? 'w-full' : 'w-2/3'} h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none`}
+                      style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
+                    >
+                      <span>Continue</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="button"
+                      onClick={handleSubmit}
+                      className="w-2/3 h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none" 
+                      style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
+                      disabled={isRegistering}
+                    >
+                      {isRegistering ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <span>Submit Registration</span>
+                          <Check className="w-4 h-4" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
                 
                 <Button
                   variant="outline"
                   type="button"
-                  className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#1e60aa] hover:bg-[#1e60aa]/5 hover:border-[#1e60aa]/30 transition-all active:scale-98"
+                  className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#1040a0] hover:bg-blue-50 hover:border-blue-200 transition-all active:scale-[0.98]"
                   onClick={() => navigate('/login')}
                 >
                   Already have an account? Sign In

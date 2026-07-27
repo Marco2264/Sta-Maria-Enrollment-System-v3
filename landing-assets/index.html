@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Sta Maria Central School SPED Center </title>
+    <link rel="icon" type="image/jpeg" href="images/sta_maria_school_logo.jpg">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600;1,700;1,800&amp;display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#004ac6",
+                        "primary-dark": "#003ea8",
+                        "primary-light": "#2563eb",
+                        "on-background": "#0b1c30",
+                        "surface": "#ffffff",
+                        "surface-alt": "#f8faff",
+                        "accent-blue": "#e0e7ff",
+                        "border-light": "#e2e8f0",
+                        "border-accent": "#dbeafe"
+                    },
+                    "borderRadius": {
+                        "3xl": "1.5rem",
+                        "4xl": "2.5rem"
+                    },
+                    "fontFamily": {
+                        "hero-display": ["'Plus Jakarta Sans'", "sans-serif"],
+                        "display": ["'Plus Jakarta Sans'", "sans-serif"],
+                        "body": ["'Plus Jakarta Sans'", "sans-serif"]
+                    },
+                    "boxShadow": {
+                        "premium": "0 20px 50px -12px rgba(0, 74, 198, 0.08)",
+                        "premium-hover": "0 32px 64px -15px rgba(0, 74, 198, 0.12)",
+                        "glass": "0 8px 32px 0 rgba(31, 38, 135, 0.07)"
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes crossfade {
+            0% {
+                opacity: 0;
+                transform: scale(1.02);
+            }
+
+            12% {
+                opacity: 0.85;
+            }
+
+            33% {
+                opacity: 0.85;
+                transform: scale(1);
+            }
+
+            45% {
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            animation: crossfade 18s infinite ease-in-out;
+            will-change: opacity, transform;
+        }
+
+        .slide:nth-child(2) {
+            animation-delay: 6s;
+        }
+
+        .slide:nth-child(3) {
+            animation-delay: 12s;
+        }
+
+        .hero-text-shadow {
+            text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85);
+        }
+
+        /* Ultra-smooth native scrolling everywhere */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+        }
+
+        /* Refined Scroll Reveal with Spring Easing */
+        .scroll-reveal {
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: opacity, transform;
+        }
+
+        /* Directional Entry States */
+        .scroll-reveal.reveal-down:not(.active) {
+            transform: translateY(30px);
+        }
+
+        .scroll-reveal.reveal-up:not(.active) {
+            transform: translateY(-30px);
+        }
+
+        .scroll-reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Active nav link scrollspy state */
+        .nav-link.nav-active {
+            color: #004ac6 !important;
+            position: relative;
+        }
+
+        .nav-link.nav-active::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            border-radius: 99px;
+            background: #004ac6;
+            animation: nav-underline-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes nav-underline-in {
+            from {
+                transform: scaleX(0);
+                opacity: 0;
+            }
+
+            to {
+                transform: scaleX(1);
+                opacity: 1;
+            }
+        }
+
+        /* Mobile active nav link */
+        .mobile-nav-link.nav-active {
+            color: #004ac6 !important;
+            border-left: 3px solid #004ac6;
+            padding-left: 12px;
+            background: #f0f5ff;
+            border-radius: 0.5rem;
+        }
+
+        /* Staggered Delays */
+        .stagger-1 {
+            transition-delay: 100ms;
+        }
+
+        .stagger-2 {
+            transition-delay: 200ms;
+        }
+
+        .stagger-3 {
+            transition-delay: 300ms;
+        }
+
+        .stagger-4 {
+            transition-delay: 400ms;
+        }
+
+        .stagger-5 {
+            transition-delay: 500ms;
+        }
+
+        /* Skeleton Base & Shimmer */
+        .skeleton {
+            background: #f1f5f9;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.75rem;
+        }
+
+        .skeleton::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: shimmer 2s infinite ease-in-out;
+        }
+
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* Transition logic */
+        .content-ready .skeleton-container {
+            display: none;
+        }
+
+        .content-ready .actual-content {
+            display: block;
+        }
+
+        .skeleton-container {
+            display: block;
+        }
+
+        .actual-content {
+            display: none;
+        }
+
+        .modal-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(0px);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            transform: scale(0.93) translateY(24px);
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        /* Smooth scrolling inside the modal on all devices */
+        #modal-injected-content {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #dbeafe transparent;
+        }
+
+        #modal-injected-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #modal-injected-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #modal-injected-content::-webkit-scrollbar-thumb {
+            background-color: #dbeafe;
+            border-radius: 99px;
+        }
+
+        body.modal-open {
+            overflow: hidden;
+        }
+
+        /* Timeline line growth animation */
+        .timeline-line {
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            transition-delay: 350ms;
+            /* wait for card entry animation to start */
+        }
+
+        .active .timeline-line {
+            transform: scaleY(1);
+        }
+
+        /* Timeline arrowhead fade-in/drop animation */
+        .timeline-arrow {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.8);
+            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition-delay: 750ms;
+            /* wait for line growth to complete */
+        }
+
+        .active .timeline-arrow {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    </style>
+</head>
+
+<body class="bg-white text-on-background font-body selection:bg-primary-light selection:text-white">
+    <header class="sticky top-0 w-full z-50 bg-white/95 backdrop-blur-md border-b border-border-light">
+        <div class="flex justify-between items-center px-4 sm:px-6 md:px-12 h-16 sm:h-20 w-full max-w-7xl mx-auto">
+            <!-- Logo + Brand -->
+            <div class="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                <button class="md:hidden shrink-0 p-2 text-primary hover:bg-slate-50 rounded-lg transition-colors"
+                    id="mobile-menu-btn">
+                    <iconify-icon icon="lucide:menu" class="text-xl sm:text-2xl"></iconify-icon>
+                </button>
+                <a class="flex items-center gap-2 sm:gap-3 min-w-0" href="#" id="header-logo-link">
+                    <img alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full shadow-sm object-cover shrink-0"
+                        src="images/sta_maria_school_logo.jpg">
+                    <div class="min-w-0 leading-tight">
+                        <span
+                            class="block font-hero-display font-bold text-primary uppercase tracking-wide text-[11px] sm:text-sm md:text-base leading-none whitespace-nowrap">Sta
+                            Maria Central School</span>
+                        <span
+                            class="block font-hero-display font-bold text-primary uppercase tracking-wide text-[10px] sm:text-xs md:text-sm leading-none text-primary/70 whitespace-nowrap">SPED
+                            Center</span>
+                    </div>
+                </a>
+            </div>
+            <!-- Desktop Nav -->
+            <nav class="hidden md:flex items-center gap-8 lg:gap-10 shrink-0">
+                <a id="nav-home" data-section="home"
+                    class="nav-link text-slate-600 hover:text-primary transition-colors text-sm font-bold uppercase tracking-widest"
+                    href="#home">Home</a>
+                <a id="nav-process" data-section="registration-process"
+                    class="nav-link text-slate-600 hover:text-primary transition-colors text-sm font-bold uppercase tracking-widest"
+                    href="#registration-process">Registration</a>
+                <a id="nav-features" data-section="features"
+                    class="nav-link text-slate-600 hover:text-primary transition-colors text-sm font-bold uppercase tracking-widest"
+                    href="#features">Features</a>
+                <a id="nav-about" data-section="about"
+                    class="nav-link text-slate-600 hover:text-primary transition-colors text-sm font-bold uppercase tracking-widest"
+                    href="#about">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu"
+        class="hidden md:hidden fixed inset-0 top-20 z-40 bg-white/98 backdrop-blur-lg border-b border-slate-100 transition-all duration-300">
+        <nav class="flex flex-col p-8 gap-6">
+            <a data-section="home"
+                class="mobile-nav-link text-slate-600 hover:text-primary transition-all text-lg font-bold uppercase tracking-widest py-3 border-b border-slate-50"
+                href="#home">Home</a>
+            <a data-section="registration-process"
+                class="mobile-nav-link text-slate-600 hover:text-primary transition-all text-lg font-bold uppercase tracking-widest py-3 border-b border-slate-50"
+                href="#registration-process">Registration </a>
+            <a data-section="features"
+                class="mobile-nav-link text-slate-600 hover:text-primary transition-all text-lg font-bold uppercase tracking-widest py-3 border-b border-slate-50"
+                href="#features">Features</a>
+            <a data-section="about"
+                class="mobile-nav-link text-slate-600 hover:text-primary transition-all text-lg font-bold uppercase tracking-widest py-3"
+                href="#about">About</a>
+        </nav>
+    </div>
+
+    <main id="main-app-container">
+        <!-- Hero Section -->
+        <section class="relative min-h-[85vh] flex items-center overflow-hidden" id="home">
+            <!-- Skeletons for Hero -->
+            <div class="skeleton-container absolute inset-0 z-50 bg-slate-950 flex items-center">
+                <div class="max-w-7xl mx-auto px-6 md:px-12 w-full">
+                    <div class="skeleton w-48 h-8 mb-6 opacity-20"></div>
+                    <div class="skeleton w-full max-w-xl h-20 md:h-32 mb-6 opacity-20"></div>
+                    <div class="skeleton w-3/4 max-w-md h-6 mb-10 opacity-20"></div>
+                    <div class="flex gap-4">
+                        <div class="skeleton w-40 h-14 opacity-20"></div>
+                        <div class="skeleton w-40 h-14 opacity-20"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actual Hero Content -->
+            <div class="actual-content w-full">
+                <div class="absolute inset-0 -z-20 bg-slate-950">
+                    <div class="slide bg-cover bg-center" style="background-image: url('images/blaba.jpg')"></div>
+                    <div class="slide bg-cover bg-center" style="background-image: url('images/hero_bg_2.jpg')"></div>
+                    <div class="slide bg-cover bg-center" style="background-image: url('images/hero_bg_3.jpg')"></div>
+                </div>
+                <div
+                    class="absolute inset-0 -z-10 bg-gradient-to-r from-on-background via-on-background/80 to-transparent">
+                </div>
+                <div class="max-w-7xl mx-auto px-6 md:px-12 w-full">
+                    <div class="max-w-3xl text-white py-20 md:py-0">
+                        <div
+                            class="scroll-reveal inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-white uppercase tracking-widest mb-6 backdrop-blur-sm">
+                            <span
+                                class="w-2 h-2 rounded-full bg-primary-light animate-pulse shadow-[0_0_8px_#2563eb]"></span>
+                            <span>ALIVIO - STA MARIA CENTRAL SCHOOL SYSTEM</span>
+                        </div>
+                        <h1
+                            class="scroll-reveal stagger-1 font-hero-display text-4xl md:text-6xl uppercase tracking-tight hero-text-shadow font-black leading-[1.05] mb-6">
+                            <span class="block">STA MARIA SCHOOL</span>
+                            <span class="block text-primary-light">TEACHERS &amp; PARENTS</span>
+                            <span class="block">MANAGEMENT PORTAL</span>
+                        </h1>
+                        <p
+                            class="scroll-reveal stagger-2 text-lg text-slate-300 mb-10 max-w-xl font-medium leading-relaxed">
+                            Making school processes easier through online enrollment, student monitoring, and seamless
+                            communication for the entire Sta. Maria School community.
+                        </p>
+                        <div class="scroll-reveal stagger-3 flex flex-wrap gap-4">
+                            <button id="cta-login"
+                                class="px-10 py-4 bg-primary hover:bg-primary-dark text-white rounded-xl font-bold uppercase tracking-wider transition-all transform hover:scale-105 shadow-xl shadow-primary/30 flex items-center gap-2">
+                                <iconify-icon icon="lucide:log-in" class="text-xl"></iconify-icon> Login
+                            </button>
+                            <button id="cta-signup"
+                                class="px-10 py-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl font-bold uppercase tracking-wider transition-all backdrop-blur-md flex items-center gap-2">
+                                <iconify-icon icon="lucide:user-plus" class="text-xl"></iconify-icon> Register Parent
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Enrollment Process Section -->
+        <section class="py-24 bg-surface-alt relative" id="registration-process">
+            <div class="max-w-7xl mx-auto px-6">
+                <!-- Skeleton for Enrollment -->
+                <div class="skeleton-container flex flex-col lg:flex-row gap-20">
+                    <div class="lg:w-1/3">
+                        <div class="skeleton w-32 h-6 mb-4"></div>
+                        <div class="skeleton w-full h-20 mb-6"></div>
+                        <div class="skeleton w-3/4 h-16"></div>
+                    </div>
+                    <div class="lg:w-2/3 space-y-8">
+                        <div class="skeleton w-full h-32"></div>
+                        <div class="skeleton w-full h-32"></div>
+                        <div class="skeleton w-full h-32"></div>
+                    </div>
+                </div>
+
+                <!-- Actual Enrollment Content -->
+                <div class="actual-content">
+                    <div class="flex flex-col lg:flex-row gap-20">
+                        <div class="lg:w-1/3 scroll-reveal">
+                            <h4 class="text-primary font-bold uppercase tracking-widest text-sm mb-4">Step-by-Step</h4>
+                            <h2
+                                class="font-hero-display text-[32px] sm:text-5xl lg:text-6xl uppercase leading-none font-black mb-6 text-on-background">
+                                Registration<br>Process</h2>
+                            <p class="text-slate-500 leading-relaxed mb-10 text-lg">
+                                Follow our simplified vertical timeline to register, upload documents, and complete your
+                                child's enrollment seamlessly.
+                            </p>
+                            <div class="p-6 bg-white rounded-3xl border border-border-light shadow-premium">
+                                <p class="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-2">For
+                                    School Year</p>
+                                <p class="text-xl font-bold text-primary"> 2026-2027 Registration</p>
+                            </div>
+                        </div>
+
+                        <div class="lg:w-2/3 space-y-12 relative">
+                            <div
+                                class="scroll-reveal stagger-1 group relative flex items-start gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_rgba(0,74,198,0.06)] hover:border-primary/15 transition-all duration-300 transform hover:-translate-y-1">
+                                <div
+                                    class="relative z-10 w-12 h-12 shrink-0 bg-primary rounded-xl flex items-center justify-center text-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
+                                    <iconify-icon icon="lucide:user-plus" class="text-xl"></iconify-icon>
+                                </div>
+                                <div>
+                                    <h3
+                                        class="text-lg font-bold font-hero-display tracking-wide mb-1.5 text-on-background transition-colors group-hover:text-primary">
+                                        Create Parent Account</h3>
+                                    <p class="text-slate-500 text-sm leading-relaxed">Register a secure parent account
+                                        to access the online registration system.</p>
+                                </div>
+                                <!-- Arrow connector pointing to next card -->
+                                <div
+                                    class="absolute left-12 top-full h-12 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
+                                    <div
+                                        class="timeline-line w-[3px] h-8 bg-gradient-to-b from-blue-200 to-blue-300 group-hover:from-primary group-hover:to-primary-light transition-all duration-300">
+                                    </div>
+                                    <svg class="timeline-arrow text-blue-300 group-hover:text-primary transition-colors duration-300"
+                                        width="14" height="12" viewBox="0 0 14 12" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2.5 3 L7 7.5 L11.5 3" stroke="currentColor" stroke-width="3"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div
+                                class="scroll-reveal stagger-2 group relative flex items-start gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_rgba(0,74,198,0.06)] hover:border-primary/15 transition-all duration-300 transform hover:-translate-y-1">
+                                <div
+                                    class="relative z-10 w-12 h-12 shrink-0 bg-slate-50 group-hover:bg-primary rounded-xl flex items-center justify-center text-primary group-hover:text-white border border-slate-100/80 group-hover:border-transparent transition-all duration-300">
+                                    <iconify-icon icon="lucide:layout-dashboard" class="text-xl"></iconify-icon>
+                                </div>
+                                <div>
+                                    <h3
+                                        class="text-lg font-bold font-hero-display tracking-wide mb-1.5 text-on-background transition-colors group-hover:text-primary">
+                                        Register Student</h3>
+                                    <p class="text-slate-500 text-sm leading-relaxed">Enter student information and
+                                        begin the registration application.</p>
+                                </div>
+                                <!-- Arrow connector pointing to next card -->
+                                <div
+                                    class="absolute left-12 top-full h-12 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
+                                    <div
+                                        class="timeline-line w-[3px] h-8 bg-gradient-to-b from-blue-200 to-blue-300 group-hover:from-primary group-hover:to-primary-light transition-all duration-300">
+                                    </div>
+                                    <svg class="timeline-arrow text-blue-300 group-hover:text-primary transition-colors duration-300"
+                                        width="14" height="12" viewBox="0 0 14 12" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2.5 3 L7 7.5 L11.5 3" stroke="currentColor" stroke-width="3"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div
+                                class="scroll-reveal stagger-3 group relative flex items-start gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_rgba(0,74,198,0.06)] hover:border-primary/15 transition-all duration-300 transform hover:-translate-y-1">
+                                <div
+                                    class="relative z-10 w-12 h-12 shrink-0 bg-slate-50 group-hover:bg-primary rounded-xl flex items-center justify-center text-primary group-hover:text-white border border-slate-100/80 group-hover:border-transparent transition-all duration-300">
+                                    <iconify-icon icon="lucide:clipboard-edit" class="text-xl"></iconify-icon>
+                                </div>
+                                <div>
+                                    <h3
+                                        class="text-lg font-bold font-hero-display tracking-wide mb-1.5 text-on-background transition-colors group-hover:text-primary">
+                                        Complete Registration Form</h3>
+                                    <p class="text-slate-500 text-sm leading-relaxed">Fill out the required personal,
+                                        academic, and contact information.</p>
+                                </div>
+                                <!-- Arrow connector pointing to next card -->
+                                <div
+                                    class="absolute left-12 top-full h-12 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
+                                    <div
+                                        class="timeline-line w-[3px] h-8 bg-gradient-to-b from-blue-200 to-blue-300 group-hover:from-primary group-hover:to-primary-light transition-all duration-300">
+                                    </div>
+                                    <svg class="timeline-arrow text-blue-300 group-hover:text-primary transition-colors duration-300"
+                                        width="14" height="12" viewBox="0 0 14 12" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2.5 3 L7 7.5 L11.5 3" stroke="currentColor" stroke-width="3"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div
+                                class="scroll-reveal stagger-4 group relative flex items-start gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_rgba(0,74,198,0.06)] hover:border-primary/15 transition-all duration-300 transform hover:-translate-y-1">
+                                <div
+                                    class="relative z-10 w-12 h-12 shrink-0 bg-slate-50 group-hover:bg-primary rounded-xl flex items-center justify-center text-primary group-hover:text-white border border-slate-100/80 group-hover:border-transparent transition-all duration-300">
+                                    <iconify-icon icon="lucide:send" class="text-xl"></iconify-icon>
+                                </div>
+                                <div>
+                                    <h3
+                                        class="text-lg font-bold font-hero-display tracking-wide mb-1.5 text-on-background transition-colors group-hover:text-primary">
+                                        Submit Application</h3>
+                                    <p class="text-slate-500 text-sm leading-relaxed">Review and submit the registration
+                                        application for school processing.</p>
+                                </div>
+                                <!-- Arrow connector pointing to next card -->
+                                <div
+                                    class="absolute left-12 top-full h-12 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
+                                    <div
+                                        class="timeline-line w-[3px] h-8 bg-gradient-to-b from-blue-200 to-blue-300 group-hover:from-primary group-hover:to-primary-light transition-all duration-300">
+                                    </div>
+                                    <svg class="timeline-arrow text-blue-300 group-hover:text-primary transition-colors duration-300"
+                                        width="14" height="12" viewBox="0 0 14 12" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2.5 3 L7 7.5 L11.5 3" stroke="currentColor" stroke-width="3"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div
+                                class="scroll-reveal stagger-5 group relative flex items-start gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_rgba(0,74,198,0.06)] hover:border-primary/15 transition-all duration-300 transform hover:-translate-y-1">
+                                <div
+                                    class="relative z-10 w-12 h-12 shrink-0 bg-slate-50 group-hover:bg-primary rounded-xl flex items-center justify-center text-primary group-hover:text-white border border-slate-100/80 group-hover:border-transparent transition-all duration-300">
+                                    <iconify-icon icon="lucide:shield-check" class="text-xl"></iconify-icon>
+                                </div>
+                                <div>
+                                    <h3
+                                        class="text-lg font-bold font-hero-display tracking-wide mb-1.5 text-on-background transition-colors group-hover:text-primary">
+                                        School Review &amp; Verification</h3>
+                                    <p class="text-slate-500 text-sm leading-relaxed">The school evaluates submitted
+                                        information and verifies application requirements.</p>
+                                </div>
+                                <!-- Arrow connector pointing to next card -->
+                                <div
+                                    class="absolute left-12 top-full h-12 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
+                                    <div
+                                        class="timeline-line w-[3px] h-8 bg-gradient-to-b from-blue-200 to-blue-300 group-hover:from-primary group-hover:to-primary-light transition-all duration-300">
+                                    </div>
+                                    <svg class="timeline-arrow text-blue-300 group-hover:text-primary transition-colors duration-300"
+                                        width="14" height="12" viewBox="0 0 14 12" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2.5 3 L7 7.5 L11.5 3" stroke="currentColor" stroke-width="3"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div
+                                class="scroll-reveal stagger-5 group relative flex items-start gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_rgba(0,74,198,0.06)] hover:border-emerald-500/15 transition-all duration-300 transform hover:-translate-y-1">
+                                <div
+                                    class="relative z-10 w-12 h-12 shrink-0 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
+                                    <iconify-icon icon="lucide:party-popper" class="text-xl"></iconify-icon>
+                                </div>
+                                <div>
+                                    <h3
+                                        class="text-lg font-bold font-hero-display tracking-wide mb-1.5 text-emerald-600">
+                                        Official Enrollment</h3>
+                                    <p class="text-slate-500 text-sm leading-relaxed">Upon approval, the student becomes
+                                        officially enrolled in Sta. Maria Elementary School.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="py-24 bg-white" id="features">
+            <div class="max-w-7xl mx-auto px-6">
+                <!-- Skeleton for Features -->
+                <div class="skeleton-container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="skeleton w-full h-80"></div>
+                    <div class="skeleton w-full h-80"></div>
+                    <div class="skeleton w-full h-80"></div>
+                    <div class="skeleton w-full h-80"></div>
+                    <div class="skeleton w-full h-80"></div>
+                    <div class="skeleton w-full h-80"></div>
+                </div>
+
+                <!-- Actual Features Content -->
+                <div class="actual-content">
+                    <div class="text-center max-w-3xl mx-auto mb-20 scroll-reveal">
+                        <h4 class="text-primary font-bold uppercase tracking-widest text-sm mb-4">System features</h4>
+                        <h2
+                            class="font-hero-display text-[32px] sm:text-5xl lg:text-6xl uppercase font-black text-on-background">
+                            Making Every
+                            School Process Simpler</h2>
+                        <p class="text-slate-500 mt-6 text-lg">From registration to student progress tracking, manage
+                            everything through one connected platform.</p>
+                    </div>
+
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div
+                            class="scroll-reveal stagger-1 bg-white border border-border-accent rounded-[2rem] p-6 sm:p-10 shadow-premium hover:shadow-premium-hover transition-all transform hover:-translate-y-2 group">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-8 group-hover:bg-primary group-hover:text-white transition-all">
+                                <iconify-icon icon="lucide:users" class="text-4xl"></iconify-icon>
+                            </div>
+                            <h3 class="font-hero-display text-3xl uppercase font-black mb-4">Parent Portal</h3>
+                            <p class="text-slate-500 leading-relaxed mb-8">Stay connected with your child's academic
+                                journey through real-time access to grades, attendance, announcements, and school
+                                updates.</p>
+                            <button onclick="openFeatureModal('parent-hub')"
+                                class="inline-flex items-center gap-2 text-primary font-bold uppercase tracking-widest text-xs group-hover:gap-4 transition-all">
+                                Explore Module <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+                            </button>
+                        </div>
+
+                        <div
+                            class="scroll-reveal stagger-2 bg-white border border-border-accent rounded-[2rem] p-6 sm:p-10 shadow-premium hover:shadow-premium-hover transition-all transform hover:-translate-y-2 group">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-8 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                <iconify-icon icon="lucide:line-chart" class="text-4xl"></iconify-icon>
+                            </div>
+                            <h3 class="font-hero-display text-3xl uppercase font-black mb-4">Student Performance
+                                Monitoring</h3>
+                            <p class="text-slate-500 leading-relaxed mb-8">Monitor student achievement, attendance
+                                records, and academic growth through detailed progress tracking tools.</p>
+                            <button onclick="openFeatureModal('student-insight')"
+                                class="inline-flex items-center gap-2 text-indigo-600 font-bold uppercase tracking-widest text-xs group-hover:gap-4 transition-all">
+                                Explore Module <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+                            </button>
+                        </div>
+
+                        <div
+                            class="scroll-reveal stagger-3 bg-white border border-border-accent rounded-[2rem] p-6 sm:p-10 shadow-premium hover:shadow-premium-hover transition-all transform hover:-translate-y-2 group">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-8 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                <iconify-icon icon="lucide:clipboard-check" class="text-4xl"></iconify-icon>
+                            </div>
+                            <h3 class="font-hero-display text-3xl uppercase font-black mb-4">Digital Enrollment</h3>
+                            <p class="text-slate-500 leading-relaxed mb-8">Simplify the enrollment process through
+                                secure online registration and digital application management.</p>
+                            <button onclick="openFeatureModal('smart-uploads')"
+                                class="inline-flex items-center gap-2 text-blue-600 font-bold uppercase tracking-widest text-xs group-hover:gap-4 transition-all">
+                                Explore Module <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+                            </button>
+                        </div>
+
+                        <div
+                            class="scroll-reveal stagger-1 bg-white border border-border-accent rounded-[2rem] p-6 sm:p-10 shadow-premium hover:shadow-premium-hover transition-all transform hover:-translate-y-2 group">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 mb-8 group-hover:bg-amber-600 group-hover:text-white transition-all">
+                                <iconify-icon icon="lucide:megaphone" class="text-4xl"></iconify-icon>
+                            </div>
+                            <h3 class="font-hero-display text-3xl uppercase font-black mb-4">School Communication Center
+                            </h3>
+                            <p class="text-slate-500 leading-relaxed mb-8">Receive important school announcements, event
+                                updates, reminders, and notifications in one centralized platform.</p>
+                            <button onclick="openFeatureModal('live-bulletins')"
+                                class="inline-flex items-center gap-2 text-amber-600 font-bold uppercase tracking-widest text-xs group-hover:gap-4 transition-all">
+                                Explore Module <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+                            </button>
+                        </div>
+
+                        <div
+                            class="scroll-reveal stagger-2 bg-white border border-border-accent rounded-[2rem] p-6 sm:p-10 shadow-premium hover:shadow-premium-hover transition-all transform hover:-translate-y-2 group">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-8 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                                <iconify-icon icon="lucide:clipboard-list" class="text-4xl"></iconify-icon>
+                            </div>
+                            <h3 class="font-hero-display text-3xl uppercase font-black mb-4">Teacher Productivity Suite
+                            </h3>
+                            <p class="text-slate-500 leading-relaxed mb-8">Automate routine administrative tasks and
+                                reduce paperwork to allow teachers to focus more on teaching.</p>
+                            <button onclick="openFeatureModal('vault-security')"
+                                class="inline-flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-widest text-xs group-hover:gap-4 transition-all">
+                                Explore Module <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+                            </button>
+                        </div>
+
+                        <div
+                            class="scroll-reveal stagger-3 bg-white border border-border-accent rounded-[2rem] p-6 sm:p-10 shadow-premium hover:shadow-premium-hover transition-all transform hover:-translate-y-2 group">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 mb-8 group-hover:bg-rose-600 group-hover:text-white transition-all">
+                                <iconify-icon icon="lucide:settings" class="text-4xl"></iconify-icon>
+                            </div>
+                            <h3 class="font-hero-display text-3xl uppercase font-black mb-4">Smart School Administration
+                            </h3>
+                            <p class="text-slate-500 leading-relaxed mb-8">Manage school operations, schedules, records,
+                                and administrative processes through an integrated management platform.</p>
+                            <button onclick="openFeatureModal('agile-ops')"
+                                class="inline-flex items-center gap-2 text-rose-600 font-bold uppercase tracking-widest text-xs group-hover:gap-4 transition-all">
+                                Explore Module <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section class="py-24 bg-surface-alt relative overflow-hidden" id="about">
+            <div class="max-w-7xl mx-auto px-6">
+                <!-- Skeleton for About -->
+                <div class="skeleton-container grid grid-cols-1 lg:grid-cols-12 gap-16">
+                    <div class="lg:col-span-5">
+                        <div class="skeleton w-full h-[500px]"></div>
+                    </div>
+                    <div class="lg:col-span-7">
+                        <div class="skeleton w-1/4 h-6 mb-4"></div>
+                        <div class="skeleton w-full h-20 mb-8"></div>
+                        <div class="skeleton w-full h-32"></div>
+                    </div>
+                </div>
+
+                <!-- Actual About Content -->
+                <div class="actual-content">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+                        <div class="lg:col-span-5 scroll-reveal">
+                            <div class="relative p-4 bg-white rounded-4xl shadow-premium group">
+                                <img alt="School Building"
+                                    class="w-full h-[500px] object-cover rounded-3xl group-hover:scale-[1.02] transition-transform duration-700"
+                                    src="images/sta_maria_bulding.png">
+                                <div
+                                    class="absolute -bottom-6 -right-6 p-6 md:p-8 bg-primary rounded-3xl shadow-xl hidden md:block">
+                                    <p
+                                        class="font-hero-display text-2xl md:text-4xl text-white uppercase font-black leading-tight">
+                                        EST. 1954</p>
+                                    <p
+                                        class="text-amber-300 text-[10px] md:text-xs font-black tracking-widest uppercase">
+                                        Serving Generations of Learners</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-7">
+                            <div class="scroll-reveal stagger-1">
+                                <h4 class="text-primary font-bold uppercase tracking-widest text-sm mb-4">Our Mission
+                                </h4>
+                                <h2
+                                    class="font-hero-display text-[32px] sm:text-5xl lg:text-6xl uppercase font-black text-on-background leading-none mb-8">
+                                    Believe. Educate.<br>Transform.</h2>
+                                <p class="text-slate-600 text-lg leading-relaxed mb-12">
+                                    Sta. Maria Elementary School is committed to providing accessible, inclusive, and
+                                    quality education for every learner. Through our Enrollment and Monitoring System,
+                                    we strengthen collaboration between parents, teachers, and school administrators by
+                                    making essential school services more efficient, transparent, and accessible.
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div
+                                    class="scroll-reveal stagger-2 p-8 bg-white rounded-3xl border border-border-accent shadow-premium">
+                                    <div
+                                        class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-6">
+                                        <iconify-icon icon="lucide:users" class="text-2xl"></iconify-icon>
+                                    </div>
+                                    <h5 class="font-hero-display text-2xl uppercase font-black mb-3">Parent Management
+                                    </h5>
+                                    <p class="text-slate-500 text-sm leading-relaxed italic">Helping parents stay
+                                        actively involved in their child's education through real-time access to grades,
+                                        attendance records, announcements, and enrollment information.</p>
+                                </div>
+                                <div
+                                    class="scroll-reveal stagger-3 p-8 bg-white rounded-3xl border border-border-accent shadow-premium">
+                                    <div
+                                        class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 mb-6">
+                                        <iconify-icon icon="lucide:graduation-cap" class="text-2xl"></iconify-icon>
+                                    </div>
+                                    <h5 class="font-hero-display text-2xl uppercase font-black mb-3">Teacher
+                                        Productivity
+                                    </h5>
+                                    <p class="text-slate-500 text-sm leading-relaxed italic">Empowering educators with
+                                        digital tools that streamline attendance management, automate school forms, and
+                                        reduce administrative workload.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-on-background py-16">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col items-center gap-8 text-center scroll-reveal">
+                <div class="flex gap-4">
+                    <div
+                        class="h-16 w-16 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm hover:opacity-90 transition-opacity">
+                        <img alt="DepEd Logo" class="h-full w-full object-contain" src="images/deped_logo.png">
+                    </div>
+                    <div
+                        class="h-16 w-16 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-sm hover:opacity-90 transition-opacity">
+                        <img alt="Sta Maria School Logo" class="h-full w-full object-contain rounded-lg"
+                            src="images/sta_maria_school_logo.jpg">
+                    </div>
+                </div>
+                <div>
+                    <p class="font-hero-display text-3xl text-white uppercase font-black">Sta Maria SPED Center</p>
+                    <p class="text-slate-400 text-sm tracking-widest uppercase mt-2">Official Management Portal</p>
+                </div>
+            </div>
+            <div class="mt-12 pt-8 border-t border-slate-800 text-center">
+                <p class="text-slate-600 text-xs uppercase tracking-widest font-bold">&copy; 2026 Sta Maria Central
+                    School SPED Center. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Feature Modals Container -->
+    <div id="feature-modal-overlay"
+        class="modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-on-background/60"
+        onclick="handleBackdropClick(event)">
+        <div id="modal-content-wrapper"
+            class="modal-content w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
+            <button onclick="closeFeatureModal()"
+                class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-primary hover:text-white transition-all z-20">
+                <iconify-icon icon="lucide:x" class="text-2xl"></iconify-icon>
+            </button>
+            <div id="modal-injected-content" class="p-6 md:p-12 overflow-y-auto flex-1">
+                <!-- Content Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const featureData = {
+            'parent-hub': {
+                icon: 'lucide:users', color: 'primary', title: 'Parent Portal',
+                desc: 'The Parent Portal empowers parents and guardians with instant access to important student information. From monitoring academic performance to receiving school announcements, parents can stay informed and actively support their child\'s education anytime and anywhere.',
+                benefits: [
+                    'Real-time grade monitoring',
+                    'Daily attendance updates',
+                    'Online enrollment access',
+                    'School announcements and notices',
+                    'Student performance tracking',
+                    'Academic progress reports',
+                    'Parent-friendly dashboard',
+                    'Mobile-accessible platform'
+                ]
+            },
+            'student-insight': {
+                icon: 'lucide:line-chart', color: 'indigo-600', title: 'Student Performance Monitoring',
+                desc: 'Gain valuable insights into student learning and development. This feature provides a complete overview of academic performance, helping parents and teachers identify strengths, monitor progress, and support continuous improvement.',
+                benefits: [
+                    'Academic performance tracking',
+                    'Quarterly grade monitoring',
+                    'Attendance analytics',
+                    'Learning progress reports',
+                    'Student achievement records',
+                    'Performance history archive',
+                    'Easy-to-read summaries',
+                    'Data-driven student insights'
+                ]
+            },
+            'smart-uploads': {
+                icon: 'lucide:clipboard-check', color: 'blue-600', title: 'Digital Enrollment',
+                desc: 'Designed to eliminate long queues and manual paperwork, the Digital Enrollment module allows parents to register students, submit information, and monitor enrollment status through a convenient online platform.',
+                benefits: [
+                    'Online student registration',
+                    'Secure information submission',
+                    'Enrollment status monitoring',
+                    'Digital student records',
+                    'Faster processing time',
+                    'Reduced paperwork',
+                    'Organized enrollment database',
+                    'Convenient application management'
+                ]
+            },
+            'live-bulletins': {
+                icon: 'lucide:megaphone', color: 'amber-600', title: 'School Communication Center',
+                desc: 'Keep the entire school community connected through timely communication. Parents, teachers, and administrators can easily access important announcements, upcoming activities, and academic reminders.',
+                benefits: [
+                    'School-wide announcements',
+                    'Event notifications',
+                    'Academic reminders',
+                    'Emergency updates',
+                    'School calendar information',
+                    'Parent notifications',
+                    'Activity announcements',
+                    'Centralized communication platform'
+                ]
+            },
+            'vault-security': {
+                icon: 'lucide:clipboard-list', color: 'emerald-600', title: 'Teacher Productivity Suite',
+                desc: 'The Teacher Productivity Suite streamlines classroom and administrative responsibilities through automation and digital record management. Teachers can efficiently manage student information, attendance, reports, and school forms with fewer manual processes.',
+                benefits: [
+                    'Automated school forms',
+                    'Digital attendance management',
+                    'Student record organization',
+                    'Faster report generation',
+                    'Reduced administrative workload',
+                    'Simplified documentation',
+                    'Centralized classroom records',
+                    'Improved workflow efficiency'
+                ]
+            },
+            'agile-ops': {
+                icon: 'lucide:settings', color: 'rose-600', title: 'Smart School Administration',
+                desc: 'A comprehensive administrative solution designed to support teachers and school personnel in handling daily operations efficiently. By centralizing school data and automating repetitive processes, the system helps improve productivity and accuracy.',
+                benefits: [
+                    'Schedule management',
+                    'Attendance sheet generation',
+                    'Student information management',
+                    'Digital record keeping',
+                    'Administrative reporting tools',
+                    'Organized school database',
+                    'Workflow automation',
+                    'Efficient data management'
+                ]
+            }
+        };
+
+        function openFeatureModal(key) {
+            const data = featureData[key];
+            const container = document.getElementById('modal-injected-content');
+            const bgClass = key === 'parent-hub' ? 'bg-primary/10 text-primary' : 'bg-' + data.color.split('-')[0] + '-50 text-' + data.color;
+            const btnBg = key === 'parent-hub' ? 'bg-primary' : 'bg-' + data.color;
+
+            let benefitsHtml = '';
+            data.benefits.forEach(b => {
+                benefitsHtml += '<div class="flex items-center gap-4">' +
+                    '<div class="w-6 h-6 rounded-full ' + bgClass + ' flex items-center justify-center shrink-0">' +
+                    '<iconify-icon icon="lucide:check" class="text-sm font-bold"></iconify-icon>' +
+                    '</div>' +
+                    '<span class="text-slate-600 text-xs md:text-base font-medium">' + b + '</span>' +
+                    '</div>';
+            });
+
+            container.innerHTML = `
+                <div class="w-16 h-16 md:w-20 md:h-20 rounded-2xl ${bgClass} flex items-center justify-center mb-6 md:mb-8">
+                    <iconify-icon icon="${data.icon}" class="text-3xl md:text-4xl"></iconify-icon>
+                </div>
+                <h3 class="font-hero-display text-2xl md:text-4xl uppercase font-black mb-4 md:mb-6 pr-8 text-on-background leading-tight">${data.title}</h3>
+                <p class="text-slate-500 text-sm md:text-lg leading-relaxed mb-6 md:mb-10">${data.desc}</p>
+                <div class="space-y-3 md:space-y-4 mb-8 md:mb-10">
+                    ${benefitsHtml}
+                </div>
+                <button onclick="closeFeatureModal()" class="w-full py-3.5 md:py-4 ${btnBg} text-white rounded-xl font-bold uppercase tracking-widest text-xs md:text-sm hover:brightness-90 transition-all shadow-lg">
+                    Get Started with ${data.title}
+                </button>
+            `;
+
+            document.getElementById('feature-modal-overlay').classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeFeatureModal() {
+            document.getElementById('feature-modal-overlay').classList.remove('active');
+            document.body.classList.remove('modal-open');
+        }
+
+        function handleBackdropClick(e) {
+            if (e.target.id === 'feature-modal-overlay') closeFeatureModal();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeFeatureModal();
+        });
+
+        // Scroll direction and reveal handling
+        let lastScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        let currentDirection = 'down';
+
+        window.addEventListener('scroll', () => {
+            const st = window.pageYOffset || document.documentElement.scrollTop;
+            currentDirection = (st > lastScrollTop) ? 'down' : 'up';
+            lastScrollTop = st <= 0 ? 0 : st;
+        }, { passive: true });
+
+        const observerOptions = { threshold: 0.1, rootMargin: '0px 0px -50px 0px' };
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Reset classes based on current direction before activating
+                    if (currentDirection === 'down') {
+                        entry.target.classList.remove('reveal-up');
+                        entry.target.classList.add('reveal-down');
+                    } else {
+                        entry.target.classList.remove('reveal-down');
+                        entry.target.classList.add('reveal-up');
+                    }
+
+                    // Use requestAnimationFrame for smooth activation
+                    requestAnimationFrame(() => {
+                        entry.target.classList.add('active');
+                    });
+
+                    // Unobserve to trigger only once for an ultra-smooth experience on mobile
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        // Mobile Menu Toggle Logics
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+            const icon = mobileMenuBtn.querySelector('iconify-icon');
+            if (mobileMenu.classList.contains('hidden')) {
+                icon.setAttribute('icon', 'lucide:menu');
+            } else {
+                icon.setAttribute('icon', 'lucide:x');
+            }
+        });
+
+        // Close mobile menu on clicking any navigation link
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+                mobileMenuBtn.querySelector('iconify-icon').setAttribute('icon', 'lucide:menu');
+            });
+        });
+
+        // Simulated initial loading delay to showcase skeletons
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.body.classList.add('content-ready');
+                // Start observing all reveal elements
+                document.querySelectorAll('.scroll-reveal').forEach(el => {
+                    // Initial state for above-the-fold content
+                    el.classList.add('reveal-down');
+                    revealObserver.observe(el);
+                });
+            }, 1200);
+        });
+
+        // ── Scrollspy: highlight active nav link as user scrolls ──────────────
+        const sections = ['home', 'registration-process', 'features', 'about'];
+        const desktopLinks = document.querySelectorAll('.nav-link[data-section]');
+        const mobileLinks = document.querySelectorAll('.mobile-nav-link[data-section]');
+
+        function setActiveNav(sectionId) {
+            desktopLinks.forEach(a => {
+                a.classList.toggle('nav-active', a.dataset.section === sectionId);
+            });
+            mobileLinks.forEach(a => {
+                a.classList.toggle('nav-active', a.dataset.section === sectionId);
+            });
+        }
+
+        const sectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setActiveNav(entry.target.id);
+                }
+            });
+        }, { threshold: 0.25, rootMargin: '-80px 0px -40% 0px' });
+
+        sections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) sectionObserver.observe(el);
+        });
+    </script>
+
+</body>
+
+</html>
