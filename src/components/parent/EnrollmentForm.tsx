@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -9,1132 +9,1659 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue } from
-'../ui/Select';
+  SelectValue
+} from '../ui/Select';
 import { Checkbox } from '../ui/Checkbox';
-import { CheckCircle2, ArrowRight, ArrowLeft, Upload, FileText } from 'lucide-react';
+import {
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  User,
+  MapPin,
+  HeartPulse,
+  Users,
+  Sparkles,
+  AlertCircle,
+  Loader2,
+  Info,
+  Calendar,
+  FileCheck,
+  Upload,
+  Eye,
+  RefreshCw,
+  Trash2,
+  X,
+  FileText,
+  Clock
+} from 'lucide-react';
+import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
-import { DOCUMENT_TYPES } from '../../lib/schema/phase2';
-export function EnrollmentForm({ onComplete }: {onComplete: () => void;}) {
-  const { submitFullEnrollment } = useParentData();
-  const [step, setStep] = useState(1);
-  const [birthCertFile, setBirthCertFile] = useState<File | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
+
+interface EnrollmentFormProps {
+  onComplete: () => void;
+}
+
+const PROVINCES_CITIES: Record<string, string[]> = {
+  'Zamboanga City': ['Zamboanga City'],
+  'Zamboanga del Sur': [
+    'Pagadian City', 'Aurora', 'Bayog', 'Dimataling', 'Dinas', 'Dumalinao',
+    'Dumingag', 'Guipos', 'Josefina', 'Kumalarang', 'Labangan', 'Lakewood',
+    'Lapuyan', 'Mahayag', 'Margosatubig', 'Midsalip', 'Molave', 'Pitogo',
+    'Ramon Magsaysay', 'San Pablo', 'San Miguel', 'Tabina', 'Tamboulig',
+    'Tigbao', 'Tukuran', 'Vincenzo A. Sagun'
+  ],
+  'Zamboanga del Norte': [
+    'Dipolog City', 'Dapitan City', 'Bacungan', 'Baliguian', 'Godod', 'Gutalac',
+    'Jose Dalman', 'Kalawit', 'Katipunan', 'La Libertad', 'Labason', 'Leon B. Postigo',
+    'Liloy', 'Manukan', 'Mutia', 'Pinan', 'Polanco', 'President Manuel A. Roxas',
+    'Rizal', 'Salug', 'Sergio Osmena Sr.', 'Siayan', 'Sibuco', 'Sirawai', 'Siocon'
+  ],
+  'Zamboanga Sibugay': [
+    'Ipil', 'Alicia', 'Buug', 'Diplahan', 'Imelda', 'Kabasalan', 'Mabuhay',
+    'Malangas', 'Naga', 'Olutanga', 'Payao', 'Roseller Lim', 'Siay', 'Talusan',
+    'Titay', 'Tungawan'
+  ]
+};
+
+const DIAGNOSED_CONDITIONS = [
+  'ADHD',
+  'Autism Spectrum Disorder (ASD)',
+  'Hearing Impairment',
+  'Visual Impairment',
+  'Speech Impairment',
+  'Physical Disability',
+  'Intellectual Disability',
+  'Learning Disability',
+  'Other'
+];
+
+const FUNCTIONAL_DIFFICULTIES = [
+  'Seeing Difficulty',
+  'Hearing Difficulty',
+  'Communicating Difficulty',
+  'Walking / Mobility Difficulty',
+  'Self-care Difficulty',
+  'Remembering / Concentrating Difficulty'
+];
+
+type StudentClassificationType = 'New Student' | 'Transferee' | 'Balik-Aral' | 'Continuing Student';
+
+export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
+  const { user, userData } = useAuth();
+  const { submitFullEnrollment, uploadRequirementDocument } = useParentData();
+
+  const uData = userData as Record<string, any> | null;
+
+  // Sub-step index (1 to 11, 12 = Success Screen)
+  const [subStep, setSubStep] = useState(1);
+  const [direction, setDirection] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Student Info
+  const [studentInfo, setStudentInfo] = useState({
     firstName: '',
-    lastName: '',
     middleName: '',
+    lastName: '',
     birthDate: '',
     gender: '',
-    lrn: '',
     gradeLevel: '',
-    fatherName: '',
-    motherName: '',
-    isReturning: false, // Balik-Aral
-    lastGradeLevel: '',
-    lastSchoolAttended: '',
-    lastSchoolYear: '',
-    address: {
-      street: '',
-      barangay: '',
-      city: '',
-      province: '',
-      zipCode: ''
-    },
-    medical: {
-      height: '',
-      weight: '',
-      bloodType: '',
-      allergies: '',
-      hasDiagnosis: false,
-      diagnoses: [] as string[],
-      hasManifestations: false,
-      manifestations: [] as string[],
-      hasPwdId: false,
-      pwdId: '',
-      emergencyContact: '',
-      emergencyPhone: ''
-    },
-    additional: {
-      motherTongue: '',
-      religion: '',
-      isIndigenous: false,
-      indigenousGroup: '',
-      is4ps: false,
-      learningMode: 'Blended' as 'Modular Print' | 'Digital' | 'Blended'
-    }
+    lrn: '',
+    classification: 'New Student' as StudentClassificationType
   });
-  const [otherMotherTongue, setOtherMotherTongue] = useState('');
-  const [otherReligion, setOtherReligion] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const handleSubmit = async () => {
+
+  // Age Calculator
+  const calculateAge = (bDate: string): number | null => {
+    if (!bDate) return null;
+    const today = new Date();
+    const birth = new Date(bDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age >= 0 ? age : null;
+  };
+
+  const computedAge = calculateAge(studentInfo.birthDate);
+
+  // Address Info
+  const [selectedAddressOption, setSelectedAddressOption] = useState<string>('0');
+  const [manualAddress, setManualAddress] = useState({
+    province: 'Zamboanga City',
+    customProvince: '',
+    city: 'Zamboanga City',
+    customCity: '',
+    barangay: '',
+    streetAddress: '',
+    zipCode: ''
+  });
+
+  const parentAddresses = Array.isArray(uData?.addresses) && uData.addresses.length > 0
+    ? uData.addresses
+    : (uData?.streetAddress ? [{
+        id: 'addr-default',
+        label: 'Home Address 1',
+        province: uData.province || 'Zamboanga City',
+        city: uData.city || 'Zamboanga City',
+        barangay: uData.barangay || '',
+        streetAddress: uData.streetAddress || '',
+        zipCode: uData.zipCode || '',
+        isPrimary: true
+      }] : []);
+
+  const getSelectedAddressDetails = () => {
+    if (selectedAddressOption === 'other' || parentAddresses.length === 0) {
+      const prov = manualAddress.province === 'Others' ? manualAddress.customProvince : manualAddress.province;
+      const city = manualAddress.province === 'Others' ? manualAddress.customCity : manualAddress.city;
+      const zipPart = manualAddress.zipCode ? `, ${manualAddress.zipCode}` : '';
+      return {
+        province: prov,
+        city: city,
+        barangay: manualAddress.barangay,
+        streetAddress: manualAddress.streetAddress,
+        zipCode: manualAddress.zipCode,
+        previewText: manualAddress.barangay && manualAddress.streetAddress
+          ? `${manualAddress.streetAddress}, Brgy. ${manualAddress.barangay}, ${city}, ${prov}${zipPart}`
+          : manualAddress.barangay
+            ? `Brgy. ${manualAddress.barangay}, ${city}, ${prov}${zipPart}`
+            : 'Manual Custom Address Entry'
+      };
+    }
+
+    const idx = parseInt(selectedAddressOption, 10);
+    const addr = parentAddresses[idx] || parentAddresses[0];
+    if (!addr) {
+      return {
+        province: '',
+        city: '',
+        barangay: '',
+        streetAddress: '',
+        zipCode: '',
+        previewText: 'No address selected'
+      };
+    }
+    const provDisplay = addr.province === 'Others' ? (addr.customProvince || 'Others') : addr.province;
+    const cityDisplay = addr.province === 'Others' ? (addr.customCity || 'Others') : addr.city;
+    const zipPart = addr.zipCode ? `, ${addr.zipCode}` : '';
+    return {
+      province: provDisplay,
+      city: cityDisplay,
+      barangay: addr.barangay || '',
+      streetAddress: addr.streetAddress || '',
+      zipCode: addr.zipCode || '',
+      previewText: `${addr.streetAddress ? `${addr.streetAddress}, ` : ''}Brgy. ${addr.barangay || '—'}, ${cityDisplay || '—'}, ${provDisplay || '—'}${zipPart}`
+    };
+  };
+
+  // Medical Info
+  const [medicalInfo, setMedicalInfo] = useState({
+    height: '',
+    weight: '',
+    bloodType: '',
+    allergies: '',
+    diagnoses: [] as string[],
+    otherDiagnosis: '',
+    functionalDifficulties: [] as string[],
+    hasPwdId: 'No',
+    pwdIdNumber: ''
+  });
+
+  // Parent & Student Info
+  const [parentStudentInfo, setParentStudentInfo] = useState({
+    isPrimaryGuardian: 'Yes',
+    primaryParentName: '',
+    primaryRelationship: 'Father',
+    primaryContact: '',
+    religion: 'Roman Catholic',
+    otherReligion: '',
+    isIndigenous: 'No',
+    ipCommunity: '',
+    is4ps: 'No'
+  });
+
+  // Step 5: Staged Documents (Optional uploads during registration)
+  const [stagedFiles, setStagedFiles] = useState<{
+    psa?: File;
+    reportCard?: File;
+    goodMoral?: File;
+  }>({});
+
+  // Document Preview Modal State
+  const [previewFile, setPreviewFile] = useState<{ title: string; file: File } | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Screen Validation
+  const validateSubStep = (): boolean => {
+    setErrorMsg(null);
+
+    if (subStep === 1) { // 1A: Name & Birth Date
+      if (!studentInfo.firstName.trim() || !studentInfo.lastName.trim()) {
+        setErrorMsg('First Name and Last Name are required.');
+        return false;
+      }
+      if (!studentInfo.birthDate) {
+        setErrorMsg('Birth Date is required.');
+        return false;
+      }
+    }
+
+    if (subStep === 2) { // 1B: Gender, Grade, LRN, Classification
+      if (!studentInfo.gender) {
+        setErrorMsg('Please select Gender.');
+        return false;
+      }
+      if (!studentInfo.gradeLevel) {
+        setErrorMsg('Please select Grade Level to apply for.');
+        return false;
+      }
+      if (!studentInfo.lrn.trim() || studentInfo.lrn.trim().length !== 12 || !/^\d+$/.test(studentInfo.lrn.trim())) {
+        setErrorMsg('Learner Reference Number (LRN) must be exactly 12 numeric digits.');
+        return false;
+      }
+      if (!studentInfo.classification) {
+        setErrorMsg('Please select Student Classification.');
+        return false;
+      }
+    }
+
+    if (subStep === 4) { // Manual address part 1
+      if (selectedAddressOption === 'other') {
+        if (!manualAddress.province || !manualAddress.city || !manualAddress.barangay.trim()) {
+          setErrorMsg('Province, City, and Barangay are required.');
+          return false;
+        }
+      }
+    }
+
+    if (subStep === 5) { // Manual address part 2
+      if (selectedAddressOption === 'other') {
+        if (!manualAddress.streetAddress.trim()) {
+          setErrorMsg('Street Address is required.');
+          return false;
+        }
+      }
+    }
+
+    if (subStep === 6) { // Medical part 1
+      if (!medicalInfo.height.trim() || !medicalInfo.weight.trim()) {
+        setErrorMsg('Height and Weight are required.');
+        return false;
+      }
+    }
+
+    if (subStep === 7) { // Medical part 2 (PWD)
+      if (medicalInfo.hasPwdId === 'Yes' && !medicalInfo.pwdIdNumber.trim()) {
+        setErrorMsg('PWD ID Number is required when PWD ID is Yes.');
+        return false;
+      }
+    }
+
+    if (subStep === 8) { // Parent info part 1
+      if (parentStudentInfo.isPrimaryGuardian === 'No') {
+        if (!parentStudentInfo.primaryParentName.trim() || !parentStudentInfo.primaryContact.trim()) {
+          setErrorMsg('Primary Parent/Guardian Name and Contact Number are required.');
+          return false;
+        }
+      }
+    }
+
+    if (subStep === 9) { // Parent info part 2
+      if (!parentStudentInfo.religion) {
+        setErrorMsg('Religion selection is required.');
+        return false;
+      }
+      if (parentStudentInfo.religion === 'Others' && !parentStudentInfo.otherReligion.trim()) {
+        setErrorMsg('Please specify Religion.');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleNextSubStep = () => {
+    if (!validateSubStep()) return;
+
+    if (subStep === 3 && selectedAddressOption !== 'other') {
+      setDirection(1);
+      setSubStep(6);
+      return;
+    }
+
+    setDirection(1);
+    setSubStep(prev => prev + 1);
+  };
+
+  const handleBackSubStep = () => {
+    setErrorMsg(null);
+    if (subStep === 6 && selectedAddressOption !== 'other') {
+      setDirection(-1);
+      setSubStep(3);
+      return;
+    }
+    setDirection(-1);
+    setSubStep(prev => prev - 1);
+  };
+
+  // Submit Registration
+  const handleSubmitRegistration = async () => {
     setIsSubmitting(true);
-    setUploadError(null);
+    setErrorMsg(null);
+
     try {
-      const toUpper = (str: string | undefined | null) => str ? str.toUpperCase() : '';
-      
-      const upperCaseFormData = {
-        ...formData,
-        firstName: toUpper(formData.firstName),
-        lastName: toUpper(formData.lastName),
-        middleName: toUpper(formData.middleName),
-        fatherName: toUpper(formData.fatherName),
-        motherName: toUpper(formData.motherName),
+      const activeAddr = getSelectedAddressDetails();
+      const parentFullName = uData ? `${uData.firstName} ${uData.lastName}` : (user?.displayName || 'Parent');
+
+      const registrationPayload: any = {
+        firstName: studentInfo.firstName.trim().toUpperCase(),
+        middleName: studentInfo.middleName.trim().toUpperCase(),
+        lastName: studentInfo.lastName.trim().toUpperCase(),
+        birthDate: studentInfo.birthDate,
+        gender: studentInfo.gender,
+        gradeLevel: studentInfo.gradeLevel,
+        lrn: studentInfo.lrn.trim(),
+        fatherName: parentStudentInfo.isPrimaryGuardian === 'No' ? parentStudentInfo.primaryParentName.trim().toUpperCase() : parentFullName.toUpperCase(),
+        motherName: parentFullName.toUpperCase(),
+        isReturning: studentInfo.classification !== 'New Student',
+        studentClassification: studentInfo.classification,
         address: {
-          ...formData.address,
-          street: toUpper(formData.address.street),
-          barangay: toUpper(formData.address.barangay),
-          city: toUpper(formData.address.city),
-          province: toUpper(formData.address.province)
+          street: activeAddr.streetAddress.toUpperCase(),
+          barangay: activeAddr.barangay.toUpperCase(),
+          city: activeAddr.city.toUpperCase(),
+          province: activeAddr.province.toUpperCase(),
+          zipCode: activeAddr.zipCode
         },
         medical: {
-          ...formData.medical,
-          allergies: toUpper(formData.medical.allergies),
-          emergencyContact: toUpper(formData.medical.emergencyContact),
-          pwdId: toUpper(formData.medical.pwdId)
+          height: medicalInfo.height,
+          weight: medicalInfo.weight,
+          bloodType: medicalInfo.bloodType,
+          allergies: medicalInfo.allergies.toUpperCase(),
+          hasDiagnosis: medicalInfo.diagnoses.length > 0,
+          diagnoses: medicalInfo.diagnoses.includes('Other') && medicalInfo.otherDiagnosis
+            ? [...medicalInfo.diagnoses.filter(d => d !== 'Other'), `OTHER: ${medicalInfo.otherDiagnosis.toUpperCase()}`]
+            : medicalInfo.diagnoses,
+          hasManifestations: medicalInfo.functionalDifficulties.length > 0,
+          manifestations: medicalInfo.functionalDifficulties,
+          hasPwdId: medicalInfo.hasPwdId === 'Yes',
+          pwdId: medicalInfo.pwdIdNumber.toUpperCase(),
+          emergencyContact: parentFullName.toUpperCase(),
+          emergencyPhone: uData?.contactNumber || ''
         },
         additional: {
-          ...formData.additional,
-          motherTongue: formData.additional.motherTongue === 'Others' ? toUpper(otherMotherTongue) : toUpper(formData.additional.motherTongue),
-          religion: formData.additional.religion === 'Others' ? toUpper(otherReligion) : toUpper(formData.additional.religion),
-          indigenousGroup: toUpper(formData.additional.indigenousGroup)
+          motherTongue: 'Tagalog / Bisaya',
+          religion: parentStudentInfo.religion === 'Others' ? parentStudentInfo.otherReligion.toUpperCase() : parentStudentInfo.religion.toUpperCase(),
+          isIndigenous: parentStudentInfo.isIndigenous === 'Yes',
+          indigenousGroup: parentStudentInfo.ipCommunity.toUpperCase(),
+          is4ps: parentStudentInfo.is4ps === 'Yes',
+          learningMode: 'Blended'
         }
       };
 
-      await submitFullEnrollment(upperCaseFormData, birthCertFile ? {
-        documentType: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE,
-        file: birthCertFile
-      } : undefined);
-      onComplete();
-    } catch (error) {
-      console.error("Error submitting enrollment:", error);
-      setUploadError((error as Error).message || "Failed to submit enrollment.");
+      const enrollmentId = await submitFullEnrollment(registrationPayload);
+
+      // Upload staged documents if parent selected any during Step 5 of 6
+      if (stagedFiles.psa) {
+        try {
+          await uploadRequirementDocument({
+            enrollmentId,
+            documentType: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE,
+            file: stagedFiles.psa
+          });
+        } catch (e) {
+          console.warn('PSA document upload postponed:', e);
+        }
+      }
+      if (stagedFiles.reportCard) {
+        try {
+          await uploadRequirementDocument({
+            enrollmentId,
+            documentType: DOCUMENT_TYPES.REPORT_CARD,
+            file: stagedFiles.reportCard
+          });
+        } catch (e) {
+          console.warn('Report card upload postponed:', e);
+        }
+      }
+      if (stagedFiles.goodMoral) {
+        try {
+          await uploadRequirementDocument({
+            enrollmentId,
+            documentType: DOCUMENT_TYPES.GOOD_MORAL,
+            file: stagedFiles.goodMoral
+          });
+        } catch (e) {
+          console.warn('Good moral upload postponed:', e);
+        }
+      }
+
+      setSubStep(12); // Success screen
+    } catch (err: any) {
+      console.error('Error submitting registration:', err);
+      setErrorMsg(err.message || 'Failed to submit registration. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
   const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 50 : -50,
+    enter: (dir: number) => ({
+      x: dir > 0 ? 20 : -20,
       opacity: 0
     }),
     center: {
-      zIndex: 1,
       x: 0,
       opacity: 1
     },
-    exit: (direction: number) => ({
-      zIndex: 0,
-      x: direction < 0 ? 50 : -50,
+    exit: (dir: number) => ({
+      x: dir < 0 ? 20 : -20,
       opacity: 0
     })
   };
+
+  const getMainStepNumber = () => {
+    if (subStep <= 2) return 1; // Student Info
+    if (subStep <= 5) return 2; // Address Info
+    if (subStep <= 7) return 3; // Medical Info
+    if (subStep <= 9) return 4; // Parent & Student Info
+    if (subStep === 10) return 5; // Supporting Documents
+    if (subStep === 11) return 6; // Review & Submit
+    return 6;
+  };
+
+  const mainStep = getMainStepNumber();
+
+  const getRequiredDocDefs = () => {
+    if (studentInfo.classification === 'Transferee') {
+      return [
+        { key: 'psa', type: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, title: 'PSA Birth Certificate' },
+        { key: 'reportCard', type: DOCUMENT_TYPES.REPORT_CARD, title: 'Report Card (SF9)' },
+        { key: 'goodMoral', type: DOCUMENT_TYPES.GOOD_MORAL, title: 'Good Moral Certificate' }
+      ];
+    }
+    if (studentInfo.classification === 'Balik-Aral') {
+      return [
+        { key: 'psa', type: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, title: 'PSA Birth Certificate' },
+        { key: 'reportCard', type: DOCUMENT_TYPES.REPORT_CARD, title: 'Most Recent Report Card (if available)' }
+      ];
+    }
+    // New Student & Continuing Student
+    return [
+      { key: 'psa', type: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, title: 'PSA Birth Certificate' }
+    ];
+  };
+
+  const requiredDocDefs = getRequiredDocDefs();
+
+  // Helper text for Student Classification
+  const getClassificationHelper = (cls: StudentClassificationType) => {
+    if (cls === 'New Student') return 'A learner registering as a new applicant.';
+    if (cls === 'Transferee') return 'A learner transferring from another school.';
+    if (cls === 'Balik-Aral') return 'A learner who previously stopped attending school and is now returning to continue their studies.';
+    if (cls === 'Continuing Student') return 'A learner who was promoted to a higher grade level in the same school.';
+    return '';
+  };
+
+  // ── SUCCESS SCREEN ──
+  if (subStep === 12) {
+    return (
+      <div className="max-w-xl mx-auto p-4 font-sans">
+        <Card className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 sm:p-8 text-center space-y-6 animate-in fade-in duration-300">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+          </div>
+
+          <div className="space-y-2 max-w-md mx-auto">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Registration Submitted Successfully
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+              Your registration for <strong className="text-slate-900 font-bold">{studentInfo.firstName} {studentInfo.lastName}</strong> ({studentInfo.gradeLevel}) is now submitted.
+            </p>
+            <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl text-xs text-blue-900 font-medium leading-relaxed text-left space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-sm text-[#0C3B99]">
+                <FileCheck className="w-4 h-4 text-[#0C3B99]" /> Requirements Management
+              </div>
+              <p className="text-[11px] leading-normal text-blue-800">
+                You can upload missing supporting documents anytime from the <strong>Requirements Page</strong> in the sidebar.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={onComplete}
+            className="w-full px-6 py-3 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-2xl font-bold shadow-xs transition-all flex items-center justify-center gap-2"
+          >
+            Go to Requirements Page
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  const activeAddrDetails = getSelectedAddressDetails();
+
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 uppercase-inputs">
-      <header className="px-6 py-5 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shadow-inner border border-primary/20">
-              {step}
+    <div className="max-w-xl mx-auto px-3 py-4 pb-16 font-sans space-y-4">
+      
+      {/* ── HEADER CARD WITH PROGRESS BAR ── */}
+      <Card className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center text-[#0C3B99] font-black text-xs">
+              {mainStep}
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-slate-900">Student Enrollment Form</h1>
-              <p className="text-xs text-slate-500 font-medium">Step {step} of 6</p>
+              <h1 className="text-base font-black text-slate-900 leading-tight">Student Registration Form</h1>
+              <p className="text-[11px] text-slate-400 font-medium">Sta. Maria Elementary School Learner Portal</p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex items-center gap-1.5">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                    step > i
-                      ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-200'
-                      : step === i
-                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
-                      : 'bg-slate-100 text-slate-400 border border-slate-200'
-                  }`}
-                >
-                  {step > i ? <CheckCircle2 className="w-3.5 h-3.5" /> : i}
-                </div>
-                {i < 6 && (
-                  <div className={`h-0.5 w-6 rounded-full transition-all duration-500 ${ step > i ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-                )}
-              </div>
-            ))}
+          <span className="px-2.5 py-1 bg-blue-50 text-[#0C3B99] rounded-lg text-[10px] font-black uppercase tracking-wider">
+            Step {mainStep} of 6
+          </span>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="space-y-1">
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
+            <div
+              className="h-full bg-[#0C3B99] rounded-full transition-all duration-300"
+              style={{ width: `${(mainStep / 6) * 100}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <span>Progress: {Math.round((mainStep / 6) * 100)}%</span>
+            <span>{[
+              'Student Info',
+              'Address Info',
+              'Medical Info',
+              'Parent Info',
+              'Supporting Documents',
+              'Review & Submit'
+            ][mainStep - 1]}</span>
           </div>
         </div>
-      </header>
+      </Card>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center">
-        <div className="w-full max-w-3xl">
-          {/* Mobile step indicator */}
-          <div className="flex sm:hidden justify-between mb-6 px-2 relative">
-            <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-slate-200 -z-10 -translate-y-1/2"></div>
-            <div
-              className="absolute top-1/2 left-2 h-0.5 bg-primary -z-10 -translate-y-1/2 transition-all duration-500"
-              style={{ width: `${((step - 1) / 5) * 100}%` }}
-            />
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                  step > i ? 'bg-emerald-500 text-white shadow-sm' : step === i ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-white text-slate-400 border border-slate-200'
-                }`}
-              >
-                {step > i ? <CheckCircle2 className="w-4 h-4" /> : i}
-              </div>
-            ))}
-          </div>
+      {/* ── ERROR ALERT ── */}
+      {errorMsg && (
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl flex items-center gap-2.5 animate-in fade-in-50 duration-200">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span className="text-xs font-semibold">{errorMsg}</span>
+        </div>
+      )}
 
-          <Card className="bg-white border-slate-200/60 shadow-sm overflow-hidden relative min-h-[500px] rounded-3xl">
-            <AnimatePresence mode="wait" custom={1}>
-              {step === 1 &&
-              <motion.div
-                key="step1"
-                custom={1}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  duration: 0.3
-                }}
-                className="p-4 sm:p-8 h-full flex flex-col">
-                
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2">
-                    Personal Information
+      {/* ── STEP CONTENT AREA (MAX 4 INPUT FIELDS AT A TIME) ── */}
+      <AnimatePresence custom={direction} mode="wait">
+        <motion.div
+          key={subStep}
+          custom={direction}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.18, ease: 'easeInOut' }}
+        >
+          <Card className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-5">
+            
+            {/* ── SUB-STEP 1: STUDENT NAME & BIRTH DATE (4 FIELDS MAX) ── */}
+            {subStep === 1 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <User className="w-4 h-4 text-[#0C3B99]" />
+                    Student Information (Part 1 of 2)
                   </h2>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
-                    Enter the learner's basic details.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 flex-1">
-                    <div className="space-y-2">
-                      <Label>First Name</Label>
-                      <Input
-                      value={formData.firstName}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        firstName: e.target.value
-                      })
-                      } />
-                    
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Learner's basic information.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Field 1: First Name */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">First Name *</Label>
+                    <Input
+                      value={studentInfo.firstName}
+                      onChange={e => setStudentInfo({ ...studentInfo, firstName: e.target.value })}
+                      placeholder="e.g. Juan"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">First name as shown on PSA birth certificate.</p>
+                  </div>
+
+                  {/* Field 2: Last Name */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Last Name *</Label>
+                    <Input
+                      value={studentInfo.lastName}
+                      onChange={e => setStudentInfo({ ...studentInfo, lastName: e.target.value })}
+                      placeholder="e.g. Dela Cruz"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">Learner's legal surname / family name.</p>
+                  </div>
+
+                  {/* Field 3: Middle Name */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Middle Name <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                    </Label>
+                    <Input
+                      value={studentInfo.middleName}
+                      onChange={e => setStudentInfo({ ...studentInfo, middleName: e.target.value })}
+                      placeholder="e.g. Santos"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-800 font-medium text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">Middle name or leave blank if none.</p>
+                  </div>
+
+                  {/* Field 4: Birth Date */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Birth Date *</Label>
+                      {computedAge !== null && (
+                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          {computedAge} yrs old
+                        </span>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <Label>Last Name</Label>
-                      <Input
-                      value={formData.lastName}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        lastName: e.target.value
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Middle Name</Label>
-                      <Input
-                      value={formData.middleName}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        middleName: e.target.value
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Birth Date</Label>
-                      <Input
+                    <Input
                       type="date"
-                      value={formData.birthDate}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        birthDate: e.target.value
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Gender</Label>
-                      <Select
-                      value={formData.gender}
-                      onValueChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        gender: v
-                      })
-                      }>
-                      
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Grade Level to Enroll</Label>
-                      <Select
-                      value={formData.gradeLevel}
-                      onValueChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        gradeLevel: v
-                      })
-                      }>
-                      
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select grade" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px] overflow-y-auto">
-                          {[1, 2, 3, 4, 5, 6].map((g) => (
-                            <SelectItem key={g} value={g.toString()}>Grade {g}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Learner Reference Number (LRN) <span className="text-red-500">*</span></Label>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={12}
-                        value={formData.lrn}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, ''); // Only digits allowed
-                          setFormData({ ...formData, lrn: val });
-                        }}
-                        placeholder="Enter 12-digit LRN (Must match PSA Certificate)" 
-                      />
-                    </div>
-
-                    <div className="space-y-4 sm:col-span-2 p-4 border border-border rounded-lg bg-muted/30">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="returning"
-                          checked={formData.isReturning}
-                          onCheckedChange={(c) => setFormData({ ...formData, isReturning: !!c })}
-                        />
-                        <Label htmlFor="returning" className="font-bold text-slate-700">
-                          Balik-Aral (Returning Student)
-                        </Label>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground pl-6">
-                        Check this if the student is returning to school after dropping out in previous years.
-                      </p>
-
-                      {formData.isReturning && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-6 pt-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                          <div className="space-y-2">
-                            <Label>Last Grade Level Completed</Label>
-                            <Input
-                              value={formData.lastGradeLevel}
-                              onChange={(e) => setFormData({ ...formData, lastGradeLevel: e.target.value })}
-                              placeholder="e.g. Grade 5"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Last School Attended</Label>
-                            <Input
-                              value={formData.lastSchoolAttended}
-                              onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
-                              placeholder="Name of previous school"
-                            />
-                          </div>
-                          <div className="space-y-2 sm:col-span-2">
-                            <Label>Last School Year Attended</Label>
-                            <Input
-                              value={formData.lastSchoolYear}
-                              onChange={(e) => setFormData({ ...formData, lastSchoolYear: e.target.value })}
-                              placeholder="e.g. 2022-2023"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      value={studentInfo.birthDate}
+                      onChange={e => setStudentInfo({ ...studentInfo, birthDate: e.target.value })}
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">Date of birth (age calculated automatically).</p>
                   </div>
-                  <div className="flex justify-end pt-6 mt-6 border-t border-border">
-                    <Button
-                    onClick={() => setStep(2)}
-                    className="w-full sm:w-auto"
-                    disabled={
-                    !formData.firstName ||
-                    !formData.lastName ||
-                    !formData.gradeLevel ||
-                    formData.lrn.length !== 12
-                    }>
-                    
-                      Next Step <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </motion.div>
-              }
+                </div>
+              </div>
+            )}
 
-              {step === 2 &&
-              <motion.div
-                key="step2"
-                custom={1}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  duration: 0.3
-                }}
-                className="p-4 sm:p-8 h-full flex flex-col">
-                
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2">
-                    Address
+            {/* ── SUB-STEP 2: GENDER, GRADE, LRN & STUDENT CLASSIFICATION (4 FIELDS MAX) ── */}
+            {subStep === 2 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <User className="w-4 h-4 text-[#0C3B99]" />
+                    Student Information (Part 2 of 2)
                   </h2>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
-                    Current residential address.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 flex-1">
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>House No. / Street</Label>
-                      <Input
-                      value={formData.address.street}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        address: {
-                          ...formData.address,
-                          street: e.target.value
-                        }
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Barangay</Label>
-                      <Input
-                      value={formData.address.barangay}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        address: {
-                          ...formData.address,
-                          barangay: e.target.value
-                        }
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>City / Municipality</Label>
-                      <Input
-                      value={formData.address.city}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        address: {
-                          ...formData.address,
-                          city: e.target.value
-                        }
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Province</Label>
-                      <Input
-                      value={formData.address.province}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        address: {
-                          ...formData.address,
-                          province: e.target.value
-                        }
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Zip Code</Label>
-                      <Input
-                      value={formData.address.zipCode}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        address: {
-                          ...formData.address,
-                          zipCode: e.target.value
-                        }
-                      })
-                      } />
-                    
-                    </div>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Gender, grade level, DepEd LRN, and applicant classification.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Field 1: Gender */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Gender *</Label>
+                    <Select
+                      value={studentInfo.gender}
+                      onValueChange={v => setStudentInfo({ ...studentInfo, gender: v })}
+                    >
+                      <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200">
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-slate-400 font-medium">Learner's legal sex for school records.</p>
                   </div>
-                  <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-6 border-t border-border">
-                    <Button
-                    variant="ghost"
-                    onClick={() => setStep(1)}
-                    className="w-full sm:w-auto">
-                    
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
-                    </Button>
-                    <Button
-                    onClick={() => setStep(3)}
-                    className="w-full sm:w-auto">
-                    
-                      Next Step <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
+
+                  {/* Field 2: Grade Level */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Grade Level to Apply For *</Label>
+                    <Select
+                      value={studentInfo.gradeLevel}
+                      onValueChange={v => setStudentInfo({ ...studentInfo, gradeLevel: v })}
+                    >
+                      <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                        <SelectValue placeholder="Select grade level" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200 max-h-52 overflow-y-auto">
+                        <SelectItem value="Grade 1">Grade 1</SelectItem>
+                        <SelectItem value="Grade 2">Grade 2</SelectItem>
+                        <SelectItem value="Grade 3">Grade 3</SelectItem>
+                        <SelectItem value="Grade 4">Grade 4</SelectItem>
+                        <SelectItem value="Grade 5">Grade 5</SelectItem>
+                        <SelectItem value="Grade 6">Grade 6</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-slate-400 font-medium">Grade level applying for next school year.</p>
                   </div>
-                </motion.div>
-              }
 
-              {step === 3 &&
-              <motion.div
-                key="step3"
-                custom={1}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  duration: 0.3
-                }}
-                className="p-4 sm:p-8 h-full flex flex-col">
-                
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2">
-                    Medical Information
-                  </h2>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
-                    Important health details for emergencies.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 flex-1">
-                    <div className="space-y-2">
-                      <Label>Height (cm)</Label>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={formData.medical.height}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                            setFormData({
-                              ...formData,
-                              medical: {
-                                ...formData.medical,
-                                height: val
-                              }
-                            });
-                          }
-                        }} />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Weight (kg)</Label>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={formData.medical.weight}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                            setFormData({
-                              ...formData,
-                              medical: {
-                                ...formData.medical,
-                                weight: val
-                              }
-                            });
-                          }
-                        }} />
-                    
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Blood Type</Label>
-                      <Select
-                      value={formData.medical.bloodType}
-                      onValueChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        medical: {
-                          ...formData.medical,
-                          bloodType: v
-                        }
-                      })
-                      }>
-                      
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select blood type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="A+">A+</SelectItem>
-                          <SelectItem value="A-">A-</SelectItem>
-                          <SelectItem value="B+">B+</SelectItem>
-                          <SelectItem value="B-">B-</SelectItem>
-                          <SelectItem value="AB+">AB+</SelectItem>
-                          <SelectItem value="AB-">AB-</SelectItem>
-                          <SelectItem value="O+">O+</SelectItem>
-                          <SelectItem value="O-">O-</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Emergency Contact Name</Label>
-                      <Input
-                      value={formData.medical.emergencyContact}
-                      onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        medical: {
-                          ...formData.medical,
-                          emergencyContact: e.target.value
-                        }
-                      })
-                      } />
-                    
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Emergency Contact Phone</Label>
-                      <Input
-                        type="text"
-                        inputMode="tel"
-                        value={formData.medical.emergencyPhone}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          // Allow numbers, spaces, and common phone symbols
-                          if (val === '' || /^[\d\s+\-()]*$/.test(val)) {
-                            setFormData({
-                              ...formData,
-                              medical: {
-                                ...formData.medical,
-                                emergencyPhone: val
-                              }
-                            });
-                          }
-                        }} />
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Allergies (if any)</Label>
-                      <Input
-                        value={formData.medical.allergies}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            medical: {
-                              ...formData.medical,
-                              allergies: e.target.value
-                            }
-                          })
-                        }
-                        placeholder="e.g. Peanuts, Penicillin (Leave blank if none)"
-                      />
-                    </div>
-
-                    <div className="space-y-4 sm:col-span-2 p-4 border border-border rounded-lg bg-blue-50/30">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="diagnosis"
-                          checked={formData.medical.hasDiagnosis}
-                          onCheckedChange={(c) => setFormData({ ...formData, medical: { ...formData.medical, hasDiagnosis: !!c } })}
-                        />
-                        <Label htmlFor="diagnosis" className="font-bold text-blue-900">
-                          Licensed Diagnosis
-                        </Label>
-                      </div>
-                      <p className="text-[10px] text-blue-700/70 pl-6">
-                        Check if the child has a medical certificate for specific conditions.
-                      </p>
-
-                      {formData.medical.hasDiagnosis && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6 pt-2">
-                          {['ADHD', 'Autism', 'Hearing Impairment', 'Learning Disability', 'Visual Impairment'].map((d) => (
-                            <div key={d} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`diag-${d}`}
-                                checked={formData.medical.diagnoses.includes(d)}
-                                onCheckedChange={(c) => {
-                                  const newDiags = c 
-                                    ? [...formData.medical.diagnoses, d]
-                                    : formData.medical.diagnoses.filter(x => x !== d);
-                                  setFormData({ ...formData, medical: { ...formData.medical, diagnoses: newDiags } });
-                                }}
-                              />
-                              <Label htmlFor={`diag-${d}`} className="text-xs">{d}</Label>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 sm:col-span-2 p-4 border border-border rounded-lg bg-orange-50/30">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="manifestations"
-                          checked={formData.medical.hasManifestations}
-                          onCheckedChange={(c) => setFormData({ ...formData, medical: { ...formData.medical, hasManifestations: !!c } })}
-                        />
-                        <Label htmlFor="manifestations" className="font-bold text-orange-900">
-                          With Manifestations
-                        </Label>
-                      </div>
-                      <p className="text-[10px] text-orange-700/70 pl-6">
-                        Difficulties in seeing, hearing, or communicating (without formal diagnosis).
-                      </p>
-
-                      {formData.medical.hasManifestations && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6 pt-2">
-                          {['Seeing Difficulty', 'Hearing Difficulty', 'Communicating Difficulty', 'Mobility Difficulty'].map((m) => (
-                            <div key={m} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`man-${m}`}
-                                checked={formData.medical.manifestations.includes(m)}
-                                onCheckedChange={(c) => {
-                                  const newMans = c 
-                                    ? [...formData.medical.manifestations, m]
-                                    : formData.medical.manifestations.filter(x => x !== m);
-                                  setFormData({ ...formData, medical: { ...formData.medical, manifestations: newMans } });
-                                }}
-                              />
-                              <Label htmlFor={`man-${m}`} className="text-xs">{m}</Label>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 sm:col-span-2 p-4 border border-border rounded-lg bg-muted/30">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="pwd"
-                          checked={formData.medical.hasPwdId}
-                          onCheckedChange={(c) => setFormData({ ...formData, medical: { ...formData.medical, hasPwdId: !!c } })}
-                        />
-                        <Label htmlFor="pwd" className="font-bold">
-                          Has Official PWD ID?
-                        </Label>
-                      </div>
-                      {formData.medical.hasPwdId && (
-                        <div className="pl-6 pt-2">
-                          <Label className="text-xs mb-1 block">PWD ID Number</Label>
-                          <Input
-                            value={formData.medical.pwdId}
-                            onChange={(e) => setFormData({ ...formData, medical: { ...formData.medical, pwdId: e.target.value } })}
-                            placeholder="Enter PWD ID number"
-                            className="h-8"
-                          />
-                        </div>
-                      )}
-                    </div>
+                  {/* Field 3: LRN */}
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Learner Reference Number (LRN) *</Label>
+                    <Input
+                      value={studentInfo.lrn}
+                      maxLength={12}
+                      onChange={e => {
+                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 12);
+                        setStudentInfo({ ...studentInfo, lrn: cleaned });
+                      }}
+                      placeholder="12-digit LRN (e.g. 123456789012)"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">12-digit DepEd reference number (found on report card).</p>
                   </div>
-                  <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-6 border-t border-border">
-                    <Button
-                    variant="ghost"
-                    onClick={() => setStep(2)}
-                    className="w-full sm:w-auto">
-                    
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
-                    </Button>
-                    <Button
-                    onClick={() => setStep(4)}
-                    className="w-full sm:w-auto">
-                    
-                      Next Step <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </motion.div>
-              }
 
-              {step === 4 &&
-              <motion.div
-                key="step4"
-                custom={1}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  duration: 0.3
-                }}
-                className="p-4 sm:p-8 h-full flex flex-col">
-                
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2">
-                    Additional Information
-                  </h2>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
-                    Required demographic data.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 flex-1">
-                    <div className="space-y-2">
-                      <Label>Mother Tongue</Label>
-                      <Select
-                      value={formData.additional.motherTongue}
-                      onValueChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        additional: {
-                          ...formData.additional,
-                          motherTongue: v
-                        }
-                      })
-                      }>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Mother Tongue" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Tagalog">Tagalog</SelectItem>
-                          <SelectItem value="Cebuano">Cebuano</SelectItem>
-                          <SelectItem value="Chavacano">Chavacano</SelectItem>
-                          <SelectItem value="English">English</SelectItem>
-                          <SelectItem value="Tausug">Tausug</SelectItem>
-                          <SelectItem value="Ilonggo">Ilonggo</SelectItem>
-                          <SelectItem value="Others">Others</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      {formData.additional.motherTongue === 'Others' && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="pt-2"
-                        >
-                          <Input
-                            placeholder="Please specify Mother Tongue"
-                            value={otherMotherTongue}
-                            onChange={(e) => setOtherMotherTongue(e.target.value)}
-                            className="bg-blue-50/50"
-                          />
-                        </motion.div>
-                      )}
-                    </div>
-                    <div className="space-y-4 sm:col-span-2 p-4 border border-border rounded-lg bg-pink-50/30 mt-2">
-                      <h3 className="font-bold text-pink-900 mb-2">Parents Information</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Father's Name</Label>
-                          <Input
-                            value={formData.fatherName}
-                            onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
-                            placeholder="e.g. Juan De la Cruz"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Mother's Name (Maiden Name)</Label>
-                          <Input
-                            value={formData.motherName}
-                            onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
-                            placeholder="e.g. Maria Clara"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Religion</Label>
-                      <Select
-                      value={formData.additional.religion}
-                      onValueChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        additional: {
-                          ...formData.additional,
-                          religion: v
-                        }
-                      })
-                      }>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Religion" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Roman Catholic">Roman Catholic</SelectItem>
-                          <SelectItem value="Islam">Islam</SelectItem>
-                          <SelectItem value="Iglesia ni Cristo">Iglesia ni Cristo</SelectItem>
-                          <SelectItem value="Born Again Christian">Born Again Christian</SelectItem>
-                          <SelectItem value="Protestant">Protestant</SelectItem>
-                          <SelectItem value="MCGI">MCGI</SelectItem>
-                          <SelectItem value="Others">Others</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      {formData.additional.religion === 'Others' && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="pt-2"
-                        >
-                          <Input
-                            placeholder="Please specify Religion"
-                            value={otherReligion}
-                            onChange={(e) => setOtherReligion(e.target.value)}
-                            className="bg-blue-50/50"
-                          />
-                        </motion.div>
-                      )}
-                    </div>
-                    <div className="space-y-4 sm:col-span-2 mt-2 sm:mt-4 p-4 border border-border rounded-lg bg-muted/30">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                        id="indigenous"
-                        checked={formData.additional.isIndigenous}
-                        onCheckedChange={(c) =>
-                        setFormData({
-                          ...formData,
-                          additional: {
-                            ...formData.additional,
-                            isIndigenous: !!c
-                          }
-                        })
-                        } />
-                      
-                        <Label htmlFor="indigenous" className="font-bold">
-                          Belongs to an Indigenous Peoples (IP) Community
-                        </Label>
-                      </div>
-                      {formData.additional.isIndigenous &&
-                        <div className="space-y-2 pl-6">
-                          <Label>Specify IP Group</Label>
-                          <Input
-                            value={formData.additional.indigenousGroup}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                additional: {
-                                  ...formData.additional,
-                                  indigenousGroup: e.target.value
-                                }
-                              })
-                            } />
-                        </div>
-                      }
-                    </div>
-
-                    <div className="space-y-4 sm:col-span-2 p-4 border border-border rounded-lg bg-green-50/30">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="4ps"
-                          checked={formData.additional.is4ps}
-                          onCheckedChange={(c) => setFormData({ ...formData, additional: { ...formData.additional, is4ps: !!c } })}
-                        />
-                        <Label htmlFor="4ps" className="font-bold text-green-900">
-                          4Ps Beneficiary?
-                        </Label>
-                      </div>
-                      <p className="text-[10px] text-green-700/70 pl-6">
-                        Check if the family is currently a recipient of the Pantawid Pamilyang Pilipino Program.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label className="font-bold">Distance Learning Preference</Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Choose how you prefer your child to learn if they cannot attend physical classes.
-                      </p>
-                      <Select
-                        value={formData.additional.learningMode}
-                        onValueChange={(v) => setFormData({ ...formData, additional: { ...formData.additional, learningMode: v as 'Modular Print' | 'Digital' | 'Blended' } })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select learning mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Modular Print">Modular Print</SelectItem>
-                          <SelectItem value="Digital">Digital</SelectItem>
-                          <SelectItem value="Blended">Blended (Physical + Digital)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-6 border-t border-border">
-                    <Button
-                    variant="ghost"
-                    onClick={() => setStep(3)}
-                    className="w-full sm:w-auto">
-                    
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
-                    </Button>
-                    <Button
-                    onClick={() => setStep(5)}
-                    className="w-full sm:w-auto">
-                    
-                      Next Step <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </motion.div>
-              }
-
-              {step === 5 &&
-              <motion.div
-                key="step5"
-                custom={1}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3 }}
-                className="p-4 sm:p-8 h-full flex flex-col">
-                
-                  <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-slate-800">Document Upload</h2>
-                    <p className="text-slate-500 mt-1">Please provide the PSA/Birth Certificate for verification. (Optional - you can submit later)</p>
-                  </div>
-                  
-                  <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 p-6 text-center">
-                    <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-4">
-                      <FileText className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-1">PSA Birth Certificate</h3>
-                    <p className="text-sm text-slate-500 max-w-sm mb-6">
-                      Upload a clear scanned copy or photo of the learner's official PSA Birth Certificate.
+                  {/* Field 4: Student Classification Dropdown with Clear Helper Descriptions */}
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                      Student Classification *
+                    </Label>
+                    <Select
+                      value={studentInfo.classification}
+                      onValueChange={v => setStudentInfo({ ...studentInfo, classification: v as StudentClassificationType })}
+                    >
+                      <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                        <SelectValue placeholder="Select student classification" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200">
+                        <SelectItem value="New Student">New Student</SelectItem>
+                        <SelectItem value="Continuing Student">Continuing Student (Promoted to Higher Grade)</SelectItem>
+                        <SelectItem value="Transferee">Transferee</SelectItem>
+                        <SelectItem value="Balik-Aral">Balik-Aral (Returning Student)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] font-semibold text-[#0C3B99] bg-blue-50/70 p-2.5 rounded-lg border border-blue-100 mt-1">
+                      {getClassificationHelper(studentInfo.classification)}
                     </p>
-                    
-                    <label className="inline-flex cursor-pointer">
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 3: ADDRESS SELECTION ── */}
+            {subStep === 3 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-emerald-600" />
+                    Address Information
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Select a saved address from your account or enter a new address.</p>
+                </div>
+
+                <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Choose Learner Residence Address *
+                  </Label>
+
+                  <div className="space-y-2">
+                    {parentAddresses.map((addr, idx) => (
+                      <label
+                        key={addr.id || idx}
+                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                          selectedAddressOption === `${idx}`
+                            ? 'bg-blue-50/80 border-[#0C3B99] text-slate-900 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="addressChoice"
+                          checked={selectedAddressOption === `${idx}`}
+                          onChange={() => setSelectedAddressOption(`${idx}`)}
+                          className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99] mt-0.5 shrink-0"
+                        />
+                        <div className="text-xs font-semibold">
+                          <span className="font-bold text-slate-900 block">
+                            {addr.label || `Home Address ${idx + 1}`} {addr.isPrimary ? '(Primary Address)' : ''}
+                          </span>
+                          <span className="text-slate-500 text-[11px]">
+                            Brgy. {addr.barangay || '—'}, {addr.city || addr.province}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        selectedAddressOption === 'other'
+                          ? 'bg-blue-50/80 border-[#0C3B99] text-slate-900 shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
                       <input
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) setBirthCertFile(file);
-                        }}
+                        type="radio"
+                        name="addressChoice"
+                        checked={selectedAddressOption === 'other'}
+                        onChange={() => setSelectedAddressOption('other')}
+                        className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99] mt-0.5 shrink-0"
                       />
-                      <span className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-6 h-12 text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm">
-                        <Upload className="w-4 h-4 mr-2" />
-                        {birthCertFile ? 'Replace Document' : 'Choose File'}
-                      </span>
+                      <div className="text-xs font-semibold">
+                        <span className="font-bold text-slate-900 block">Other Address</span>
+                        <span className="text-slate-500 text-[11px]">Specify a new custom address location for this learner.</span>
+                      </div>
                     </label>
-                    <p className="text-xs text-slate-400 mt-3">PDF, JPG, or PNG (Max 10MB)</p>
-                    
-                    {birthCertFile && (
-                      <div className="mt-6 flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm text-left max-w-sm w-full">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                          <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 4: MANUAL ADDRESS PART 1 (4 FIELDS MAX) ── */}
+            {subStep === 4 && selectedAddressOption === 'other' && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-emerald-600" />
+                    Manual Address Entry (Part 1)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Province, city, barangay, and ZIP code.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Province *</Label>
+                    <Select
+                      value={manualAddress.province}
+                      onValueChange={v => {
+                        if (v === 'Others') {
+                          setManualAddress({ ...manualAddress, province: 'Others', city: 'Others' });
+                        } else {
+                          const cities = PROVINCES_CITIES[v] || [];
+                          setManualAddress({
+                            ...manualAddress,
+                            province: v,
+                            city: cities[0] || '',
+                            customProvince: '',
+                            customCity: ''
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                        <SelectValue placeholder="Select province" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200">
+                        {Object.keys(PROVINCES_CITIES).map(p => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                        <SelectItem value="Others">Others</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">City / Municipality *</Label>
+                    {manualAddress.province === 'Others' ? (
+                      <Input
+                        value={manualAddress.customCity}
+                        onChange={e => setManualAddress({ ...manualAddress, customCity: e.target.value })}
+                        placeholder="Enter city"
+                        className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    ) : (
+                      <Select
+                        value={manualAddress.city}
+                        onValueChange={v => setManualAddress({ ...manualAddress, city: v })}
+                      >
+                        <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                          <SelectValue placeholder="Select city" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-slate-200 max-h-52 overflow-y-auto">
+                          {(PROVINCES_CITIES[manualAddress.province] || []).map(c => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Barangay *</Label>
+                    <Input
+                      value={manualAddress.barangay}
+                      onChange={e => setManualAddress({ ...manualAddress, barangay: e.target.value })}
+                      placeholder="e.g. Poblacion"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">Local barangay name.</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      ZIP Code <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                    </Label>
+                    <Input
+                      value={manualAddress.zipCode}
+                      onChange={e => setManualAddress({ ...manualAddress, zipCode: e.target.value })}
+                      placeholder="e.g. 7000"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">Postal ZIP code.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 5: MANUAL ADDRESS PART 2 (STREET ADDRESS) ── */}
+            {subStep === 5 && selectedAddressOption === 'other' && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-emerald-600" />
+                    Manual Address Entry (Part 2)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Street address details.</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3.5">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Street Address *</Label>
+                    <Input
+                      value={manualAddress.streetAddress}
+                      onChange={e => setManualAddress({ ...manualAddress, streetAddress: e.target.value })}
+                      placeholder="House No., Street Name, Sitio"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">House number and street location.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 6: PHYSICAL METRICS (4 FIELDS MAX) ── */}
+            {subStep === 6 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4 text-rose-500" />
+                    Medical Information (Part 1 of 2)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Physical height, weight, blood type, and allergies.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Height (cm) *</Label>
+                    <Input
+                      type="number"
+                      value={medicalInfo.height}
+                      onChange={e => setMedicalInfo({ ...medicalInfo, height: e.target.value })}
+                      placeholder="e.g. 115"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Weight (kg) *</Label>
+                    <Input
+                      type="number"
+                      value={medicalInfo.weight}
+                      onChange={e => setMedicalInfo({ ...medicalInfo, weight: e.target.value })}
+                      placeholder="e.g. 22"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Blood Type <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                    </Label>
+                    <Select
+                      value={medicalInfo.bloodType}
+                      onValueChange={v => setMedicalInfo({ ...medicalInfo, bloodType: v })}
+                    >
+                      <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-800 font-medium text-xs h-11">
+                        <SelectValue placeholder="Select blood type" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200">
+                        {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bt => (
+                          <SelectItem key={bt} value={bt}>{bt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Allergies <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                    </Label>
+                    <Input
+                      value={medicalInfo.allergies}
+                      onChange={e => setMedicalInfo({ ...medicalInfo, allergies: e.target.value })}
+                      placeholder="e.g. Peanuts, Penicillin"
+                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-800 font-medium text-xs h-11"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 7: CONDITIONS, DIFFICULTIES & PWD ID ── */}
+            {subStep === 7 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4 text-rose-500" />
+                    Medical Information (Part 2 of 2)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Diagnosed conditions, functional difficulties, and PWD ID status.</p>
+                </div>
+
+                {/* Diagnosed Conditions */}
+                <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                        Does the learner have any diagnosed medical conditions? *
+                      </Label>
+                      <p className="text-[10px] text-slate-400 font-medium">e.g. ADHD, Autism, Hearing/Visual Impairments</p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      {['No', 'Yes'].map(opt => (
+                        <label key={opt} className="flex items-center gap-1.5 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="hasDiagnosedConditionPrompt"
+                            checked={(medicalInfo.diagnoses.length > 0 ? 'Yes' : 'No') === opt}
+                            onChange={() => {
+                              if (opt === 'No') {
+                                setMedicalInfo({ ...medicalInfo, diagnoses: [], otherDiagnosis: '' });
+                              } else if (medicalInfo.diagnoses.length === 0) {
+                                setMedicalInfo({ ...medicalInfo, diagnoses: ['Other'] });
+                              }
+                            }}
+                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {medicalInfo.diagnoses.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="pt-3 border-t border-slate-200/70 grid grid-cols-1 sm:grid-cols-2 gap-2"
+                    >
+                      {DIAGNOSED_CONDITIONS.map(cond => (
+                        <label key={cond} className="flex items-center gap-2 p-1.5 bg-white rounded-lg border border-slate-200/80 hover:bg-slate-50 transition-colors cursor-pointer select-none">
+                          <Checkbox
+                            checked={medicalInfo.diagnoses.includes(cond)}
+                            onCheckedChange={checked => {
+                              if (checked) {
+                                setMedicalInfo({ ...medicalInfo, diagnoses: [...medicalInfo.diagnoses, cond] });
+                              } else {
+                                const updated = medicalInfo.diagnoses.filter(d => d !== cond);
+                                setMedicalInfo({ ...medicalInfo, diagnoses: updated });
+                              }
+                            }}
+                          />
+                          <span className="text-xs font-bold text-slate-700">{cond}</span>
+                        </label>
+                      ))}
+
+                      {medicalInfo.diagnoses.includes('Other') && (
+                        <div className="sm:col-span-2 pt-1">
+                          <Input
+                            value={medicalInfo.otherDiagnosis}
+                            onChange={e => setMedicalInfo({ ...medicalInfo, otherDiagnosis: e.target.value })}
+                            placeholder="Specify diagnosed condition"
+                            className="px-3 py-2 bg-white border-slate-200 rounded-lg text-xs font-bold"
+                          />
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-slate-800 truncate">{birthCertFile.name}</p>
-                          <p className="text-xs text-slate-500">{(birthCertFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Functional Difficulties */}
+                <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                        Does the learner experience any functional difficulties? *
+                      </Label>
+                      <p className="text-[10px] text-slate-400 font-medium">e.g. Seeing, Hearing, Mobility, or Communication</p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      {['No', 'Yes'].map(opt => (
+                        <label key={opt} className="flex items-center gap-1.5 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="hasFunctionalDifficultyPrompt"
+                            checked={(medicalInfo.functionalDifficulties.length > 0 ? 'Yes' : 'No') === opt}
+                            onChange={() => {
+                              if (opt === 'No') {
+                                setMedicalInfo({ ...medicalInfo, functionalDifficulties: [] });
+                              } else if (medicalInfo.functionalDifficulties.length === 0) {
+                                setMedicalInfo({ ...medicalInfo, functionalDifficulties: [FUNCTIONAL_DIFFICULTIES[0]] });
+                              }
+                            }}
+                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {medicalInfo.functionalDifficulties.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="pt-3 border-t border-slate-200/70 grid grid-cols-1 sm:grid-cols-2 gap-2"
+                    >
+                      {FUNCTIONAL_DIFFICULTIES.map(diff => (
+                        <label key={diff} className="flex items-center gap-2 p-1.5 bg-white rounded-lg border border-slate-200/80 hover:bg-slate-50 transition-colors cursor-pointer select-none">
+                          <Checkbox
+                            checked={medicalInfo.functionalDifficulties.includes(diff)}
+                            onCheckedChange={checked => {
+                              if (checked) {
+                                setMedicalInfo({ ...medicalInfo, functionalDifficulties: [...medicalInfo.functionalDifficulties, diff] });
+                              } else {
+                                setMedicalInfo({ ...medicalInfo, functionalDifficulties: medicalInfo.functionalDifficulties.filter(d => d !== diff) });
+                              }
+                            }}
+                          />
+                          <span className="text-xs font-bold text-slate-700">{diff}</span>
+                        </label>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* PWD Question */}
+                <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                        Does the learner have an official PWD ID? *
+                      </Label>
+                      <p className="text-[10px] text-slate-400 font-medium">Government-issued Persons with Disability ID card</p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      {['No', 'Yes'].map(opt => (
+                        <label key={opt} className="flex items-center gap-1.5 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="hasPwdId"
+                            checked={medicalInfo.hasPwdId === opt}
+                            onChange={() => setMedicalInfo({ ...medicalInfo, hasPwdId: opt as 'Yes' | 'No' })}
+                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {medicalInfo.hasPwdId === 'Yes' && (
+                    <div className="pt-2 border-t border-slate-200/70">
+                      <Input
+                        value={medicalInfo.pwdIdNumber}
+                        onChange={e => setMedicalInfo({ ...medicalInfo, pwdIdNumber: e.target.value })}
+                        placeholder="Enter Official PWD ID Number *"
+                        className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 8: REGISTERED BY & PRIMARY GUARDIAN ── */}
+            {subStep === 8 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-purple-600" />
+                    Parent & Student Information (Part 1 of 2)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Account holder synchronization and primary guardian confirmation.</p>
+                </div>
+
+                <div className="bg-purple-50/60 border border-purple-200/80 rounded-xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] font-bold text-purple-900 uppercase tracking-wider block">Registered By (Account Holder)</span>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-800">
+                    <div>Name: <span className="text-slate-900">{uData ? `${uData.firstName} ${uData.lastName}` : (user?.displayName || '—')}</span></div>
+                    <div>Phone: <span className="text-slate-900">{uData?.contactNumber || '—'}</span></div>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Are you the learner's primary parent or legal guardian? *
+                  </Label>
+                  <div className="flex items-center gap-6">
+                    {['Yes', 'No'].map(opt => (
+                      <label key={opt} className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name="isPrimaryGuardian"
+                          checked={parentStudentInfo.isPrimaryGuardian === opt}
+                          onChange={() => setParentStudentInfo({ ...parentStudentInfo, isPrimaryGuardian: opt as 'Yes' | 'No' })}
+                          className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+
+                  {parentStudentInfo.isPrimaryGuardian === 'No' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/70">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700 uppercase">Primary Parent Name *</Label>
+                        <Input
+                          value={parentStudentInfo.primaryParentName}
+                          onChange={e => setParentStudentInfo({ ...parentStudentInfo, primaryParentName: e.target.value })}
+                          placeholder="e.g. Maria Dela Cruz"
+                          className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700 uppercase">Contact Number *</Label>
+                        <Input
+                          value={parentStudentInfo.primaryContact}
+                          maxLength={11}
+                          onChange={e => {
+                            const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
+                            setParentStudentInfo({ ...parentStudentInfo, primaryContact: cleaned });
+                          }}
+                          placeholder="09XXXXXXXXX"
+                          className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 9: RELIGION, IP & 4PS (3 FIELDS MAX) ── */}
+            {subStep === 9 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-purple-600" />
+                    Parent & Student Information (Part 2 of 2)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Religion, Indigenous Peoples, and 4Ps affiliation.</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Religion *</Label>
+                    <Select
+                      value={parentStudentInfo.religion}
+                      onValueChange={v => setParentStudentInfo({ ...parentStudentInfo, religion: v })}
+                    >
+                      <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                        <SelectValue placeholder="Select religion" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200">
+                        <SelectItem value="Roman Catholic">Roman Catholic</SelectItem>
+                        <SelectItem value="Islam">Islam</SelectItem>
+                        <SelectItem value="Evangelical / Protestant">Evangelical / Protestant</SelectItem>
+                        <SelectItem value="Seventh-day Adventist">Seventh-day Adventist</SelectItem>
+                        <SelectItem value="Iglesia ni Cristo">Iglesia ni Cristo</SelectItem>
+                        <SelectItem value="Others">Others</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {parentStudentInfo.religion === 'Others' && (
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Specify Religion *</Label>
+                      <Input
+                        value={parentStudentInfo.otherReligion}
+                        onChange={e => setParentStudentInfo({ ...parentStudentInfo, otherReligion: e.target.value })}
+                        placeholder="Enter religion"
+                        className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                      Does the learner belong to an Indigenous Peoples (IP) community? *
+                    </Label>
+                    <div className="flex items-center gap-6">
+                      {['No', 'Yes'].map(opt => (
+                        <label key={opt} className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="isIndigenous"
+                            checked={parentStudentInfo.isIndigenous === opt}
+                            onChange={() => setParentStudentInfo({ ...parentStudentInfo, isIndigenous: opt as 'Yes' | 'No' })}
+                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+
+                    {parentStudentInfo.isIndigenous === 'Yes' && (
+                      <div className="pt-2">
+                        <Input
+                          value={parentStudentInfo.ipCommunity}
+                          onChange={e => setParentStudentInfo({ ...parentStudentInfo, ipCommunity: e.target.value })}
+                          placeholder="Specify IP Community (Optional)"
+                          className="px-3.5 py-2 bg-white border-slate-200 rounded-xl text-slate-900 text-xs font-bold"
+                        />
                       </div>
                     )}
                   </div>
 
-                  <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-6 border-t border-border">
-                    <Button variant="ghost" onClick={() => setStep(4)} className="w-full sm:w-auto">
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
-                    </Button>
-                    <Button 
-                      onClick={() => setStep(6)} 
-                      className="w-full sm:w-auto">
-                      Review <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
+                  <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                      Is the learner a beneficiary of the Pantawid Pamilyang Pilipino Program (4Ps)? *
+                    </Label>
+                    <div className="flex items-center gap-6">
+                      {['No', 'Yes'].map(opt => (
+                        <label key={opt} className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="is4ps"
+                            checked={parentStudentInfo.is4ps === opt}
+                            onChange={() => setParentStudentInfo({ ...parentStudentInfo, is4ps: opt as 'Yes' | 'No' })}
+                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </motion.div>
-              }
+                </div>
+              </div>
+            )}
 
-              {step === 6 &&
-              <motion.div
-                key="step6"
-                custom={1}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  duration: 0.3
-                }}
-                className="p-4 sm:p-8 h-full flex flex-col">
-                
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2">
-                    Review & Submit
+            {/* ── STEP 5 OF 6: SUPPORTING DOCUMENTS (OPTIONAL UPLOAD) ── */}
+            {subStep === 10 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-[#0C3B99]" />
+                    Supporting Documents
                   </h2>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6">
-                    Please review the information before submitting.
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Upload supporting documents for registration.</p>
+                </div>
+
+                {/* Reminder Banner */}
+                <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs text-blue-900 font-semibold space-y-1 flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-relaxed">
+                    Documents may be uploaded now or later. You can continue registration even if documents are not yet available.
                   </p>
+                </div>
 
-                  <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6 pr-2">
-                    <div className="p-4 border border-border rounded-lg bg-muted/30">
-                      <h3 className="font-semibold mb-3">Personal Info</h3>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground w-24 inline-block">
-                          Name:
-                        </span>{' '}
-                        {formData.firstName} {formData.lastName}
-                      </p>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground w-24 inline-block">
-                          Grade:
-                        </span>{' '}
-                        {formData.gradeLevel}
-                      </p>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground w-24 inline-block">
-                          LRN:
-                        </span>{' '}
-                        {formData.lrn || 'None'}
-                      </p>
-                    </div>
-                    <div className="p-4 border border-border rounded-lg bg-muted/30">
-                      <h3 className="font-semibold mb-3">Address</h3>
-                      <p className="text-sm">
-                        {formData.address.street}, {formData.address.barangay},{' '}
-                        {formData.address.city}
-                      </p>
-                    </div>
-                    <div className="p-4 border border-border rounded-lg bg-muted/30">
-                      <h3 className="font-semibold mb-3">Emergency Contact</h3>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground w-24 inline-block">
-                          Name:
-                        </span>{' '}
-                        {formData.medical.emergencyContact}
-                      </p>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground w-24 inline-block">
-                          Phone:
-                        </span>{' '}
-                        {formData.medical.emergencyPhone}
-                      </p>
-                    </div>
-                    <div className="p-4 border border-border rounded-lg bg-muted/30">
-                      <h3 className="font-semibold mb-3">Requirements</h3>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground w-24 inline-block">
-                          Birth Cert:
-                        </span>{' '}
-                        {birthCertFile ? (
-                          <span className="text-emerald-600 font-medium">Ready to upload ({birthCertFile.name})</span>
-                        ) : (
-                          <span className="text-amber-600 font-medium">To be submitted later</span>
+                {/* Classification Summary Card */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between">
+                  <span className="text-slate-500 font-bold">Selected Classification:</span>
+                  <span className="font-extrabold text-[#0C3B99] bg-white px-2.5 py-1 rounded-lg border border-blue-100">
+                    {studentInfo.classification}
+                  </span>
+                </div>
+
+                {/* Document Cards List based on Classification */}
+                <div className="space-y-3">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Required Verification Documents ({requiredDocDefs.length})
+                  </span>
+
+                  {requiredDocDefs.map(docDef => {
+                    const fileObj = stagedFiles[docDef.key as keyof typeof stagedFiles];
+                    const isUploaded = !!fileObj;
+
+                    return (
+                      <div key={docDef.key} className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="space-y-0.5">
+                            <h3 className="text-xs font-bold text-slate-900">{docDef.title}</h3>
+                            <span className="text-[10px] text-slate-400 font-medium block">
+                              Status: <strong className={isUploaded ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+                                {isUploaded ? 'Uploaded' : 'Not Uploaded'}
+                              </strong>
+                            </span>
+                          </div>
+
+                          <input
+                            ref={el => { fileInputRefs.current[docDef.key] = el; }}
+                            type="file"
+                            accept="image/*, application/pdf"
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) setStagedFiles({ ...stagedFiles, [docDef.key]: f });
+                            }}
+                            className="hidden"
+                          />
+
+                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                            {!isUploaded ? (
+                              <button
+                                type="button"
+                                onClick={() => fileInputRefs.current[docDef.key]?.click()}
+                                className="px-3.5 py-1.5 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                              >
+                                <Upload className="w-3.5 h-3.5" /> Upload Document
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewFile({ title: docDef.title, file: fileObj })}
+                                  className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-[#0C3B99]" /> View
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRefs.current[docDef.key]?.click()}
+                                  className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5 text-amber-600" /> Replace
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = { ...stagedFiles };
+                                    delete next[docDef.key as keyof typeof stagedFiles];
+                                    setStagedFiles(next);
+                                  }}
+                                  className="px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Remove
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {fileObj && (
+                          <div className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between text-[11px] font-semibold text-slate-700">
+                            <span className="truncate max-w-[240px] font-bold">{fileObj.name}</span>
+                            <span className="text-slate-400">({(fileObj.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                          </div>
                         )}
-                      </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Bottom Reminder */}
+                <p className="text-[11px] text-slate-400 font-medium italic text-center">
+                  You may submit your registration now and upload missing documents later from the Requirements page.
+                </p>
+              </div>
+            )}
+
+            {/* ── STEP 6 OF 6: REVIEW & SUBMIT ── */}
+            {subStep === 11 && (
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#0C3B99]" />
+                    Review & Submit Registration
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Review all registration details before submitting.</p>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  {/* Student Summary */}
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
+                      <span>Student Information</span>
+                      <button type="button" onClick={() => setSubStep(1)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 text-slate-700">
+                      <div>Name: <strong>{studentInfo.firstName} {studentInfo.lastName}</strong></div>
+                      <div>Birth Date: <strong>{studentInfo.birthDate} ({computedAge} yrs)</strong></div>
+                      <div>Grade / LRN: <strong>{studentInfo.gradeLevel} ({studentInfo.lrn})</strong></div>
+                      <div>Classification: <strong>{studentInfo.classification}</strong></div>
                     </div>
                   </div>
 
-                  {uploadError && (
-                    <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm">
-                      {uploadError}
+                  {/* Address Summary */}
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
+                      <span>Address Location</span>
+                      <button type="button" onClick={() => setSubStep(3)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
+                    </h3>
+                    <p className="font-bold text-slate-800">
+                      {activeAddrDetails.previewText}
+                      {activeAddrDetails.zipCode && !activeAddrDetails.previewText.includes(activeAddrDetails.zipCode) ? ` (ZIP Code: ${activeAddrDetails.zipCode})` : ''}
+                    </p>
+                  </div>
+
+                  {/* Medical Summary */}
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1.5">
+                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
+                      <span>Medical Info</span>
+                      <button type="button" onClick={() => setSubStep(6)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
+                    </h3>
+                    <p className="font-bold text-slate-800">
+                      Height: {medicalInfo.height} cm | Weight: {medicalInfo.weight} kg | PWD: {medicalInfo.hasPwdId}
+                    </p>
+                  </div>
+
+                  {/* Document Summary Section */}
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
+                      <span>Document Status Summary</span>
+                      <button type="button" onClick={() => setSubStep(10)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
+                    </h3>
+
+                    <div className="space-y-1.5">
+                      {requiredDocDefs.map(docDef => {
+                        const fileObj = stagedFiles[docDef.key as keyof typeof stagedFiles];
+                        const isUploaded = !!fileObj;
+
+                        return (
+                          <div key={docDef.key} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200/70 text-xs font-semibold">
+                            <span className="text-slate-800 font-bold">{docDef.title}</span>
+                            {isUploaded ? (
+                              <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Status: Uploaded
+                              </span>
+                            ) : (
+                              <span className="text-amber-700 font-bold flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Status: Missing
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                  </div>
+                </div>
+
+                {/* Submission Reminder */}
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-semibold leading-relaxed">
+                  Missing documents may be uploaded later through the Requirements page. Registration review may be delayed until all required documents have been submitted.
+                </div>
+              </div>
+            )}
+
+            {/* ── FOOTER NAVIGATION CONTROLS ── */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-4">
+              {subStep > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBackSubStep}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all text-xs flex items-center gap-1.5"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back
+                </Button>
+              ) : <div />}
+
+              {subStep < 11 ? (
+                <Button
+                  type="button"
+                  onClick={handleNextSubStep}
+                  className="px-5 py-2 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5"
+                >
+                  Next <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSubmitRegistration}
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Submit Registration
+                    </>
                   )}
-
-                  <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-6 border-t border-border">
-                    <Button
-                    variant="ghost"
-                    onClick={() => setStep(5)}
-                    className="w-full sm:w-auto">
-                    
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Back
-                    </Button>
-                    <Button
-                    onClick={handleSubmit}
-                    className="w-full sm:w-auto sm:px-8"
-                    disabled={isSubmitting}>
-                    
-                      {isSubmitting ? 'Submitting...' : 'Submit Enrollment'}
-                    </Button>
-                  </div>
-                </motion.div>
-              }
-            </AnimatePresence>
+                </Button>
+              )}
+            </div>
           </Card>
-        </div>
-      </div>
-    </div>);
+        </motion.div>
+      </AnimatePresence>
 
+      {/* ── LOCAL FILE PREVIEW MODAL ── */}
+      {previewFile && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-3xl w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <span className="font-extrabold text-slate-900 text-sm">{previewFile.title} Preview</span>
+              <button
+                type="button"
+                onClick={() => setPreviewFile(null)}
+                className="p-1 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-2 min-h-[350px] max-h-[65vh] overflow-auto flex items-center justify-center border border-slate-200/70">
+              {previewFile.file.type.includes('pdf') ? (
+                <iframe src={URL.createObjectURL(previewFile.file)} title={previewFile.title} className="w-full h-[55vh] rounded-xl border-none" />
+              ) : (
+                <img src={URL.createObjectURL(previewFile.file)} alt={previewFile.title} className="max-h-[55vh] object-contain rounded-xl shadow-xs" />
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                onClick={() => setPreviewFile(null)}
+                className="bg-[#0C3B99] hover:bg-blue-800 text-white font-bold rounded-xl px-5 py-2 text-xs"
+              >
+                Close Preview
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

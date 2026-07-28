@@ -124,9 +124,9 @@ function ParentPortalContent() {
           </div>
         </div>
 
-        {/* Category: Enrollment */}
+        {/* Category: Registration */}
         <div className="space-y-2">
-          <p className="px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">Enrollment</p>
+          <p className="px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">Registration</p>
           <div className="space-y-1">
             <button
               onClick={() => handleNavigate('enrollment')}
@@ -137,7 +137,7 @@ function ParentPortalContent() {
               }`}
             >
               <UserPlus className={`w-4.5 h-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${activeView === 'enrollment' ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600'}`} />
-              <span className="flex-1 text-left truncate">New Enrollment</span>
+              <span className="flex-1 text-left truncate">Student Registration</span>
             </button>
           </div>
         </div>
@@ -238,7 +238,7 @@ function ParentPortalContent() {
           </div>
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-sm">{initials}</div>
         </header>
-        <div className="flex-1 overflow-hidden bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto bg-slate-50/50">
           {renderActiveView()}
         </div>
       </main>

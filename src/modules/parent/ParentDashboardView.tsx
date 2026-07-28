@@ -103,7 +103,7 @@ export function ParentDashboardView({
         initials: (c.firstName?.[0] || '') + (c.lastName?.[0] || ''),
         name: `${c.firstName} ${c.lastName}`,
         gender: c.gender,
-        detail: 'Enrollment pending review',
+        detail: 'Registration pending review',
         value: 'Pending',
         color: 'bg-amber-50 text-amber-700 border-amber-200'
       });
@@ -181,11 +181,11 @@ export function ParentDashboardView({
           </div>
           
           <Button
-            className="w-full sm:w-auto rounded-2xl h-12 px-6 shadow-md transition-all active:scale-95 border-none font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2"
+            className="w-full sm:w-auto rounded-2xl h-12 px-6 shadow-md transition-all active:scale-95 border-none font-bold bg-[#0C3B99] hover:bg-blue-800 text-white flex items-center justify-center gap-2"
             onClick={() => onNavigate('enrollment')}
           >
             <PlusCircle className="w-4 h-4" />
-            Enroll a Student
+            Register a Student
           </Button>
         </div>
       </header>

@@ -48,6 +48,7 @@ export type Child = {
   gender: string;
   lrn: string;
   gradeLevel: string;
+  isReturning?: boolean;
   fatherName?: string;
   motherName?: string;
   classroomId?: string;
@@ -111,7 +112,7 @@ type ParentContextType = {
   }) => Promise<void>;
   submitFullEnrollment: (
     childData: Omit<Child, 'id' | 'status' | 'requirements' | 'submittedAt' | 'attendance' | 'parentId'>,
-    documentParams: {
+    documentParams?: {
       documentType: DocumentType;
       file: File;
     }

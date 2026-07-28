@@ -36,6 +36,8 @@ export function validateRequirementUpload(file: File): string | null {
 
 export function documentTypeToRequirementKey(type: DocumentType): string {
   if (type === DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE) return 'psaBirthCertificate';
+  if (type === DOCUMENT_TYPES.REPORT_CARD) return 'reportCard';
+  if (type === DOCUMENT_TYPES.GOOD_MORAL) return 'goodMoral';
   return 'other';
 }
 
