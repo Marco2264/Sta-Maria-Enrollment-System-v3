@@ -19,6 +19,7 @@ import { MyChildrenView } from '../components/parent/MyChildrenView';
 import { EnrollmentForm } from '../components/parent/EnrollmentForm';
 import { ChildDetailView } from '../components/parent/ChildDetailView';
 import { RequirementsView } from '../components/parent/RequirementsView';
+import { ParentSettingsView } from '../components/parent/ParentSettingsView';
 import { useAuth } from '../lib/AuthContext';
 function ParentPortalContent() {
   const navigate = useNavigate();
@@ -47,6 +48,8 @@ function ParentPortalContent() {
         return <EnrollmentForm onComplete={() => handleNavigate('requirements')} />;
       case 'requirements':
         return <RequirementsView />;
+      case 'settings':
+        return <ParentSettingsView />;
       case 'child-detail':
         return selectedChildId ?
         <ChildDetailView
@@ -141,7 +144,10 @@ function ParentPortalContent() {
       </div>
 
       <div className="border-t border-border p-3 shrink-0">
-        <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-md transition-colors mb-2">
+        <button
+          onClick={() => handleNavigate('settings')}
+          className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors mb-2 ${activeView === 'settings' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
+        >
           <Settings className="w-4 h-4" />
           Settings
         </button>
@@ -150,8 +156,12 @@ function ParentPortalContent() {
         className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
         onClick={() => navigate('/')}>
         
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
-            {uData?.firstName?.charAt(0) || 'P'}{uData?.lastName?.charAt(0) || 'U'}
+          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase overflow-hidden">
+            {uData?.photoURL ? (
+              <img src={uData.photoURL} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <>{uData?.firstName?.charAt(0) || 'P'}{uData?.lastName?.charAt(0) || 'U'}</>
+            )}
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-bold truncate text-slate-900">
@@ -197,8 +207,12 @@ function ParentPortalContent() {
             Parent Portal
           </div>
 
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
-            PU
+          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
+            {uData?.photoURL ? (
+              <img src={uData.photoURL} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <>{uData?.firstName?.charAt(0) || 'P'}{uData?.lastName?.charAt(0) || 'U'}</>
+            )}
           </div>
         </header>
 

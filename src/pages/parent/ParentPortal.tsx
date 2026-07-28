@@ -20,6 +20,7 @@ import { MyChildrenView } from '../../components/parent/MyChildrenView';
 import { EnrollmentForm } from '../../components/parent/EnrollmentForm';
 import { ChildDetailView } from '../../components/parent/ChildDetailView';
 import { RequirementsView } from '../../components/parent/RequirementsView';
+import { ParentSettingsView } from '../../components/parent/ParentSettingsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -60,6 +61,7 @@ function ParentPortalContent() {
       case 'children': return <MyChildrenView onSelectChild={handleSelectChild} />;
       case 'enrollment': return <EnrollmentForm onComplete={() => handleNavigate('children')} />;
       case 'requirements': return <RequirementsView />;
+      case 'settings': return <ParentSettingsView />;
       case 'child-detail': return selectedChildId ? <ChildDetailView childId={selectedChildId} onBack={() => handleNavigate('children')} /> : <MyChildrenView onSelectChild={handleSelectChild} />;
       default: return <ParentDashboardView onNavigate={handleNavigate} />;
     }
@@ -163,7 +165,17 @@ function ParentPortalContent() {
       <div className="border-t border-slate-100 p-4 shrink-0 relative bg-white">
         {showUserMenu && (
           <div className="absolute bottom-20 left-4 right-4 bg-white border border-slate-200/60 p-2 rounded-2xl shadow-xl space-y-1 animate-in fade-in-50 slide-in-from-bottom-3 duration-200 z-50 backdrop-blur-md">
-            <button className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-xl transition-all">
+            <button
+              onClick={() => {
+                handleNavigate('settings');
+                setShowUserMenu(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+                activeView === 'settings'
+                  ? 'bg-primary/5 text-primary border border-primary/10'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
               <Settings className="w-4 h-4 text-slate-400" />
               Settings
             </button>
@@ -180,7 +192,13 @@ function ParentPortalContent() {
           className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl cursor-pointer transition-all active:scale-98" 
           onClick={() => setShowUserMenu(!showUserMenu)}
         >
-          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-inner">{initials}</div>
+          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-inner overflow-hidden">
+            {typeof (userData as any)?.photoURL === 'string' && (userData as any).photoURL ? (
+              <img src={(userData as any).photoURL} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              initials
+            )}
+          </div>
           <div className="flex-1 overflow-hidden text-left">
             <p className="text-sm font-extrabold truncate text-slate-800 leading-none">{fullName}</p>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate mt-1.5">{relationship}</p>

@@ -165,6 +165,8 @@ export function SignUpPage() {
     email: '',
     province: 'Zamboanga City',
     city: 'Zamboanga City',
+    customProvince: '',
+    customCity: '',
     barangay: '',
     streetAddress: '',
     zipCode: '',
@@ -187,6 +189,15 @@ export function SignUpPage() {
 
   const handleSelectChange = (id: string, value: string) => {
     if (id === 'province') {
+      if (value === 'Others') {
+        setFormData(prev => ({
+          ...prev,
+          province: 'Others',
+          city: 'Others'
+        }));
+        return;
+      }
+
       const availableCities = PROVINCES_CITIES[value] || [];
       setFormData(prev => ({
         ...prev,
@@ -217,6 +228,9 @@ export function SignUpPage() {
   const passNumber = /[0-9]/.test(formData.password);
   const passValid = passLength && passUpper && passNumber;
 
+  const finalProvince = formData.province === 'Others' ? formData.customProvince.trim() : formData.province;
+  const finalCity = formData.province === 'Others' ? formData.customCity.trim() : formData.city;
+
   // Step Validation Logic
   const handleNext = () => {
     setError(null);
@@ -241,9 +255,16 @@ export function SignUpPage() {
         return;
       }
     } else if (step === 5) {
-      if (!formData.province || !formData.city) {
-        setError('Please select your province and city/municipality.');
-        return;
+      if (formData.province === 'Others') {
+        if (!formData.customProvince.trim() || !formData.customCity.trim()) {
+          setError('Please enter both your province and city/municipality.');
+          return;
+        }
+      } else {
+        if (!formData.province || !formData.city) {
+          setError('Please select your province and city/municipality.');
+          return;
+        }
       }
     } else if (step === 6) {
       if (!formData.barangay.trim()) {
@@ -299,8 +320,8 @@ export function SignUpPage() {
         relationship: formData.relationship,
         contactNumber: formData.contactNumber,
         email: formData.email,
-        province: formData.province,
-        city: formData.city,
+        province: finalProvince,
+        city: finalCity,
         barangay: formData.barangay,
         streetAddress: formData.streetAddress,
         zipCode: formData.zipCode,
@@ -616,26 +637,45 @@ export function SignUpPage() {
                             {Object.keys(PROVINCES_CITIES).map((prov) => (
                               <SelectItem key={prov} value={prov}>{prov}</SelectItem>
                             ))}
+                            <SelectItem value="Others">Others</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
-                      <div className="space-y-1.5 text-left">
-                        <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">City / Municipality *</Label>
-                        <Select
-                          value={formData.city}
-                          onValueChange={(v) => handleSelectChange('city', v)}
-                        >
-                          <SelectTrigger className="h-14 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 rounded-xl text-sm font-medium text-slate-900">
-                            <SelectValue placeholder="Select city / municipality" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl border-slate-200 max-h-56 overflow-y-auto">
-                            {(PROVINCES_CITIES[formData.province] || []).map((ct) => (
-                              <SelectItem key={ct} value={ct}>{ct}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {formData.province === 'Others' ? (
+                        <>
+                          <FloatInput
+                            id="customProvince"
+                            label="Specify Province *"
+                            value={formData.customProvince}
+                            onChange={handleInputChange}
+                            autoFocus
+                          />
+                          <FloatInput
+                            id="customCity"
+                            label="Specify City / Municipality *"
+                            value={formData.customCity}
+                            onChange={handleInputChange}
+                          />
+                        </>
+                      ) : (
+                        <div className="space-y-1.5 text-left">
+                          <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">City / Municipality *</Label>
+                          <Select
+                            value={formData.city}
+                            onValueChange={(v) => handleSelectChange('city', v)}
+                          >
+                            <SelectTrigger className="h-14 bg-slate-50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 rounded-xl text-sm font-medium text-slate-900">
+                              <SelectValue placeholder="Select city / municipality" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200 max-h-56 overflow-y-auto">
+                              {(PROVINCES_CITIES[formData.province] || []).map((ct) => (
+                                <SelectItem key={ct} value={ct}>{ct}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -843,7 +883,7 @@ export function SignUpPage() {
                         </div>
                         <div className="pl-5 text-slate-600 leading-relaxed">
                           <p><span className="font-semibold text-slate-800">Address:</span> {formData.streetAddress}, Brgy. {formData.barangay}</p>
-                          <p><span className="font-semibold text-slate-800">Location:</span> {formData.city}, {formData.province} {formData.zipCode ? `(${formData.zipCode})` : ''}</p>
+                          <p><span className="font-semibold text-slate-800">Location:</span> {finalCity}, {finalProvince} {formData.zipCode ? `(${formData.zipCode})` : ''}</p>
                         </div>
                       </div>
 
