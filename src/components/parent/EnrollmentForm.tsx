@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -26,20 +26,21 @@ import {
   Info,
   Calendar,
   FileCheck,
-  Upload,
-  Eye,
-  RefreshCw,
-  Trash2,
-  X,
   FileText,
-  Clock
+  FolderOpen,
+  ShieldCheck,
+  Clock,
+  XCircle,
+  Eye,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
-import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
+import { DOCUMENT_TYPES } from '../../lib/schema/phase2';
 
 interface EnrollmentFormProps {
   onComplete: () => void;
+  onNavigateToRequirements?: () => void;
 }
 
 const PROVINCES_CITIES: Record<string, string[]> = {
@@ -87,9 +88,9 @@ const FUNCTIONAL_DIFFICULTIES = [
 
 type StudentClassificationType = 'New Student' | 'Transferee' | 'Balik-Aral' | 'Continuing Student';
 
-export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
+export function EnrollmentForm({ onComplete, onNavigateToRequirements }: EnrollmentFormProps) {
   const { user, userData } = useAuth();
-  const { submitFullEnrollment, uploadRequirementDocument } = useParentData();
+  const { submitFullEnrollment, documents, children } = useParentData();
 
   const uData = userData as Record<string, any> | null;
 
@@ -221,16 +222,9 @@ export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
     is4ps: 'No'
   });
 
-  // Step 5: Staged Documents (Optional uploads during registration)
-  const [stagedFiles, setStagedFiles] = useState<{
-    psa?: File;
-    reportCard?: File;
-    goodMoral?: File;
-  }>({});
-
-  // Document Preview Modal State
-  const [previewFile, setPreviewFile] = useState<{ title: string; file: File } | null>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  // The enrollment form does NOT store documents locally.
+  // Documents are managed exclusively from the Document Center (RequirementsView).
+  // Step 5 reads live status from Firestore via useParentData.
 
   // Screen Validation
   const validateSubStep = (): boolean => {
@@ -401,40 +395,8 @@ export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
 
       const enrollmentId = await submitFullEnrollment(registrationPayload);
 
-      // Upload staged documents if parent selected any during Step 5 of 6
-      if (stagedFiles.psa) {
-        try {
-          await uploadRequirementDocument({
-            enrollmentId,
-            documentType: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE,
-            file: stagedFiles.psa
-          });
-        } catch (e) {
-          console.warn('PSA document upload postponed:', e);
-        }
-      }
-      if (stagedFiles.reportCard) {
-        try {
-          await uploadRequirementDocument({
-            enrollmentId,
-            documentType: DOCUMENT_TYPES.REPORT_CARD,
-            file: stagedFiles.reportCard
-          });
-        } catch (e) {
-          console.warn('Report card upload postponed:', e);
-        }
-      }
-      if (stagedFiles.goodMoral) {
-        try {
-          await uploadRequirementDocument({
-            enrollmentId,
-            documentType: DOCUMENT_TYPES.GOOD_MORAL,
-            file: stagedFiles.goodMoral
-          });
-        } catch (e) {
-          console.warn('Good moral upload postponed:', e);
-        }
-      }
+      // Documents are managed exclusively from the Document Center.
+      // No document uploads happen here.
 
       setSubStep(12); // Success screen
     } catch (err: any) {
@@ -524,7 +486,7 @@ export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
                 <FileCheck className="w-4 h-4 text-[#0C3B99]" /> Requirements Management
               </div>
               <p className="text-[11px] leading-normal text-blue-800">
-                You can upload missing supporting documents anytime from the <strong>Requirements Page</strong> in the sidebar.
+                You can upload missing supporting documents anytime from the <strong>Document Center</strong> in the sidebar.
               </p>
             </div>
           </div>
@@ -1374,126 +1336,135 @@ export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
               </div>
             )}
 
-            {/* ── STEP 5 OF 6: SUPPORTING DOCUMENTS (OPTIONAL UPLOAD) ── */}
-            {subStep === 10 && (
-              <div className="space-y-4">
-                <div className="border-b border-slate-100 pb-2.5">
-                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <FileCheck className="w-4 h-4 text-[#0C3B99]" />
-                    Supporting Documents
-                  </h2>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Upload supporting documents for registration.</p>
-                </div>
+            {/* ── STEP 5 OF 6: SUPPORTING DOCUMENTS (SYNC VIEW) ── */}
+            {subStep === 10 && (() => {
+              // Find the most recent enrollment for this student by matching name + grade
+              // or just use the first enrollment from `children` that matches the current form data.
+              // Since we're mid-registration (not yet submitted), there's no enrollmentId yet.
+              // We show a pre-registration notice pointing to Document Center.
+              const allUploaded = requiredDocDefs.every(d =>
+                documents.some(doc => doc.documentType === d.type)
+              );
 
-                {/* Reminder Banner */}
-                <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs text-blue-900 font-semibold space-y-1 flex items-start gap-2.5">
-                  <Info className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
-                  <p className="text-[11px] leading-relaxed">
-                    Documents may be uploaded now or later. You can continue registration even if documents are not yet available.
-                  </p>
-                </div>
+              return (
+                <div className="space-y-4">
+                  <div className="border-b border-slate-100 pb-2.5">
+                    <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                      <FileCheck className="w-4 h-4 text-[#0C3B99]" />
+                      Supporting Documents
+                    </h2>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                      Your document status is synchronized from the Document Center.
+                    </p>
+                  </div>
 
-                {/* Classification Summary Card */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between">
-                  <span className="text-slate-500 font-bold">Selected Classification:</span>
-                  <span className="font-extrabold text-[#0C3B99] bg-white px-2.5 py-1 rounded-lg border border-blue-100">
-                    {studentInfo.classification}
-                  </span>
-                </div>
+                  {/* Sync info banner */}
+                  <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start gap-2.5">
+                    <FolderOpen className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-blue-900 font-semibold leading-relaxed">
+                      Documents are managed from the <strong>Document Center</strong>. Upload your required documents there — they will automatically appear in your registration and be reviewed by the school.
+                    </p>
+                  </div>
 
-                {/* Document Cards List based on Classification */}
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                    Required Verification Documents ({requiredDocDefs.length})
-                  </span>
+                  {/* Classification */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between">
+                    <span className="text-slate-500 font-bold">Student Classification:</span>
+                    <span className="font-extrabold text-[#0C3B99] bg-white px-2.5 py-1 rounded-lg border border-blue-100">
+                      {studentInfo.classification}
+                    </span>
+                  </div>
 
-                  {requiredDocDefs.map(docDef => {
-                    const fileObj = stagedFiles[docDef.key as keyof typeof stagedFiles];
-                    const isUploaded = !!fileObj;
+                  {/* Document status list */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                      Required Documents ({requiredDocDefs.length})
+                    </span>
 
-                    return (
-                      <div key={docDef.key} className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="space-y-0.5">
-                            <h3 className="text-xs font-bold text-slate-900">{docDef.title}</h3>
-                            <span className="text-[10px] text-slate-400 font-medium block">
-                              Status: <strong className={isUploaded ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
-                                {isUploaded ? 'Uploaded' : 'Not Uploaded'}
-                              </strong>
-                            </span>
-                          </div>
+                    {requiredDocDefs.map(docDef => {
+                      // Look up any existing upload for this doc type across all children
+                      const docRecord = documents.find(d => d.documentType === docDef.type);
+                      const status = docRecord?.status;
 
-                          <input
-                            ref={el => { fileInputRefs.current[docDef.key] = el; }}
-                            type="file"
-                            accept="image/*, application/pdf"
-                            onChange={e => {
-                              const f = e.target.files?.[0];
-                              if (f) setStagedFiles({ ...stagedFiles, [docDef.key]: f });
-                            }}
-                            className="hidden"
-                          />
+                      return (
+                        <div key={docDef.key} className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <FileText className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
+                              <div className="min-w-0">
+                                <h3 className="text-xs font-bold text-slate-900">{docDef.title}</h3>
+                              </div>
+                            </div>
 
-                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                            {!isUploaded ? (
-                              <button
-                                type="button"
-                                onClick={() => fileInputRefs.current[docDef.key]?.click()}
-                                className="px-3.5 py-1.5 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-                              >
-                                <Upload className="w-3.5 h-3.5" /> Upload Document
-                              </button>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => setPreviewFile({ title: docDef.title, file: fileObj })}
-                                  className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-                                >
-                                  <Eye className="w-3.5 h-3.5 text-[#0C3B99]" /> View
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => fileInputRefs.current[docDef.key]?.click()}
-                                  className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-                                >
-                                  <RefreshCw className="w-3.5 h-3.5 text-amber-600" /> Replace
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = { ...stagedFiles };
-                                    delete next[docDef.key as keyof typeof stagedFiles];
-                                    setStagedFiles(next);
-                                  }}
-                                  className="px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" /> Remove
-                                </button>
-                              </>
+                            {status === 'APPROVED' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <ShieldCheck className="w-3 h-3" /> Verified
+                              </span>
+                            )}
+                            {status === 'PENDING' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                <Clock className="w-3 h-3 animate-pulse" /> Under Review
+                              </span>
+                            )}
+                            {status === 'REJECTED' && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                <XCircle className="w-3 h-3" /> Needs Re-upload
+                              </span>
+                            )}
+                            {!docRecord && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                Not Uploaded
+                              </span>
                             )}
                           </div>
+
+                          {status === 'APPROVED' && docRecord && (
+                            <button
+                              type="button"
+                              onClick={() => window.open(docRecord.fileUrl, '_blank')}
+                              className="flex items-center gap-1.5 text-[11px] font-bold text-[#0C3B99] hover:underline"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View Document
+                            </button>
+                          )}
+
+                          {!docRecord && (
+                            <div className="bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2 flex items-start gap-2">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                              <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                                This document has not been uploaded yet. You may continue your registration now and upload this document later from the Document Center.
+                              </p>
+                            </div>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        {fileObj && (
-                          <div className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between text-[11px] font-semibold text-slate-700">
-                            <span className="truncate max-w-[240px] font-bold">{fileObj.name}</span>
-                            <span className="text-slate-400">({(fileObj.size / (1024 * 1024)).toFixed(2)} MB)</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {allUploaded ? (
+                    <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <p className="text-[11px] text-emerald-800 font-bold">
+                        ✔ All required documents have already been uploaded. No further action is required.
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onNavigateToRequirements}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-[#0C3B99]/30 hover:border-[#0C3B99]/60 text-[#0C3B99] rounded-xl text-xs font-bold transition-all hover:bg-blue-50/50"
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                      Go to Document Center
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <p className="text-[11px] text-slate-400 font-medium italic text-center">
+                    You may submit your registration now and upload missing documents later from the Document Center.
+                  </p>
                 </div>
-
-                {/* Bottom Reminder */}
-                <p className="text-[11px] text-slate-400 font-medium italic text-center">
-                  You may submit your registration now and upload missing documents later from the Requirements page.
-                </p>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ── STEP 6 OF 6: REVIEW & SUBMIT ── */}
             {subStep === 11 && (
@@ -1544,28 +1515,38 @@ export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
                     </p>
                   </div>
 
-                  {/* Document Summary Section */}
+                  {/* Document Status Summary — live from Document Center */}
                   <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
-                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
-                      <span>Document Status Summary</span>
-                      <button type="button" onClick={() => setSubStep(10)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
+                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
+                      Supporting Documents
                     </h3>
 
                     <div className="space-y-1.5">
                       {requiredDocDefs.map(docDef => {
-                        const fileObj = stagedFiles[docDef.key as keyof typeof stagedFiles];
-                        const isUploaded = !!fileObj;
+                        const docRecord = documents.find(d => d.documentType === docDef.type);
+                        const status = docRecord?.status;
 
                         return (
-                          <div key={docDef.key} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200/70 text-xs font-semibold">
+                          <div key={docDef.key} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200/70 text-xs font-semibold">
                             <span className="text-slate-800 font-bold">{docDef.title}</span>
-                            {isUploaded ? (
+                            {status === 'APPROVED' && (
                               <span className="text-emerald-700 font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Status: Uploaded
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified
                               </span>
-                            ) : (
+                            )}
+                            {status === 'PENDING' && (
+                              <span className="text-blue-700 font-bold flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-blue-500" /> Under Review
+                              </span>
+                            )}
+                            {status === 'REJECTED' && (
+                              <span className="text-rose-700 font-bold flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Needs Re-upload
+                              </span>
+                            )}
+                            {!docRecord && (
                               <span className="text-amber-700 font-bold flex items-center gap-1">
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Status: Missing
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> ⚠ Missing
                               </span>
                             )}
                           </div>
@@ -1577,7 +1558,7 @@ export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
 
                 {/* Submission Reminder */}
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-semibold leading-relaxed">
-                  Missing documents may be uploaded later through the Requirements page. Registration review may be delayed until all required documents have been submitted.
+                  You may still submit your registration even if some documents are missing. Missing documents can be uploaded later through the Document Center. Registration review may take longer until all required documents have been submitted.
                 </div>
               </div>
             )}
@@ -1627,41 +1608,7 @@ export function EnrollmentForm({ onComplete }: EnrollmentFormProps) {
         </motion.div>
       </AnimatePresence>
 
-      {/* ── LOCAL FILE PREVIEW MODAL ── */}
-      {previewFile && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 max-w-3xl w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <span className="font-extrabold text-slate-900 text-sm">{previewFile.title} Preview</span>
-              <button
-                type="button"
-                onClick={() => setPreviewFile(null)}
-                className="p-1 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-2 min-h-[350px] max-h-[65vh] overflow-auto flex items-center justify-center border border-slate-200/70">
-              {previewFile.file.type.includes('pdf') ? (
-                <iframe src={URL.createObjectURL(previewFile.file)} title={previewFile.title} className="w-full h-[55vh] rounded-xl border-none" />
-              ) : (
-                <img src={URL.createObjectURL(previewFile.file)} alt={previewFile.title} className="max-h-[55vh] object-contain rounded-xl shadow-xs" />
-              )}
-            </div>
-
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={() => setPreviewFile(null)}
-                className="bg-[#0C3B99] hover:bg-blue-800 text-white font-bold rounded-xl px-5 py-2 text-xs"
-              >
-                Close Preview
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* No local file preview modal needed — all previews handled by Document Center */}
     </div>
   );
 }

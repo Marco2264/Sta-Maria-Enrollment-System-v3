@@ -22,6 +22,7 @@ import { EnrollmentForm } from '../../components/parent/EnrollmentForm';
 import { ChildDetailView } from '../../components/parent/ChildDetailView';
 import { RequirementsView } from '../../components/parent/RequirementsView';
 import { ParentSettingsView } from '../../components/parent/ParentSettingsView';
+import { AnnouncementsView } from '../../components/parent/AnnouncementsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -62,6 +63,7 @@ function ParentPortalContent() {
       case 'children': return <MyChildrenView onSelectChild={handleSelectChild} />;
       case 'enrollment': return <EnrollmentForm onComplete={() => handleNavigate('children')} />;
       case 'requirements': return <RequirementsView />;
+      case 'announcements': return <AnnouncementsView />;
       case 'settings': return <ParentSettingsView />;
       case 'child-detail': return selectedChildId ? <ChildDetailView childId={selectedChildId} onBack={() => handleNavigate('children')} /> : <MyChildrenView onSelectChild={handleSelectChild} />;
       default: return <ParentDashboardView onNavigate={handleNavigate} />;
@@ -94,7 +96,7 @@ function ParentPortalContent() {
               <Users className="w-4 h-4 shrink-0" />
               My Students
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-md transition-colors">
+            <button onClick={() => handleNavigate('announcements')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${activeView === 'announcements' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}>
               <Bell className="w-4 h-4 shrink-0" />
               Announcements
             </button>

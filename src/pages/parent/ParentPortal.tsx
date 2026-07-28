@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Users,
   FileText,
+  FolderOpen,
   Settings,
   UserPlus,
   Bell,
@@ -21,6 +22,7 @@ import { EnrollmentForm } from '../../components/parent/EnrollmentForm';
 import { ChildDetailView } from '../../components/parent/ChildDetailView';
 import { RequirementsView } from '../../components/parent/RequirementsView';
 import { ParentSettingsView } from '../../components/parent/ParentSettingsView';
+import { AnnouncementsView } from '../../components/parent/AnnouncementsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -59,8 +61,9 @@ function ParentPortalContent() {
     switch (activeView) {
       case 'dashboard': return <ParentDashboardView onNavigate={handleNavigate} />;
       case 'children': return <MyChildrenView onSelectChild={handleSelectChild} />;
-      case 'enrollment': return <EnrollmentForm onComplete={() => handleNavigate('children')} />;
+      case 'enrollment': return <EnrollmentForm onComplete={() => handleNavigate('children')} onNavigateToRequirements={() => handleNavigate('requirements')} />;
       case 'requirements': return <RequirementsView />;
+      case 'announcements': return <AnnouncementsView />;
       case 'settings': return <ParentSettingsView />;
       case 'child-detail': return selectedChildId ? <ChildDetailView childId={selectedChildId} onBack={() => handleNavigate('children')} /> : <MyChildrenView onSelectChild={handleSelectChild} />;
       default: return <ParentDashboardView onNavigate={handleNavigate} />;
@@ -117,8 +120,15 @@ function ParentPortalContent() {
               <span className="flex-1 text-left truncate">My Students</span>
             </button>
 
-            <button className="w-full flex items-center gap-3.5 px-4 py-2.5 text-sm transition-all duration-200 rounded-xl relative group text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium">
-              <Bell className="w-4.5 h-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 text-slate-400 group-hover:text-slate-600" />
+            <button
+              onClick={() => handleNavigate('announcements')}
+              className={`w-full flex items-center gap-3.5 px-4 py-2.5 text-sm transition-all duration-200 rounded-xl relative group ${
+                activeView === 'announcements'
+                  ? 'bg-primary/5 text-primary border border-primary/10 font-bold shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
+              }`}
+            >
+              <Bell className={`w-4.5 h-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${activeView === 'announcements' ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600'}`} />
               <span className="flex-1 text-left truncate">Announcements</span>
             </button>
           </div>
@@ -154,8 +164,8 @@ function ParentPortalContent() {
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
               }`}
             >
-              <FileText className={`w-4.5 h-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${activeView === 'requirements' ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600'}`} />
-              <span className="flex-1 text-left truncate">Requirements</span>
+              <FolderOpen className={`w-4.5 h-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${activeView === 'requirements' ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600'}`} />
+              <span className="flex-1 text-left truncate">Document Center</span>
             </button>
           </div>
         </div>
