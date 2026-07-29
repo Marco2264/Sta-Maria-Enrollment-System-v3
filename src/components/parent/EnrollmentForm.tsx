@@ -35,7 +35,9 @@ import {
   ExternalLink,
   Upload,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Pencil,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
@@ -290,18 +292,22 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     pwdIdNumber: ''
   });
 
-  // Parent & Student Info
+  // Guardian & Emergency Contact Info
   const [parentStudentInfo, setParentStudentInfo] = useState({
     isPrimaryGuardian: 'Yes',
     primaryParentName: '',
-    primaryRelationship: 'Father',
+    primaryRelationship: 'Mother',
     primaryContact: '',
+    primaryEmail: '',
+    primaryAddress: '',
     religion: 'Roman Catholic',
     otherReligion: '',
     isIndigenous: 'No',
     ipCommunity: '',
     is4ps: 'No'
   });
+
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   // The enrollment form does NOT store documents locally.
   // Documents are managed exclusively from the Document Center (RequirementsView).
@@ -373,12 +379,31 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
       }
     }
 
-    if (subStep === 8) { // Parent info part 1
-      if (parentStudentInfo.isPrimaryGuardian === 'No') {
-        if (!parentStudentInfo.primaryParentName.trim() || !parentStudentInfo.primaryContact.trim()) {
-          setErrorMsg('Primary Parent/Guardian Name and Contact Number are required.');
-          return false;
-        }
+    if (subStep === 8) { // Guardian Confirmation
+      // Yes/No selection is always selected by default ('Yes')
+      return true;
+    }
+
+    if (subStep === 85) { // Guardian & Emergency Contact Details (when NO selected)
+      if (!parentStudentInfo.primaryParentName.trim()) {
+        setErrorMsg('Guardian Full Name is required.');
+        return false;
+      }
+      if (!parentStudentInfo.primaryRelationship) {
+        setErrorMsg('Relationship to Learner is required.');
+        return false;
+      }
+      if (!parentStudentInfo.primaryContact.trim()) {
+        setErrorMsg('Guardian Mobile Number is required.');
+        return false;
+      }
+      if (parentStudentInfo.primaryContact.trim().length !== 11) {
+        setErrorMsg('Guardian Mobile Number must be exactly 11 digits (e.g. 09123456789).');
+        return false;
+      }
+      if (!parentStudentInfo.primaryAddress.trim()) {
+        setErrorMsg('Guardian Complete Address is required.');
+        return false;
       }
     }
 
@@ -405,6 +430,24 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
       return;
     }
 
+    if (subStep === 8) {
+      if (parentStudentInfo.isPrimaryGuardian === 'Yes') {
+        setDirection(1);
+        setSubStep(9);
+        return;
+      } else {
+        setDirection(1);
+        setSubStep(85);
+        return;
+      }
+    }
+
+    if (subStep === 85) {
+      setDirection(1);
+      setSubStep(9);
+      return;
+    }
+
     setDirection(1);
     setSubStep(prev => prev + 1);
   };
@@ -414,6 +457,22 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     if (subStep === 6 && selectedAddressOption !== 'other') {
       setDirection(-1);
       setSubStep(3);
+      return;
+    }
+    if (subStep === 9) {
+      if (parentStudentInfo.isPrimaryGuardian === 'Yes') {
+        setDirection(-1);
+        setSubStep(8);
+        return;
+      } else {
+        setDirection(-1);
+        setSubStep(85);
+        return;
+      }
+    }
+    if (subStep === 85) {
+      setDirection(-1);
+      setSubStep(8);
       return;
     }
     setDirection(-1);
@@ -429,6 +488,8 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
       const activeAddr = getSelectedAddressDetails();
       const parentFullName = uData ? `${uData.firstName} ${uData.lastName}` : (user?.displayName || 'Parent');
 
+      const isAccountSource = parentStudentInfo.isPrimaryGuardian === 'Yes';
+
       const registrationPayload: any = {
         firstName: studentInfo.firstName.trim().toUpperCase(),
         middleName: studentInfo.middleName.trim().toUpperCase(),
@@ -437,7 +498,15 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
         gender: studentInfo.gender,
         gradeLevel: studentInfo.gradeLevel,
         lrn: studentInfo.lrn.trim(),
-        fatherName: parentStudentInfo.isPrimaryGuardian === 'No' ? parentStudentInfo.primaryParentName.trim().toUpperCase() : parentFullName.toUpperCase(),
+        guardianSource: isAccountSource ? 'account' : 'manual',
+        guardianDetails: {
+          fullName: isAccountSource ? parentFullName.toUpperCase() : parentStudentInfo.primaryParentName.trim().toUpperCase(),
+          relationship: isAccountSource ? 'Account Holder / Parent' : parentStudentInfo.primaryRelationship,
+          contactNumber: isAccountSource ? (uData?.contactNumber || uData?.phoneNumber || '') : parentStudentInfo.primaryContact.trim(),
+          email: isAccountSource ? (uData?.email || user?.email || '') : parentStudentInfo.primaryEmail.trim(),
+          address: isAccountSource ? activeAddr.previewText.toUpperCase() : parentStudentInfo.primaryAddress.trim().toUpperCase()
+        },
+        fatherName: isAccountSource ? parentFullName.toUpperCase() : parentStudentInfo.primaryParentName.trim().toUpperCase(),
         motherName: parentFullName.toUpperCase(),
         isReturning: studentInfo.classification !== 'New Student',
         studentClassification: studentInfo.classification,
@@ -461,8 +530,8 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
           manifestations: medicalInfo.functionalDifficulties,
           hasPwdId: medicalInfo.hasPwdId === 'Yes',
           pwdId: medicalInfo.pwdIdNumber.toUpperCase(),
-          emergencyContact: parentFullName.toUpperCase(),
-          emergencyPhone: uData?.contactNumber || ''
+          emergencyContact: isAccountSource ? parentFullName.toUpperCase() : parentStudentInfo.primaryParentName.trim().toUpperCase(),
+          emergencyPhone: isAccountSource ? (uData?.contactNumber || uData?.phoneNumber || '') : parentStudentInfo.primaryContact.trim()
         },
         additional: {
           motherTongue: 'Tagalog / Bisaya',
@@ -479,7 +548,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
       // Documents are managed exclusively from the Document Center.
       // No document uploads happen here.
 
-      setSubStep(12); // Success screen
+      setSubStep(13); // Success screen
     } catch (err: any) {
       console.error('Error submitting registration:', err);
       setErrorMsg(err.message || 'Failed to submit registration. Please try again.');
@@ -509,7 +578,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     if (subStep <= 7) return 3; // Medical Info
     if (subStep <= 9) return 4; // Parent & Student Info
     if (subStep === 10) return 5; // Supporting Documents
-    if (subStep === 11) return 6; // Review & Submit
+    if (subStep === 11 || subStep === 12) return 6; // Review & Submit
     return 6;
   };
 
@@ -547,39 +616,41 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
   };
 
   // ── SUCCESS SCREEN ──
-  if (subStep === 12) {
+  if (subStep === 13) {
     return (
-      <div className="max-w-xl mx-auto p-4 font-sans">
-        <Card className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 sm:p-8 text-center space-y-6 animate-in fade-in duration-300">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
-            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
-          </div>
-
-          <div className="space-y-2 max-w-md mx-auto">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Registration Submitted Successfully
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
-              Your registration for <strong className="text-slate-900 font-bold">{studentInfo.firstName} {studentInfo.lastName}</strong> ({studentInfo.gradeLevel}) is now submitted.
-            </p>
-            <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl text-xs text-blue-900 font-medium leading-relaxed text-left space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-sm text-[#0C3B99]">
-                <FileCheck className="w-4 h-4 text-[#0C3B99]" /> Requirements Management
-              </div>
-              <p className="text-[11px] leading-normal text-blue-800">
-                You can upload missing supporting documents anytime from the <strong>Document Center</strong> in the sidebar.
-              </p>
+      <div className="min-h-[85vh] flex flex-col justify-center items-center p-4 font-sans">
+        <div className="w-full max-w-xl my-auto">
+          <Card className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 sm:p-8 text-center space-y-6 animate-in fade-in duration-300">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
             </div>
-          </div>
 
-          <Button
-            onClick={onComplete}
-            className="w-full px-6 py-3 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-2xl font-bold shadow-xs transition-all flex items-center justify-center gap-2"
-          >
-            Go to Requirements Page
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </Card>
+            <div className="space-y-2 max-w-md mx-auto">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Registration Submitted Successfully
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                Your registration for <strong className="text-slate-900 font-bold">{studentInfo.firstName} {studentInfo.lastName}</strong> ({studentInfo.gradeLevel}) is now submitted.
+              </p>
+              <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl text-xs text-blue-900 font-medium leading-relaxed text-left space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-sm text-[#0C3B99]">
+                  <FileCheck className="w-4 h-4 text-[#0C3B99]" /> Requirements Management
+                </div>
+                <p className="text-[11px] leading-normal text-blue-800">
+                  You can upload missing supporting documents anytime from the <strong>Document Center</strong> in the sidebar.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              onClick={onComplete}
+              className="w-full px-6 py-3 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-2xl font-bold shadow-xs transition-all flex items-center justify-center gap-2"
+            >
+              Go to Requirements Page
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -587,7 +658,8 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
   const activeAddrDetails = getSelectedAddressDetails();
 
   return (
-    <div className="max-w-xl mx-auto px-3 py-4 pb-16 font-sans space-y-4">
+    <div className="min-h-[85vh] flex flex-col justify-center items-center px-4 py-6 font-sans w-full">
+      <div className="w-full max-w-4xl space-y-4 my-auto">
       
       {/* ── HEADER CARD WITH PROGRESS BAR ── */}
       <Card className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 space-y-3">
@@ -1250,30 +1322,54 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
               </div>
             )}
 
-            {/* ── SUB-STEP 8: REGISTERED BY & PRIMARY GUARDIAN ── */}
+            {/* ── SUB-STEP 8: GUARDIAN CONFIRMATION (STEP 1 OF 3 / STEP 1 OF 4) ── */}
             {subStep === 8 && (
               <div className="space-y-4">
+                {/* Header & Subtitle */}
                 <div className="border-b border-slate-100 pb-2.5">
                   <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-purple-600" />
-                    Parent & Student Information (Part 1 of 2)
+                    <Users className="w-4 h-4 text-[#0C3B99]" />
+                    Guardian Confirmation ({parentStudentInfo.isPrimaryGuardian === 'Yes' ? 'Step 1 of 3' : 'Step 1 of 4'})
                   </h2>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Account holder synchronization and primary guardian confirmation.</p>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                    Confirm the learner's primary guardian and emergency contact information.
+                  </p>
                 </div>
 
-                <div className="bg-purple-50/60 border border-purple-200/80 rounded-xl p-3.5 space-y-1.5">
-                  <span className="text-[10px] font-bold text-purple-900 uppercase tracking-wider block">Registered By (Account Holder)</span>
-                  <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-800">
-                    <div>Name: <span className="text-slate-900">{uData ? `${uData.firstName} ${uData.lastName}` : (user?.displayName || '—')}</span></div>
-                    <div>Phone: <span className="text-slate-900">{uData?.contactNumber || '—'}</span></div>
+                {/* Account Holder Card */}
+                <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-[#0C3B99] uppercase tracking-wider">
+                      REGISTERED ACCOUNT HOLDER
+                    </span>
+                    <span className="px-2.5 py-0.5 bg-blue-100/80 text-[#0C3B99] border border-blue-200 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-[#0C3B99]" /> Synchronized from Account
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold text-slate-800 pt-1">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Full Name</span>
+                      <span className="text-slate-900">{uData ? `${uData.firstName} ${uData.lastName}` : (user?.displayName || '—')}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Mobile Number</span>
+                      <span className="text-slate-900">{uData?.contactNumber || uData?.phoneNumber || '—'}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Email Address</span>
+                      <span className="text-slate-900 truncate block">{uData?.email || user?.email || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                    Are you the learner's primary parent or legal guardian? *
+                {/* Question & Radio Options */}
+                <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                  <Label className="text-xs font-bold text-slate-800 leading-snug block">
+                    Will the registered account holder serve as the learner's primary guardian and emergency contact? <span className="text-rose-600">*</span>
                   </Label>
-                  <div className="flex items-center gap-6">
+
+                  <div className="flex items-center gap-6 pt-0.5">
                     {['Yes', 'No'].map(opt => (
                       <label key={opt} className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer select-none">
                         <input
@@ -1288,44 +1384,127 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                     ))}
                   </div>
 
-                  {parentStudentInfo.isPrimaryGuardian === 'No' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/70">
-                      <div className="space-y-1">
-                        <Label className="text-[11px] font-bold text-slate-700 uppercase">Primary Parent Name *</Label>
-                        <Input
-                          value={parentStudentInfo.primaryParentName}
-                          onChange={e => setParentStudentInfo({ ...parentStudentInfo, primaryParentName: e.target.value })}
-                          placeholder="e.g. Maria Dela Cruz"
-                          className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-[11px] font-bold text-slate-700 uppercase">Contact Number *</Label>
-                        <Input
-                          value={parentStudentInfo.primaryContact}
-                          maxLength={11}
-                          onChange={e => {
-                            const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
-                            setParentStudentInfo({ ...parentStudentInfo, primaryContact: cleaned });
-                          }}
-                          placeholder="09XXXXXXXXX"
-                          className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
-                        />
-                      </div>
+                  {/* IF YES: Display Success Notice */}
+                  {parentStudentInfo.isPrimaryGuardian === 'Yes' && (
+                    <div className="mt-2.5 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in-50 duration-200">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>✓ Guardian and emergency contact information will be synchronized from your account.</span>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ── SUB-STEP 9: RELIGION, IP & 4PS (3 FIELDS MAX) ── */}
+            {/* ── SUB-STEP 85: GUARDIAN & EMERGENCY CONTACT DETAILS (STEP 2 OF 4 - ONLY WHEN NO) ── */}
+            {subStep === 85 && (
+              <div className="space-y-4">
+                {/* Header & Subtitle */}
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[#0C3B99]" />
+                    Guardian & Emergency Contact Details (Step 2 of 4)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                    Enter the primary guardian and emergency contact details for the learner.
+                  </p>
+                </div>
+
+                <div className="space-y-3.5 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Full Name */}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase">
+                        Full Name <span className="text-rose-600">*</span>
+                      </Label>
+                      <Input
+                        value={parentStudentInfo.primaryParentName}
+                        onChange={e => setParentStudentInfo({ ...parentStudentInfo, primaryParentName: e.target.value })}
+                        placeholder="e.g. Juanita Santos Dela Cruz"
+                        className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    </div>
+
+                    {/* Relationship to Learner */}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase">
+                        Relationship to Learner <span className="text-rose-600">*</span>
+                      </Label>
+                      <Select
+                        value={parentStudentInfo.primaryRelationship}
+                        onValueChange={v => setParentStudentInfo({ ...parentStudentInfo, primaryRelationship: v })}
+                      >
+                        <SelectTrigger className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                          <SelectValue placeholder="Select relationship" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-slate-200">
+                          <SelectItem value="Mother">Mother</SelectItem>
+                          <SelectItem value="Father">Father</SelectItem>
+                          <SelectItem value="Grandparent">Grandparent</SelectItem>
+                          <SelectItem value="Legal Guardian">Legal Guardian</SelectItem>
+                          <SelectItem value="Relative / Aunt / Uncle">Relative / Aunt / Uncle</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Mobile Number */}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase">
+                        Mobile Number <span className="text-rose-600">*</span>
+                      </Label>
+                      <Input
+                        value={parentStudentInfo.primaryContact}
+                        maxLength={11}
+                        onChange={e => {
+                          const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
+                          setParentStudentInfo({ ...parentStudentInfo, primaryContact: cleaned });
+                        }}
+                        placeholder="09XXXXXXXXX"
+                        className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    </div>
+
+                    {/* Email Address (optional) */}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase">
+                        Email Address <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                      </Label>
+                      <Input
+                        type="email"
+                        value={parentStudentInfo.primaryEmail}
+                        onChange={e => setParentStudentInfo({ ...parentStudentInfo, primaryEmail: e.target.value })}
+                        placeholder="e.g. guardian@example.com"
+                        className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    </div>
+
+                    {/* Complete Address */}
+                    <div className="sm:col-span-2 space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase">
+                        Complete Address <span className="text-rose-600">*</span>
+                      </Label>
+                      <Input
+                        value={parentStudentInfo.primaryAddress}
+                        onChange={e => setParentStudentInfo({ ...parentStudentInfo, primaryAddress: e.target.value })}
+                        placeholder="House No., Street, Barangay, City/Municipality, Province"
+                        className="px-3.5 py-2.5 bg-white border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    This information will be used as the learner's primary guardian and emergency contact.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── SUB-STEP 9: ADDITIONAL INFORMATION (STEP 2 OF 3 / STEP 3 OF 4) ── */}
             {subStep === 9 && (
               <div className="space-y-4">
                 <div className="border-b border-slate-100 pb-2.5">
                   <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-purple-600" />
-                    Parent & Student Information (Part 2 of 2)
+                    <Users className="w-4 h-4 text-[#0C3B99]" />
+                    Additional Information ({parentStudentInfo.isPrimaryGuardian === 'Yes' ? 'Step 2 of 3' : 'Step 3 of 4'})
                   </h2>
                   <p className="text-[11px] text-slate-400 font-medium mt-0.5">Religion, Indigenous Peoples, and 4Ps affiliation.</p>
                 </div>
@@ -1601,99 +1780,292 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
               );
             })()}
 
-            {/* ── STEP 6 OF 6: REVIEW & SUBMIT ── */}
+            {/* ── STEP 6 OF 6 (PART 1 OF 2): REVIEW REGISTRATION INFORMATION ── */}
             {subStep === 11 && (
-              <div className="space-y-4">
-                <div className="border-b border-slate-100 pb-2.5">
-                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#0C3B99]" />
-                    Review & Submit Registration
+              <div className="space-y-5">
+                {/* Header & Subtitle */}
+                <div className="border-b border-slate-100 pb-3">
+                  <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
+                    <Sparkles className="w-4.5 h-4.5 text-[#0C3B99]" />
+                    Review Registration Information (Part 1 of 2)
                   </h2>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Review all registration details before submitting.</p>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                    Review learner, guardian, and address information before proceeding to final submission.
+                  </p>
                 </div>
 
-                <div className="space-y-3 text-xs">
-                  {/* Student Summary */}
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1.5">
-                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
-                      <span>Student Information</span>
-                      <button type="button" onClick={() => setSubStep(1)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
-                    </h3>
-                    <div className="grid grid-cols-2 gap-2 text-slate-700">
-                      <div>Name: <strong>{studentInfo.firstName} {studentInfo.lastName}</strong></div>
-                      <div>Birth Date: <strong>{studentInfo.birthDate} ({computedAge} yrs)</strong></div>
-                      <div>Grade / LRN: <strong>{studentInfo.gradeLevel} ({studentInfo.lrn})</strong></div>
-                      <div>Classification: <strong>{studentInfo.classification}</strong></div>
+                <div className="space-y-4">
+                  {/* 1. Student Information Card */}
+                  <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        Student Information
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setSubStep(1)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Learner Name</span>
+                        <span className="font-bold text-slate-900">{studentInfo.firstName} {studentInfo.middleName ? `${studentInfo.middleName} ` : ''}{studentInfo.lastName}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Grade Level</span>
+                        <span className="font-bold text-slate-900">{studentInfo.gradeLevel}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Classification</span>
+                        <span className="font-bold text-[#0C3B99]">{studentInfo.classification}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">LRN Number</span>
+                        <span className="font-bold text-slate-900">{studentInfo.lrn || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Birth Date</span>
+                        <span className="font-bold text-slate-900">{studentInfo.birthDate || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Age & Sex</span>
+                        <span className="font-bold text-slate-900">{computedAge !== null ? `${computedAge} yrs old` : '—'} • {studentInfo.gender}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Address Summary */}
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1.5">
-                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
-                      <span>Address Location</span>
-                      <button type="button" onClick={() => setSubStep(3)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
-                    </h3>
-                    <p className="font-bold text-slate-800">
-                      {activeAddrDetails.previewText}
-                      {activeAddrDetails.zipCode && !activeAddrDetails.previewText.includes(activeAddrDetails.zipCode) ? ` (ZIP Code: ${activeAddrDetails.zipCode})` : ''}
-                    </p>
+                  {/* 2. Guardian & Emergency Contact Card */}
+                  <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-[#0C3B99]" />
+                          Guardian & Emergency Contact
+                        </h3>
+                        {parentStudentInfo.isPrimaryGuardian === 'Yes' ? (
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Synced from Parent Account
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-blue-50 text-[#0C3B99] border border-blue-200 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                            <UserCheck className="w-3 h-3 text-[#0C3B99]" /> Manually Provided
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSubStep(8)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Guardian Name</span>
+                        <span className="font-bold text-slate-900">
+                          {parentStudentInfo.isPrimaryGuardian === 'Yes'
+                            ? (uData ? `${uData.firstName} ${uData.lastName}` : (user?.displayName || '—'))
+                            : (parentStudentInfo.primaryParentName || '—')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Relationship</span>
+                        <span className="font-bold text-slate-900">
+                          {parentStudentInfo.isPrimaryGuardian === 'Yes'
+                            ? 'Parent / Account Holder'
+                            : (parentStudentInfo.primaryRelationship || '—')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Mobile Number</span>
+                        <span className="font-bold text-slate-900">
+                          {parentStudentInfo.isPrimaryGuardian === 'Yes'
+                            ? (uData?.contactNumber || uData?.phoneNumber || '—')
+                            : (parentStudentInfo.primaryContact || '—')}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Medical Summary */}
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1.5">
-                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
-                      <span>Medical Info</span>
-                      <button type="button" onClick={() => setSubStep(6)} className="text-[#0C3B99] hover:underline font-bold">Edit</button>
-                    </h3>
-                    <p className="font-bold text-slate-800">
-                      Height: {medicalInfo.height} cm | Weight: {medicalInfo.weight} kg | PWD: {medicalInfo.hasPwdId}
-                    </p>
+                  {/* 3. Address Information Card (Single Formatted Address) */}
+                  <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        Address Information
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setSubStep(3)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                      </button>
+                    </div>
+
+                    <div className="text-xs">
+                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block mb-1">Primary Residence Address</span>
+                      <p className="font-bold text-slate-900 text-sm">
+                        {activeAddrDetails.streetAddress ? `${activeAddrDetails.streetAddress}, ` : ''}
+                        {activeAddrDetails.barangay}, {activeAddrDetails.city}, {activeAddrDetails.province}
+                        {activeAddrDetails.zipCode ? `, ${activeAddrDetails.zipCode}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 6 OF 6 (PART 2 OF 2): SUPPORTING INFORMATION & SUBMISSION ── */}
+            {subStep === 12 && (
+              <div className="space-y-5">
+                {/* Header & Subtitle */}
+                <div className="border-b border-slate-100 pb-3">
+                  <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
+                    <Sparkles className="w-4.5 h-4.5 text-[#0C3B99]" />
+                    Supporting Information & Submission (Part 2 of 2)
+                  </h2>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                    Review medical info, supporting documents status, and confirm your registration submission.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* 1. Medical Information Card */}
+                  <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <HeartPulse className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        Medical Information
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setSubStep(6)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Height</span>
+                        <span className="font-bold text-slate-900">{medicalInfo.height ? `${medicalInfo.height} cm` : '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Weight</span>
+                        <span className="font-bold text-slate-900">{medicalInfo.weight ? `${medicalInfo.weight} kg` : '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">PWD Status</span>
+                        <span className="font-bold text-slate-900">{medicalInfo.hasPwdId === 'Yes' ? `Yes (${medicalInfo.pwdIdNumber || 'ID Pending'})` : 'No'}</span>
+                      </div>
+                      {medicalInfo.bloodType && (
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Blood Type</span>
+                          <span className="font-bold text-slate-900">{medicalInfo.bloodType}</span>
+                        </div>
+                      )}
+                      {medicalInfo.allergies && (
+                        <div className="sm:col-span-2">
+                          <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Allergies</span>
+                          <span className="font-bold text-slate-900">{medicalInfo.allergies}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Document Status Summary — live from Document Center */}
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
-                    <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
-                      Supporting Documents
-                    </h3>
+                  {/* 2. Supporting Documents Card */}
+                  <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileCheck className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        Supporting Documents
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={onNavigateToRequirements}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold text-[#0C3B99] hover:bg-blue-50/60 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-[#0C3B99]" /> Go to Document Center
+                      </button>
+                    </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {requiredDocDefs.map(docDef => {
+                        const localDoc = step5Uploads[docDef.type];
                         const docRecord = documents.find(d => d.documentType === docDef.type);
                         const status = docRecord?.status;
 
                         return (
-                          <div key={docDef.key} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200/70 text-xs font-semibold">
-                            <span className="text-slate-800 font-bold">{docDef.title}</span>
-                            {status === 'APPROVED' && (
-                              <span className="text-emerald-700 font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified
-                              </span>
-                            )}
-                            {status === 'PENDING' && (
-                              <span className="text-blue-700 font-bold flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-blue-500" /> Under Review
-                              </span>
-                            )}
-                            {status === 'REJECTED' && (
-                              <span className="text-rose-700 font-bold flex items-center gap-1">
-                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Needs Re-upload
-                              </span>
-                            )}
-                            {!docRecord && (
-                              <span className="text-amber-700 font-bold flex items-center gap-1">
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> ⚠ Missing
-                              </span>
-                            )}
+                          <div key={docDef.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white rounded-xl border border-slate-200/70 text-xs">
+                            <div className="space-y-0.5">
+                              <div className="font-bold text-slate-900 flex items-center gap-2">
+                                <FileText className="w-3.5 h-3.5 text-[#0C3B99] shrink-0" />
+                                <span>{docDef.title}</span>
+                              </div>
+                              {localDoc ? (
+                                <p className="text-[10px] text-slate-500 font-medium pl-5">
+                                  {localDoc.fileName}
+                                </p>
+                              ) : (
+                                <p className="text-[10px] text-slate-400 font-medium pl-5">
+                                  Missing documents may be uploaded later through the Document Center.
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="shrink-0 pl-5 sm:pl-0">
+                              {status === 'APPROVED' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 🟢 Verified
+                                </span>
+                              ) : status === 'PENDING' || localDoc ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                                  <Clock className="w-3 h-3 text-amber-600 animate-pulse" /> 🟡 Under Review
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                                  <AlertCircle className="w-3 h-3 text-rose-600" /> 🔴 Missing
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                </div>
 
-                {/* Submission Reminder */}
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-semibold leading-relaxed">
-                  You may still submit your registration even if some documents are missing. Missing documents can be uploaded later through the Document Center. Registration review may take longer until all required documents have been submitted.
+                  {/* 4. Submission Notice Card (Registration Reminder Card) */}
+                  <div className="p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-start gap-3.5 shadow-2xs">
+                    <Info className="w-5 h-5 text-[#0C3B99] shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-extrabold text-[#0C3B99] tracking-tight">Registration Reminder</h4>
+                      <p className="text-xs text-blue-950 font-medium leading-relaxed">
+                        You may submit your registration even if some supporting documents are still missing. Missing documents can be uploaded later through the Document Center. Your registration will remain pending until the school has reviewed all required documents.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 5. Declaration / Confirmation Checkbox */}
+                  <label className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-start gap-3 cursor-pointer select-none hover:bg-slate-100/60 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={isConfirmed}
+                      onChange={e => setIsConfirmed(e.target.checked)}
+                      className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99] rounded mt-0.5 cursor-pointer shrink-0"
+                    />
+                    <span className="text-xs font-extrabold text-slate-800 leading-snug">
+                      I confirm that all information provided is true, complete, and accurate to the best of my knowledge.
+                    </span>
+                  </label>
                 </div>
               </div>
             )}
@@ -1706,7 +2078,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                   variant="outline"
                   onClick={handleBackSubStep}
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all text-xs flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" /> Back
                 </Button>
@@ -1716,16 +2088,27 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 <Button
                   type="button"
                   onClick={handleNextSubStep}
-                  className="px-5 py-2 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5"
+                  className="px-5 py-2 bg-[#0C3B99] hover:bg-blue-900 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   Next <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              ) : subStep === 11 ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setDirection(1);
+                    setSubStep(12);
+                  }}
+                  className="px-5 py-2 bg-[#0C3B99] hover:bg-blue-900 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  Continue <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               ) : (
                 <Button
                   type="button"
                   onClick={handleSubmitRegistration}
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5"
+                  disabled={isSubmitting || !isConfirmed}
+                  className="px-6 py-2.5 bg-[#0C3B99] hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -1744,6 +2127,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
       </AnimatePresence>
 
       {/* No local file preview modal needed — all previews handled by Document Center */}
+      </div>
     </div>
   );
 }

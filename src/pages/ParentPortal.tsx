@@ -10,8 +10,9 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
-  Menu } from
-'lucide-react';
+  Menu,
+  GraduationCap
+} from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../components/ui/Sheet';
 import { ParentDataProvider } from '../lib/parentData';
 import { ParentDashboardView } from '../components/parent/ParentDashboardView';
@@ -225,7 +226,7 @@ function ParentPortalContent() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto bg-muted/30">
+        <div className="flex-1 overflow-y-auto bg-muted/30 flex flex-col">
           {renderActiveView()}
         </div>
       </main>

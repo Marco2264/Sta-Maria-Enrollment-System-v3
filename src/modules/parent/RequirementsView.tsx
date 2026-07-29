@@ -335,7 +335,7 @@ export function RequirementsView() {
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────── */}
       <header className="px-6 py-7 bg-white border-b border-slate-200/80 shrink-0">
-        <div className="max-w-5xl mx-auto w-full">
+        <div className="w-full">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
             <div className="space-y-1">
               <div className="flex items-center gap-2.5">
@@ -377,7 +377,7 @@ export function RequirementsView() {
 
       {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        <div className="w-full px-6 sm:px-8 py-6 space-y-6">
 
           {/* Toast Alerts */}
           <AnimatePresence>
@@ -846,3 +846,5 @@ export function RequirementsView() {
     </div>
   );
 }
+
+export default RequirementsView;

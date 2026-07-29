@@ -23,13 +23,16 @@ import {
   ArrowUpRight,
   Sparkles,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  UserCheck,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { DOCUMENT_TYPES, EnrollmentDocument } from '../../lib/schema/phase2';
+import { DOCUMENT_TYPES } from '../../lib/schema/phase2';
 
 interface AnnouncementItem {
   id: string;
@@ -99,7 +102,7 @@ export function ParentDashboardView({
               content: data.content || ''
             };
           });
-          setAnnouncements(list.slice(0, 3));
+          setAnnouncements(list);
         }
       },
       (err) => {
@@ -109,10 +112,9 @@ export function ParentDashboardView({
     return () => unsubscribe();
   }, []);
 
-  // Reusable & Defensive Date Formatting Helper (Safe against Firestore Timestamp objects & null/undefined)
+  // Reusable Date Formatter
   const formatDate = (value: any): string => {
     if (!value) return 'N/A';
-
     let dateObj: Date | null = null;
 
     if (typeof value?.toDate === 'function') {
@@ -137,8 +139,6 @@ export function ParentDashboardView({
     return typeof value === 'object' ? 'N/A' : String(value);
   };
 
-  const formatDateStr = (dateStr: any) => formatDate(dateStr);
-
   // Helper for Student Subject Average
   const getStudentAverage = (child: any): string => {
     if (!child.grades) return 'N/A';
@@ -162,18 +162,16 @@ export function ParentDashboardView({
   const getAcademicStandingBadge = (avgStr: string) => {
     const num = parseFloat(avgStr);
     if (isNaN(num)) return null;
-    if (num >= 95) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (num >= 90) return { label: 'Very Good', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (num >= 85) return { label: 'Good', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (num >= 80) return { label: 'Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+    if (num >= 90) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    if (num >= 85) return { label: 'Very Good', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    if (num >= 75) return { label: 'Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200' };
     return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200' };
   };
 
-  // Helper for Student Requirements Status (Synced with Document Center records)
+  // Helper for Student Requirements Status
   const getStudentRequirementStatus = (child: any) => {
     const classification = (child as any).studentClassification || (child.isReturning ? 'Transferee' : 'New Student');
     
-    // Determine required document types based on classification
     let requiredTypes = [DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE];
     if (classification === 'Transferee') {
       requiredTypes = [
@@ -189,19 +187,16 @@ export function ParentDashboardView({
     }
 
     const childDocs = documents.filter((d) => d.enrollmentId === child.id || (d.studentName && child.firstName && d.studentName.toLowerCase().includes(child.firstName.toLowerCase())));
-    
-    // Check if any required doc is missing
     const uploadedRequiredTypes = requiredTypes.filter((reqType) => childDocs.some((d) => d.documentType === reqType));
     
     if (uploadedRequiredTypes.length < requiredTypes.length) {
       return { 
-        label: 'Documents Missing', 
+        label: 'Missing', 
         color: 'bg-rose-50 text-rose-700 border-rose-200', 
         statusKey: 'MISSING' 
       };
     }
 
-    // All uploaded - check if all are approved or under review
     const allApproved = requiredTypes.every((reqType) => {
       const docMatch = childDocs.find((d) => d.documentType === reqType);
       return docMatch && docMatch.status === 'APPROVED';
@@ -209,14 +204,14 @@ export function ParentDashboardView({
 
     if (allApproved || child.requirements === 'Complete') {
       return { 
-        label: 'Documents Complete', 
+        label: 'Approved', 
         color: 'bg-emerald-50 text-emerald-700 border-emerald-200', 
         statusKey: 'COMPLETE' 
       };
     }
 
     return { 
-      label: 'Documents Under Review', 
+      label: 'Under Review', 
       color: 'bg-amber-50 text-amber-700 border-amber-200', 
       statusKey: 'REVIEW' 
     };
@@ -225,18 +220,6 @@ export function ParentDashboardView({
   // Stats Calculations
   const registeredStudentsCount = children.length;
 
-  const registrationStatusSummary = useMemo(() => {
-    const approved = children.filter((c) => c.status === 'Enrolled' || c.status === 'Approved').length;
-    const pending = children.filter((c) => c.status === 'Pending').length;
-    const rejected = children.filter((c) => c.status === 'Rejected').length;
-
-    if (children.length === 0) return { label: 'No Applications', color: 'text-slate-500', count: 0 };
-    if (rejected > 0) return { label: `${rejected} Requires Action`, color: 'text-rose-600', count: rejected };
-    if (pending > 0) return { label: `${pending} Under Review`, color: 'text-amber-600', count: pending };
-    return { label: `${approved} Approved`, color: 'text-emerald-600', count: approved };
-  }, [children]);
-
-  // Unverified or Missing Requirements Count
   const pendingRequirementsCount = useMemo(() => {
     let unverified = 0;
     children.forEach((child) => {
@@ -247,7 +230,6 @@ export function ParentDashboardView({
     return unverified;
   }, [children]);
 
-  // Overall Attendance Rate
   const attendanceRate = useMemo(() => {
     let totalDays = 0;
     let presentDays = 0;
@@ -259,83 +241,111 @@ export function ParentDashboardView({
     return totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
   }, [children]);
 
-  // Recent Updates Feed (Latest 5)
+  // Current Month Name (e.g. "July 2026")
+  const currentMonthLabel = useMemo(() => {
+    return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, []);
+
+  // Comprehensive Recent Activity Timeline (Grouped by Month, default current month events)
   const recentUpdates = useMemo(() => {
     const updates: Array<{
       id: string;
       title: string;
       subtitle: string;
       date: string;
-      type: 'approved' | 'document' | 'attendance' | 'grade' | 'announcement';
+      monthGroup: string;
+      type: 'registration' | 'document' | 'attendance' | 'grade' | 'announcement' | 'profile';
       badgeText: string;
       badgeColor: string;
       dotColor: string;
     }> = [];
 
-    // Add children updates
+    // 1. Children Registration & Profile updates
     children.forEach((c) => {
       if (c.status === 'Enrolled' || c.status === 'Approved') {
         updates.push({
-          id: `app-${c.id}`,
+          id: `app-appr-${c.id}`,
           title: `Registration Approved`,
           subtitle: `${c.firstName} ${c.lastName} (Grade ${c.gradeLevel}) is officially registered.`,
-          date: 'Recently',
-          type: 'approved',
-          badgeText: 'STATUS: SUCCESS',
+          date: formatDate(c.submittedAt || 'Today'),
+          monthGroup: currentMonthLabel,
+          type: 'registration',
+          badgeText: 'APPROVED',
           badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
           dotColor: 'bg-emerald-500'
         });
       } else if (c.status === 'Rejected') {
         updates.push({
-          id: `rej-${c.id}`,
-          title: `Registration Requires Action`,
-          subtitle: `Application for ${c.firstName} ${c.lastName} was returned for revisions.`,
-          date: 'Recently',
-          type: 'approved',
-          badgeText: 'STATUS: FAILED',
+          id: `app-rej-${c.id}`,
+          title: `Registration Rejected`,
+          subtitle: `Application for ${c.firstName} ${c.lastName} requires revisions.`,
+          date: formatDate(c.submittedAt || 'Today'),
+          monthGroup: currentMonthLabel,
+          type: 'registration',
+          badgeText: 'REJECTED',
           badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
           dotColor: 'bg-rose-500'
         });
       } else if (c.status === 'Pending') {
         updates.push({
-          id: `pend-${c.id}`,
-          title: `Registration Under Review`,
-          subtitle: `Application for ${c.firstName} ${c.lastName} is being reviewed by school staff.`,
-          date: 'In Progress',
-          type: 'approved',
-          badgeText: 'STATUS: PENDING',
+          id: `app-pend-${c.id}`,
+          title: `Registration Submitted`,
+          subtitle: `Application for ${c.firstName} ${c.lastName} is under staff review.`,
+          date: formatDate(c.submittedAt || 'Today'),
+          monthGroup: currentMonthLabel,
+          type: 'registration',
+          badgeText: 'UNDER REVIEW',
           badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
           dotColor: 'bg-amber-500'
         });
       }
 
+      // Attendance events
       if (c.attendance && c.attendance.length > 0) {
         const latestAtt = [...c.attendance].sort((a, b) => formatDate(b.date).localeCompare(formatDate(a.date)))[0];
-        const isAttPresent = latestAtt.status === 'Present' || latestAtt.status === 'Late';
+        const isPresent = latestAtt.status === 'Present' || latestAtt.status === 'Late';
         const formattedAttDate = formatDate(latestAtt.date);
         updates.push({
           id: `att-${c.id}-${formattedAttDate}`,
           title: `Attendance Updated`,
-          subtitle: `Attendance marked for ${c.firstName} ${c.lastName} on ${formattedAttDate}.`,
+          subtitle: `Marked ${latestAtt.status.toLowerCase()} for ${c.firstName} ${c.lastName} on ${formattedAttDate}.`,
           date: formattedAttDate,
+          monthGroup: currentMonthLabel,
           type: 'attendance',
-          badgeText: isAttPresent ? 'STATUS: SUCCESS' : 'STATUS: ABSENT',
-          badgeColor: isAttPresent ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200',
-          dotColor: isAttPresent ? 'bg-emerald-500' : 'bg-rose-500'
+          badgeText: isPresent ? 'PRESENT' : 'ABSENT',
+          badgeColor: isPresent ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200',
+          dotColor: isPresent ? 'bg-emerald-500' : 'bg-rose-500'
+        });
+      }
+
+      // Grade Published event
+      const avg = getStudentAverage(c);
+      if (avg !== 'N/A') {
+        updates.push({
+          id: `grade-${c.id}`,
+          title: `Grades Published`,
+          subtitle: `New evaluation scores recorded for ${c.firstName} ${c.lastName} (Avg: ${avg}%).`,
+          date: 'Recent',
+          monthGroup: currentMonthLabel,
+          type: 'grade',
+          badgeText: 'PUBLISHED',
+          badgeColor: 'bg-blue-50 text-[#2563eb] border-blue-200',
+          dotColor: 'bg-[#2563eb]'
         });
       }
     });
 
-    // Add verified documents updates
+    // 2. Document events (uploaded / approved / rejected / missing)
     documents.forEach((d) => {
       if (d.status === 'APPROVED') {
         updates.push({
-          id: `doc-${d.id}`,
-          title: `Document Verified`,
-          subtitle: `${d.fileName} for ${d.studentName} has been verified by administration.`,
-          date: 'Verified',
+          id: `doc-appr-${d.id}`,
+          title: `Document Approved`,
+          subtitle: `${d.fileName} for ${d.studentName} has been verified by admin.`,
+          date: formatDate(d.updatedAt || 'Recent'),
+          monthGroup: currentMonthLabel,
           type: 'document',
-          badgeText: 'STATUS: SUCCESS',
+          badgeText: 'APPROVED',
           badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
           dotColor: 'bg-emerald-500'
         });
@@ -344,39 +354,68 @@ export function ParentDashboardView({
           id: `doc-rej-${d.id}`,
           title: `Document Rejected`,
           subtitle: `${d.fileName} for ${d.studentName} requires re-upload.`,
-          date: 'Action Required',
+          date: formatDate(d.updatedAt || 'Recent'),
+          monthGroup: currentMonthLabel,
           type: 'document',
-          badgeText: 'STATUS: FAILED',
+          badgeText: 'REJECTED',
           badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
           dotColor: 'bg-rose-500'
+        });
+      } else {
+        updates.push({
+          id: `doc-up-${d.id}`,
+          title: `Document Uploaded`,
+          subtitle: `${d.fileName} uploaded for ${d.studentName}.`,
+          date: formatDate(d.createdAt || 'Recent'),
+          monthGroup: currentMonthLabel,
+          type: 'document',
+          badgeText: 'UNDER REVIEW',
+          badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+          dotColor: 'bg-amber-500'
         });
       }
     });
 
-    // Fallback if low activity
+    // 3. Announcement acknowledgements
+    announcements.forEach((a) => {
+      updates.push({
+        id: `ann-act-${a.id}`,
+        title: `Announcement Acknowledged`,
+        subtitle: `Advisory "${a.title}" made available to parent portal.`,
+        date: a.date,
+        monthGroup: currentMonthLabel,
+        type: 'announcement',
+        badgeText: 'NOTICE',
+        badgeColor: 'bg-blue-50 text-[#2563eb] border-blue-200',
+        dotColor: 'bg-[#2563eb]'
+      });
+    });
+
+    // Fallback if no updates
     if (updates.length === 0) {
       updates.push({
-        id: 'init-update',
-        title: 'System Ready',
-        subtitle: 'Your dashboard is fully synchronized with school administration records.',
+        id: 'init-sys',
+        title: 'Profile Synchronized',
+        subtitle: 'Your parent account is active and connected with school administration.',
         date: 'Today',
-        type: 'announcement',
-        badgeText: 'STATUS: SUCCESS',
+        monthGroup: currentMonthLabel,
+        type: 'profile',
+        badgeText: 'ACTIVE',
         badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         dotColor: 'bg-emerald-500'
       });
     }
 
-    return updates.slice(0, 5);
-  }, [children, documents]);
+    return updates;
+  }, [children, documents, announcements, currentMonthLabel]);
 
-  // Document Center Status Summary (Grouped by Student)
+  // Document Status Summary (Top 3 recent items)
   const documentTypesSummary = useMemo(() => {
     const records: Array<{
       id: string;
       studentName: string;
       docName: string;
-      statusText: string;
+      statusText: 'Approved' | 'Under Review' | 'Missing' | 'Rejected';
       statusColor: string;
     }> = [];
 
@@ -416,8 +455,16 @@ export function ParentDashboardView({
             id: `${c.id}-${req.key}`,
             studentName: studentFullName,
             docName: req.name,
-            statusText: 'Complete',
+            statusText: 'Approved',
             statusColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          });
+        } else if (docMatch.status === 'REJECTED') {
+          records.push({
+            id: `${c.id}-${req.key}`,
+            studentName: studentFullName,
+            docName: req.name,
+            statusText: 'Rejected',
+            statusColor: 'bg-rose-50 text-rose-700 border-rose-200'
           });
         } else {
           records.push({
@@ -438,7 +485,7 @@ export function ParentDashboardView({
     return (
       <div className="flex-1 flex items-center justify-center min-h-[450px]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#0C3B99]/30 border-t-[#0C3B99] rounded-full animate-spin"></div>
+          <div className="w-10 h-10 border-4 border-[#2563eb]/30 border-t-[#2563eb] rounded-full animate-spin"></div>
           <p className="text-xs font-bold text-slate-500">Synchronizing Dashboard Data...</p>
         </div>
       </div>
@@ -448,12 +495,12 @@ export function ParentDashboardView({
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] relative overflow-x-hidden text-slate-900 font-sans">
       {/* ── 1. HEADER SECTION ── */}
-      <header className="relative px-5 sm:px-8 py-6 bg-white border-b border-slate-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
-          <div className="space-y-1.5 text-left">
+      <header className="relative px-5 sm:px-8 py-6 bg-white border-b border-slate-100 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+          <div className="space-y-1 text-left">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-[#2563eb] text-[10px] font-bold uppercase tracking-wider">
-                Academic Year <span className="ml-1 text-slate-600 font-bold">2026–2027</span>
+              <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-[#2563eb] text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+                Academic Year <span className="ml-1 text-slate-700 font-extrabold">2026–2027</span>
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
@@ -466,7 +513,7 @@ export function ParentDashboardView({
 
           <div className="shrink-0">
             <Button
-              className="w-full sm:w-auto rounded-xl h-11 px-5 shadow-lg shadow-blue-500/20 font-bold bg-[#2563eb] hover:bg-blue-700 text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-98"
+              className="w-full sm:w-auto rounded-xl h-11 px-5 shadow-lg shadow-blue-500/20 font-bold bg-[#2563eb] hover:bg-blue-700 text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-98 cursor-pointer"
               onClick={() => onNavigate('enrollment')}
             >
               <PlusCircle className="w-4.5 h-4.5" />
@@ -476,14 +523,16 @@ export function ParentDashboardView({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto w-full">
-        {/* ── ROW 1. SUMMARY CARDS (4 CARDS) ── */}
+      {/* ── MAIN DASHBOARD CONTAINER ── */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 w-full">
+        
+        {/* ── ROW 1. SUMMARY STAT CARDS ── */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          {/* Card A: Total Registered Students */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs space-y-3">
+          {/* Card A: Registered Students */}
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Registered Students</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0">
+              <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
                 <Users className="w-4 h-4" />
               </div>
             </div>
@@ -494,10 +543,10 @@ export function ParentDashboardView({
           </div>
 
           {/* Card B: Pending Actions */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs space-y-3">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Actions</p>
-              <div className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600 shrink-0">
+              <div className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600 shrink-0 border border-rose-100">
                 <AlertCircle className="w-4 h-4" />
               </div>
             </div>
@@ -510,10 +559,10 @@ export function ParentDashboardView({
           </div>
 
           {/* Card C: Average Grade */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs space-y-3">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Average Grade</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0">
+              <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
                 <BarChart3 className="w-4 h-4" />
               </div>
             </div>
@@ -531,10 +580,10 @@ export function ParentDashboardView({
           </div>
 
           {/* Card D: Attendance Rate */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs space-y-3">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Attendance Rate</p>
-              <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 shrink-0">
+              <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100">
                 <Calendar className="w-4 h-4" />
               </div>
             </div>
@@ -547,30 +596,49 @@ export function ParentDashboardView({
 
         {/* ── ROW 2. RECENT ACTIVITY + SCHOOL ANNOUNCEMENTS ── */}
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
-          {/* Section: Recent Activity */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+          
+          {/* 1. RECENT ACTIVITY CARD */}
+          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
+            <div className="space-y-4">
+              {/* Uniform Header Structure */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-[#2563eb]">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
                     <Clock className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">Recent Activity</h3>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 leading-tight">Recent Activity</h3>
+                    <p className="text-[11px] text-slate-400 font-medium">Current Month History</p>
+                  </div>
                 </div>
-                <span className="text-xs font-medium text-slate-400">Latest 5 activities</span>
+                <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold border border-slate-200/60 flex items-center gap-1">
+                  <CalendarDays className="w-3 h-3 text-slate-400" />
+                  {currentMonthLabel}
+                </span>
               </div>
 
-              <div className="divide-y divide-slate-100">
-                {recentUpdates.map((upd) => (
-                  <div key={upd.id} className="p-4 sm:p-5 hover:bg-slate-50/50 transition-colors flex items-center justify-between gap-4">
+              {/* Scrollable Clean Timeline List (Max 5 items displayed by default) */}
+              <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 divide-y divide-slate-100 no-scrollbar">
+                {recentUpdates.slice(0, 5).map((upd, idx) => (
+                  <div key={upd.id} className={`pt-3 first:pt-0 flex items-start justify-between gap-3 group`}>
                     <div className="flex items-start gap-3 min-w-0">
-                      <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${upd.dotColor}`} />
+                      <div className="relative flex flex-col items-center mt-1">
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${upd.dotColor} ring-4 ring-white`} />
+                        {idx < 4 && <div className="w-0.5 h-full bg-slate-100 absolute top-3 bottom-0" />}
+                      </div>
                       <div className="min-w-0 space-y-0.5">
-                        <p className="text-sm font-bold text-slate-900 truncate">{upd.title}</p>
-                        <p className="text-xs text-slate-500 font-medium leading-relaxed truncate">{upd.subtitle}</p>
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#2563eb] transition-colors truncate">
+                          {upd.title}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed truncate">
+                          {upd.subtitle}
+                        </p>
+                        <span className="text-[10px] text-slate-400 font-medium block">
+                          {upd.date}
+                        </span>
                       </div>
                     </div>
-                    <span className={`px-2.5 py-1 text-[9px] font-bold rounded-md uppercase tracking-wider shrink-0 border ${upd.badgeColor}`}>
+                    <span className={`px-2.5 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider shrink-0 border ${upd.badgeColor}`}>
                       {upd.badgeText}
                     </span>
                   </div>
@@ -579,19 +647,35 @@ export function ParentDashboardView({
             </div>
           </div>
 
-          {/* Section: School Announcements */}
-          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden p-6 flex flex-col justify-between space-y-4">
+          {/* 2. SCHOOL ANNOUNCEMENTS CARD */}
+          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
             <div className="space-y-4">
-              <div className="flex items-center gap-2.5 border-b border-slate-50 pb-3">
-                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-[#2563eb]">
-                  <Megaphone className="w-4 h-4" />
+              {/* Uniform Header Structure with Action Button on Top Right */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
+                    <Megaphone className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 leading-tight">School Announcements</h3>
+                    <p className="text-[11px] text-slate-400 font-medium">Campus Updates</p>
+                  </div>
                 </div>
-                <h3 className="text-base font-bold text-slate-900">School Announcements</h3>
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate('announcements')}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-[#2563eb]/10 hover:text-[#2563eb] text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <span>View All</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
 
-              <div className="space-y-3">
-                {announcements.map((ann) => (
-                  <div key={ann.id} className="p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-1">
+              {/* Scrollable Announcements List (Only 3 displayed by default) */}
+              <div className="max-h-[280px] overflow-y-auto pr-1 space-y-3 no-scrollbar">
+                {announcements.slice(0, 3).map((ann) => (
+                  <div key={ann.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-1 transition-colors">
                     <div className="flex items-center justify-between text-[10px] font-bold">
                       <span className="text-[#2563eb] uppercase tracking-wider">{ann.category}</span>
                       <span className="text-slate-400">{ann.date}</span>
@@ -602,38 +686,47 @@ export function ParentDashboardView({
                 ))}
               </div>
             </div>
-
-            <Button
-              onClick={() => onNavigate('announcements')}
-              className="w-full mt-2 bg-slate-50 hover:bg-blue-50 hover:text-[#2563eb] text-slate-600 border border-slate-100 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-            >
-              View All Announcements <ChevronRight className="w-3.5 h-3.5" />
-            </Button>
           </div>
         </div>
 
         {/* ── ROW 3. DOCUMENT STATUS + MY STUDENTS OVERVIEW ── */}
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
-          {/* Section: Document Status */}
-          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-100 shadow-xs p-6 flex flex-col justify-between space-y-4">
+          
+          {/* 3. DOCUMENT STATUS CARD */}
+          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+              {/* Uniform Header Structure with Action Button on Top Right */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-[#2563eb]">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
                     <FileText className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">Document Status</h3>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 leading-tight">Document Status</h3>
+                    <p className="text-[11px] text-slate-400 font-medium">Requirements Tracker</p>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate('requirements')}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-[#2563eb]" />
+                  <span>Document Center</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
               </div>
 
+              {/* Scrollable Document List (Only 3 displayed by default) */}
               {documentTypesSummary.length === 0 ? (
-                <p className="text-xs font-medium text-slate-400 py-4 text-center">No documents submitted yet.</p>
+                <p className="text-xs font-medium text-slate-400 py-6 text-center">No documents submitted yet.</p>
               ) : (
-                <div className="space-y-2.5">
-                  {documentTypesSummary.map((item) => (
-                    <div key={item.id} className="p-3.5 bg-slate-50/60 rounded-2xl border border-slate-100 flex items-center justify-between gap-3">
+                <div className="max-h-[280px] overflow-y-auto pr-1 space-y-2.5 no-scrollbar">
+                  {documentTypesSummary.slice(0, 3).map((item) => (
+                    <div key={item.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-colors">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center border border-slate-200 text-slate-400 shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center border border-slate-200 text-slate-400 shrink-0 shadow-2xs">
                           <FileText className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0 space-y-0.5">
@@ -649,38 +742,42 @@ export function ParentDashboardView({
                 </div>
               )}
             </div>
-
-            <Button
-              onClick={() => onNavigate('requirements')}
-              className="w-full mt-2 bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all"
-            >
-              <FolderOpen className="w-4 h-4" /> Go to Document Center
-            </Button>
           </div>
 
-          {/* Section: My Students Overview */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-100 shadow-xs p-6 flex flex-col justify-between space-y-4">
+          {/* 4. MY STUDENTS OVERVIEW CARD */}
+          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+              {/* Uniform Header Structure with Action Button on Top Right */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-[#2563eb]">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
                     <GraduationCap className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">My Students Overview</h3>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 leading-tight">My Students Overview</h3>
+                    <p className="text-[11px] text-slate-400 font-medium">{children.length} Enrolled Learners</p>
+                  </div>
                 </div>
-                <span className="w-5 h-5 bg-slate-100 text-slate-600 rounded-full text-[11px] font-bold flex items-center justify-center">
-                  {children.length}
-                </span>
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate('my-students')}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <span>View Student Profiles</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
               </div>
 
+              {/* Scrollable Compact Student Rows (Only 3 displayed by default) */}
               {children.length === 0 ? (
                 <div className="p-6 text-center text-slate-400 text-xs font-medium space-y-2">
                   <Users className="w-8 h-8 text-slate-300 mx-auto" />
                   <p>No registered students linked to your account.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {children.map((child) => {
+                <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 no-scrollbar">
+                  {children.slice(0, 3).map((child) => {
                     const isApproved = child.status === 'Enrolled' || child.status === 'Approved';
                     const isPending = child.status === 'Pending';
                     const regBadge = isApproved
@@ -690,10 +787,8 @@ export function ParentDashboardView({
                       : { label: 'Action Required', bg: 'bg-rose-50 text-rose-700 border-rose-200' };
 
                     const reqStatus = getStudentRequirementStatus(child);
-
                     const rawAvg = getStudentAverage(child);
-                    const avgDisplay = rawAvg === 'N/A' ? 'No Grades Yet' : rawAvg;
-                    const academicStanding = getAcademicStandingBadge(rawAvg);
+                    const avgDisplay = rawAvg === 'N/A' ? 'No Grades Yet' : `${rawAvg}%`;
 
                     let childAtt = 'N/A';
                     if (child.attendance && child.attendance.length > 0) {
@@ -701,58 +796,48 @@ export function ParentDashboardView({
                       childAtt = `${Math.round((pres / child.attendance.length) * 100)}%`;
                     }
 
-                    const lastUpdated = formatDate(child.submittedAt || (child as any).updatedAt || (child as any).createdAt || 'Jul 29, 2026');
+                    const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
+                      ? child.gradeLevel
+                      : `Grade ${child.gradeLevel || 'Level'}`;
 
                     return (
-                      <div key={child.id} className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-3 hover:bg-slate-50 transition-colors">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div key={child.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5 transition-colors">
+                        {/* Top row: Avatar, Name, Grade & Badges */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-100/80 text-[#2563eb] font-extrabold flex items-center justify-center text-sm border border-blue-200 shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#2563eb] font-extrabold flex items-center justify-center text-xs border border-blue-200 shrink-0">
                               {child.firstName?.[0]}{child.lastName?.[0]}
                             </div>
                             <div>
-                              <h4 className="font-bold text-slate-900 text-sm leading-tight uppercase">
+                              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight uppercase">
                                 {child.firstName} {child.lastName}
                               </h4>
-                              <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                                Grade {child.gradeLevel || 'N/A'}
+                              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                                {displayGrade}
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2 shrink-0">
-                            <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${regBadge.bg}`}>
-                              Registration: {regBadge.label}
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${regBadge.bg}`}>
+                              {regBadge.label}
                             </span>
-                            <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${reqStatus.color}`}>
-                              {reqStatus.statusKey === 'COMPLETE' && '🟢 '}
-                              {reqStatus.statusKey === 'REVIEW' && '🟡 '}
-                              {reqStatus.statusKey === 'MISSING' && '🔴 '}
-                              {reqStatus.label}
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${reqStatus.color}`}>
+                              Docs: {reqStatus.label}
                             </span>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/50 text-xs">
-                          <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-100">
-                            <span className="text-slate-400 font-semibold text-[11px]">General Average</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-800">{avgDisplay}</span>
-                              {academicStanding && (
-                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${academicStanding.color}`}>
-                                  {academicStanding.label}
-                                </span>
-                              )}
-                            </div>
+                        {/* Bottom Info row: Attendance & General Average */}
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/40 text-xs">
+                          <div className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 font-semibold text-[10px] uppercase">Attendance</span>
+                            <span className="font-extrabold text-slate-800 text-xs">{childAtt}</span>
                           </div>
-                          <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-100">
-                            <span className="text-slate-400 font-semibold text-[11px]">Attendance Rate</span>
-                            <span className="font-bold text-slate-800">{childAtt}</span>
+                          <div className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 font-semibold text-[10px] uppercase">General Avg</span>
+                            <span className="font-extrabold text-slate-800 text-xs">{avgDisplay}</span>
                           </div>
-                        </div>
-
-                        <div className="flex justify-end pt-0.5">
-                          <span className="text-[10px] font-medium text-slate-400">Last Updated: {lastUpdated}</span>
                         </div>
                       </div>
                     );
@@ -760,15 +845,9 @@ export function ParentDashboardView({
                 </div>
               )}
             </div>
-
-            <Button
-              onClick={() => onNavigate('my-students')}
-              className="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-            >
-              View Student Profiles <ChevronRight className="w-3.5 h-3.5" />
-            </Button>
           </div>
         </div>
+
       </div>
     </div>
   );

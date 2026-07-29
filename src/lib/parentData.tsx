@@ -269,6 +269,7 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
   };
 
   const updateChild = async (id: string, updates: Partial<Child>) => {
+    setChildren(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
     await updateDoc(doc(db, 'enrollments', id), updates);
   };
 
