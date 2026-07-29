@@ -44,6 +44,7 @@ function ParentPortalContent() {
       case 'dashboard':
         return <ParentDashboardView onNavigate={handleNavigate} />;
       case 'children':
+      case 'my-students':
         return <MyChildrenView onSelectChild={handleSelectChild} />;
       case 'enrollment':
         return <EnrollmentForm onComplete={() => handleNavigate('requirements')} />;
@@ -53,6 +54,9 @@ function ParentPortalContent() {
         return <AnnouncementsView />;
       case 'settings':
         return <ParentSettingsView />;
+      case 'attendance':
+      case 'academic-records':
+        return <MyChildrenView onSelectChild={handleSelectChild} />;
       case 'child-detail':
         return selectedChildId ?
         <ChildDetailView
@@ -235,3 +239,5 @@ export function ParentPortal() {
     </ParentDataProvider>);
 
 }
+
+export default ParentPortal;

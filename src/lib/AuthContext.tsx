@@ -30,13 +30,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // Fetch user role and profile from Firestore
-        const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setRole(data.role);
-          setUserData(data);
+        try {
+          // Fetch user role and profile from Firestore
+          const docRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setRole(data.role || 'parent');
+            setUserData(data);
+          } else {
+            // Default fallback for newly registered parent users
+            setRole('parent');
+            setUserData({ email: user.email, fullName: user.displayName || 'Parent User', role: 'parent' });
+          }
+        } catch (err) {
+          console.warn("AuthContext user doc fetch failed, falling back to default role:", err);
+          setRole('parent');
         }
       } else {
         setRole(null);

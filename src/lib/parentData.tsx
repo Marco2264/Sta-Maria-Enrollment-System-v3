@@ -82,6 +82,7 @@ export type Child = {
     is4ps: boolean;
     learningMode: 'Modular Print' | 'Digital' | 'Blended';
   };
+  photoURL?: string;
   status: 'Pending' | 'Enrolled' | 'Rejected';
   requirements: 'Complete' | 'Incomplete' | string;
   requirementUploads?: {
@@ -140,6 +141,12 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
       return;
     }
 
+    // Safety fallback: Ensure loading spinner resolves within 1.5s
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+      setDocumentsLoading(false);
+    }, 1500);
+
     let currentChildren: Child[] = [];
     const attendanceByStudent: Record<string, AttendanceRecord[]> = {};
     const attendanceUnsubs: Array<() => void> = [];
@@ -159,34 +166,61 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
     };
 
     const q = query(collection(db, 'enrollments'), where('parentId', '==', user.uid));
-    const unsubscribeEnrollments = onSnapshot(q, (snapshot) => {
-      currentChildren = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
-      rebuildChildren();
+    const unsubscribeEnrollments = onSnapshot(
+      q,
+      (snapshot) => {
+        currentChildren = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
+        rebuildChildren();
 
-      while (attendanceUnsubs.length > 0) {
-        const unsub = attendanceUnsubs.pop();
-        if (unsub) unsub();
-      }
+        while (attendanceUnsubs.length > 0) {
+          const unsub = attendanceUnsubs.pop();
+          if (unsub) unsub();
+        }
 
-      currentChildren.forEach((child) => {
-        const attendanceQuery = query(collection(db, 'attendance'), where('studentId', '==', child.id));
-        const attendanceUnsub = onSnapshot(attendanceQuery, (attendanceSnapshot) => {
-          attendanceByStudent[child.id] = attendanceSnapshot.docs.map((d) => {
-            const row = d.data() as any;
-            return { 
-              date: row.date, 
-              status: row.status,
-              amStatus: row.amStatus,
-              pmStatus: row.pmStatus
-            };
-          });
-          rebuildChildren();
+        currentChildren.forEach((child) => {
+          const attendanceQuery = query(collection(db, 'attendance'), where('studentId', '==', child.id));
+          const attendanceUnsub = onSnapshot(
+            attendanceQuery,
+            (attendanceSnapshot) => {
+              attendanceByStudent[child.id] = attendanceSnapshot.docs.map((d) => {
+                const row = d.data() as any;
+                let derivedStatus = row.status;
+                if (!derivedStatus) {
+                  if (row.amStatus === 'Absent' || row.pmStatus === 'Absent') {
+                    derivedStatus = 'Absent';
+                  } else if (row.amStatus === 'Late' || row.pmStatus === 'Late') {
+                    derivedStatus = 'Late';
+                  } else if (row.amStatus === 'Present' || row.pmStatus === 'Present') {
+                    derivedStatus = 'Present';
+                  } else {
+                    derivedStatus = 'Present';
+                  }
+                }
+                return { 
+                  date: row.date, 
+                  status: derivedStatus,
+                  amStatus: row.amStatus,
+                  pmStatus: row.pmStatus
+                };
+              });
+              rebuildChildren();
+            },
+            (err) => {
+              console.warn("Attendance subscription warning:", err);
+            }
+          );
+          attendanceUnsubs.push(attendanceUnsub);
         });
-        attendanceUnsubs.push(attendanceUnsub);
-      });
 
-      setLoading(false);
-    });
+        clearTimeout(safetyTimer);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error subscribing to parent enrollments:", error);
+        clearTimeout(safetyTimer);
+        setLoading(false);
+      }
+    );
 
     const unsubscribeDocuments = subscribeParentEnrollmentDocuments(user.uid, (rows) => {
       setDocuments(rows);
@@ -194,6 +228,7 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
     });
 
     return () => {
+      clearTimeout(safetyTimer);
       unsubscribeEnrollments();
       unsubscribeDocuments();
       while (attendanceUnsubs.length > 0) {

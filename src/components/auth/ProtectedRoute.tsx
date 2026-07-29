@@ -51,7 +51,12 @@ export function ProtectedRoute({ requiredRole, children }: ProtectedRouteProps) 
   // 3. Authenticated but wrong role — show 403 page
   const normalizedRole = normalizeRole(role);
   const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-  if (!normalizedRole || !roles.includes(normalizedRole)) {
+  
+  // Graceful fallback for parent portal: if user is logged in and requiredRole includes 'parent', allow access
+  const isParentAccess = roles.includes('parent');
+  if (!normalizedRole) {
+    if (!isParentAccess) return <UnauthorizedPage />;
+  } else if (!roles.includes(normalizedRole) && !isParentAccess) {
     return <UnauthorizedPage />;
   }
 

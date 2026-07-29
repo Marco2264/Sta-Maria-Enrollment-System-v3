@@ -60,11 +60,16 @@ function ParentPortalContent() {
   const renderActiveView = () => {
     switch (activeView) {
       case 'dashboard': return <ParentDashboardView onNavigate={handleNavigate} />;
-      case 'children': return <MyChildrenView onSelectChild={handleSelectChild} />;
+      case 'children':
+      case 'my-students': 
+        return <MyChildrenView onSelectChild={handleSelectChild} />;
       case 'enrollment': return <EnrollmentForm onComplete={() => handleNavigate('children')} onNavigateToRequirements={() => handleNavigate('requirements')} />;
       case 'requirements': return <RequirementsView />;
       case 'announcements': return <AnnouncementsView />;
       case 'settings': return <ParentSettingsView />;
+      case 'attendance':
+      case 'academic-records':
+        return <MyChildrenView onSelectChild={handleSelectChild} />;
       case 'child-detail': return selectedChildId ? <ChildDetailView childId={selectedChildId} onBack={() => handleNavigate('children')} /> : <MyChildrenView onSelectChild={handleSelectChild} />;
       default: return <ParentDashboardView onNavigate={handleNavigate} />;
     }
@@ -263,3 +268,5 @@ export function ParentPortal() {
     </ParentDataProvider>
   );
 }
+
+export default ParentPortal;

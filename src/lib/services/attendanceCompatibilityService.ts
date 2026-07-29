@@ -21,12 +21,21 @@ export function mergeAttendanceWithCompatibility(params: {
   const { studentId, canonicalEntries, legacyEntries = [] } = params;
   const canonical = canonicalEntries
     .filter((entry) => entry.studentId === studentId)
-    .map((entry) => ({ 
-      date: entry.date, 
-      status: entry.status,
-      amStatus: entry.amStatus,
-      pmStatus: entry.pmStatus
-    }));
+    .map((entry) => {
+      let derived = entry.status;
+      if (!derived) {
+        if (entry.amStatus === 'Absent' || entry.pmStatus === 'Absent') derived = 'Absent';
+        else if (entry.amStatus === 'Late' || entry.pmStatus === 'Late') derived = 'Late';
+        else if (entry.amStatus === 'Present' || entry.pmStatus === 'Present') derived = 'Present';
+        else derived = 'Present';
+      }
+      return { 
+        date: entry.date, 
+        status: derived,
+        amStatus: entry.amStatus,
+        pmStatus: entry.pmStatus
+      };
+    });
 
   if (canonical.length > 0) {
     return canonical.sort((a, b) => (a.date < b.date ? 1 : -1));
