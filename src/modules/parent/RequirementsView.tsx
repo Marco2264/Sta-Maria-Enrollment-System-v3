@@ -579,6 +579,12 @@ export function RequirementsView() {
                                       </span>
                                     </div>
                                     <p className="text-[11px] text-[#64748B] font-medium">{req.description}</p>
+                                    {docRec && (
+                                      <p className="text-[11px] font-bold text-[#0038A8] flex items-center gap-1.5 pt-0.5">
+                                        <FileText className="w-3.5 h-3.5" />
+                                        {docRec.fileName} <span className="text-[10px] text-slate-400 font-medium">({formatBytes(docRec.sizeBytes)})</span>
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                                 <StatusBadge status={statusKey} />
@@ -587,37 +593,14 @@ export function RequirementsView() {
                               {/* ── Upload Progress ── */}
                               {isUploading && <UploadProgressBar progress={progress} />}
 
-                              {/* ── Document Info (if uploaded) ── */}
-                              {docRec && !isUploading && (
-                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
-                                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <FileText className="w-4 h-4 text-[#0038A8] shrink-0" />
-                                      <span className="text-xs font-bold text-[#1E293B] truncate">{docRec.fileName}</span>
-                                      <span className="text-[10px] text-[#64748B] font-medium shrink-0">
-                                        ({formatBytes(docRec.sizeBytes)})
-                                      </span>
-                                    </div>
-                                    <button
-                                      onClick={() => openPreview(req.title, docRec.fileUrl, docRec.mimeType)}
-                                      className="text-[11px] font-bold text-[#0038A8] hover:underline flex items-center gap-1 shrink-0"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" /> Quick View
-                                    </button>
+                              {/* Rejection feedback if any */}
+                              {docRec && statusKey === 'REJECTED' && docRec.rejectionReason && (
+                                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
+                                  <CircleAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-[11px] font-bold text-rose-800">Rejection Reason:</p>
+                                    <p className="text-[11px] text-rose-700 font-medium">{docRec.rejectionReason}</p>
                                   </div>
-                                  <p className="text-[11px] text-[#64748B] font-medium">
-                                    Uploaded: {formatUploadDate(docRec.uploadedAt)}
-                                  </p>
-                                  {/* Rejection feedback */}
-                                  {statusKey === 'REJECTED' && docRec.rejectionReason && (
-                                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
-                                      <CircleAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-[11px] font-bold text-rose-800">Rejection Reason:</p>
-                                        <p className="text-[11px] text-rose-700 font-medium">{docRec.rejectionReason}</p>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               )}
 

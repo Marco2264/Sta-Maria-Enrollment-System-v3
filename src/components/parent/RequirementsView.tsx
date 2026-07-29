@@ -598,12 +598,6 @@ export function RequirementsView() {
                                         ({formatBytes(docRec.sizeBytes)})
                                       </span>
                                     </div>
-                                    <button
-                                      onClick={() => openPreview(req.title, docRec.fileUrl, docRec.mimeType)}
-                                      className="text-[11px] font-bold text-[#0038A8] hover:underline flex items-center gap-1 shrink-0 py-1"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" /> Quick View
-                                    </button>
                                   </div>
                                   <p className="text-[11px] text-[#64748B] font-medium">
                                     Uploaded: {formatUploadDate(docRec.uploadedAt)}

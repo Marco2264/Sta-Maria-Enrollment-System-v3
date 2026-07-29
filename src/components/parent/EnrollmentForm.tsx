@@ -32,11 +32,21 @@ import {
   Clock,
   XCircle,
   Eye,
-  ExternalLink
+  ExternalLink,
+  Upload,
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
-import { DOCUMENT_TYPES } from '../../lib/schema/phase2';
+import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
+import { db } from '../../lib/firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
+import {
+  uploadToCloudinary,
+  addEnrollmentDocumentRecord,
+  validateRequirementUpload
+} from '../../lib/services/enrollmentDocumentsService';
 
 interface EnrollmentFormProps {
   onComplete: () => void;
@@ -99,6 +109,77 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
   const [direction, setDirection] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  // Store local uploads performed during Step 5 before registration is submitted
+  const [step5Uploads, setStep5Uploads] = useState<Record<string, {
+    documentId?: string;
+    fileName: string;
+    fileUrl: string;
+    mimeType: string;
+    sizeBytes: number;
+  }>>({});
+
+  const handleStep5DocUpload = async (docType: DocumentType, file: File) => {
+    if (!user) return;
+    const valErr = validateRequirementUpload(file);
+    if (valErr) {
+      setErrorMsg(valErr);
+      return;
+    }
+    try {
+      setUploadingDocType(docType);
+      setErrorMsg(null);
+      const fileUrl = await uploadToCloudinary(file);
+      const studentName = `${studentInfo.firstName} ${studentInfo.lastName}`.trim() || 'New Student';
+      const documentId = await addEnrollmentDocumentRecord({
+        enrollmentId: 'temp_registration',
+        parentId: user.uid,
+        studentName,
+        gradeLevel: studentInfo.gradeLevel || 'N/A',
+        documentType: docType,
+        fileName: file.name,
+        fileUrl,
+        mimeType: file.type,
+        sizeBytes: file.size
+      });
+      setStep5Uploads((prev) => ({
+        ...prev,
+        [docType]: {
+          documentId,
+          fileName: file.name,
+          fileUrl,
+          mimeType: file.type,
+          sizeBytes: file.size
+        }
+      }));
+    } catch (err: any) {
+      console.error('Error uploading document in Step 5:', err);
+      setErrorMsg(err.message || 'Failed to upload document. Please try again.');
+    } finally {
+      setUploadingDocType(null);
+    }
+  };
+
+  const handleStep5DocRemove = async (docType: DocumentType, documentId?: string) => {
+    try {
+      if (documentId) {
+        setDeletingDocId(documentId);
+        await deleteDoc(doc(db, 'enrollment_documents', documentId));
+      }
+      setErrorMsg(null);
+      setStep5Uploads((prev) => {
+        const next = { ...prev };
+        delete next[docType];
+        return next;
+      });
+    } catch (err: any) {
+      console.error('Error deleting document in Step 5:', err);
+      setErrorMsg(err.message || 'Failed to remove document.');
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
 
   // Student Info
   const [studentInfo, setStudentInfo] = useState({
@@ -1336,14 +1417,10 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
               </div>
             )}
 
-            {/* ── STEP 5 OF 6: SUPPORTING DOCUMENTS (SYNC VIEW) ── */}
+            {/* ── STEP 5 OF 6: SUPPORTING DOCUMENTS ── */}
             {subStep === 10 && (() => {
-              // Find the most recent enrollment for this student by matching name + grade
-              // or just use the first enrollment from `children` that matches the current form data.
-              // Since we're mid-registration (not yet submitted), there's no enrollmentId yet.
-              // We show a pre-registration notice pointing to Document Center.
               const allUploaded = requiredDocDefs.every(d =>
-                documents.some(doc => doc.documentType === d.type)
+                Boolean(step5Uploads[d.type])
               );
 
               return (
@@ -1354,19 +1431,24 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                       Supporting Documents
                     </h2>
                     <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                      Your document status is synchronized from the Document Center.
+                      Upload your required documents now or continue and upload them later.
                     </p>
                   </div>
 
-                  {/* Sync info banner */}
-                  <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start gap-2.5">
-                    <FolderOpen className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-blue-900 font-semibold leading-relaxed">
-                      Documents are managed from the <strong>Document Center</strong>. Upload your required documents there — they will automatically appear in your registration and be reviewed by the school.
-                    </p>
+                  {/* Clarification Reminder Banner */}
+                  <div className="p-3.5 bg-blue-50/90 border border-blue-200/90 rounded-xl flex items-start gap-3 shadow-xs">
+                    <Info className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-blue-950 font-bold leading-relaxed">
+                        You may upload your documents now or skip this step. Missing documents can be uploaded later through the Document Center.
+                      </p>
+                      <p className="text-[10px] text-blue-700 font-medium">
+                        Uploading documents is optional during registration, but required before final verification by the school.
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Classification */}
+                  {/* Student Classification Badge */}
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between">
                     <span className="text-slate-500 font-bold">Student Classification:</span>
                     <span className="font-extrabold text-[#0C3B99] bg-white px-2.5 py-1 rounded-lg border border-blue-100">
@@ -1374,67 +1456,124 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                     </span>
                   </div>
 
-                  {/* Document status list */}
-                  <div className="space-y-2">
+                  {/* Required Documents List */}
+                  <div className="space-y-3">
                     <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                       Required Documents ({requiredDocDefs.length})
                     </span>
 
                     {requiredDocDefs.map(docDef => {
-                      // Look up any existing upload for this doc type across all children
-                      const docRecord = documents.find(d => d.documentType === docDef.type);
-                      const status = docRecord?.status;
+                      const localDoc = step5Uploads[docDef.type];
+                      const isUploading = uploadingDocType === docDef.type;
+                      const isDeleting = localDoc && deletingDocId === localDoc.documentId;
 
                       return (
-                        <div key={docDef.key} className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2">
+                        <div key={docDef.key} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 transition-all hover:border-slate-300">
                           <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div className="flex items-start gap-2.5 min-w-0">
-                              <FileText className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
+                              <FileText className="w-4.5 h-4.5 text-[#0C3B99] shrink-0 mt-0.5" />
                               <div className="min-w-0">
                                 <h3 className="text-xs font-bold text-slate-900">{docDef.title}</h3>
+                                {localDoc && (
+                                  <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                                    {localDoc.fileName}
+                                  </p>
+                                )}
                               </div>
                             </div>
 
-                            {status === 'APPROVED' && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <ShieldCheck className="w-3 h-3" /> Verified
-                              </span>
-                            )}
-                            {status === 'PENDING' && (
+                            {/* Status Badge */}
+                            {localDoc ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                <Clock className="w-3 h-3 animate-pulse" /> Under Review
+                                <Clock className="w-3 h-3 animate-pulse" /> Status: Uploaded
                               </span>
-                            )}
-                            {status === 'REJECTED' && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                <XCircle className="w-3 h-3" /> Needs Re-upload
-                              </span>
-                            )}
-                            {!docRecord && (
+                            ) : (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                                Not Uploaded
+                                Status: Not Uploaded
                               </span>
                             )}
                           </div>
 
-                          {status === 'APPROVED' && docRecord && (
-                            <button
-                              type="button"
-                              onClick={() => window.open(docRecord.fileUrl, '_blank')}
-                              className="flex items-center gap-1.5 text-[11px] font-bold text-[#0C3B99] hover:underline"
-                            >
-                              <Eye className="w-3.5 h-3.5" /> View Document
-                            </button>
-                          )}
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 flex-wrap">
+                            {localDoc ? (
+                              <>
+                                {/* View Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => window.open(localDoc.fileUrl, '_blank')}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-[#0C3B99] rounded-lg text-[11px] font-bold text-[#0C3B99] shadow-2xs transition-all hover:bg-blue-50/50"
+                                >
+                                  <Eye className="w-3.5 h-3.5" /> View
+                                </button>
 
-                          {!docRecord && (
-                            <div className="bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2 flex items-start gap-2">
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                              <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                                This document has not been uploaded yet. You may continue your registration now and upload this document later from the Document Center.
-                              </p>
-                            </div>
-                          )}
+                                {/* Replace Button */}
+                                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-[#0C3B99] rounded-lg text-[11px] font-bold text-[#0C3B99] shadow-2xs transition-all cursor-pointer hover:bg-blue-50/50">
+                                  {isUploading ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0C3B99]" />
+                                      Replacing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="w-3.5 h-3.5 text-[#0C3B99]" />
+                                      Replace
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    disabled={isUploading}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleStep5DocUpload(docDef.type as DocumentType, file);
+                                    }}
+                                    className="hidden"
+                                  />
+                                </label>
+
+                                {/* Remove Button */}
+                                <button
+                                  type="button"
+                                  disabled={isDeleting}
+                                  onClick={() => handleStep5DocRemove(docDef.type as DocumentType, localDoc.documentId)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-rose-200 hover:border-rose-300 rounded-lg text-[11px] font-bold text-rose-600 shadow-2xs transition-all hover:bg-rose-50/50 disabled:opacity-50"
+                                >
+                                  {isDeleting ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                  )}
+                                  Remove
+                                </button>
+                              </>
+                            ) : (
+                              /* Upload Button (When Not Uploaded) */
+                              <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#0C3B99] hover:bg-[#002878] text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer hover:shadow-sm active:scale-98">
+                                {isUploading ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                    Uploading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="w-4 h-4" />
+                                    Upload Document
+                                  </>
+                                )}
+                                <input
+                                  type="file"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  disabled={isUploading}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleStep5DocUpload(docDef.type as DocumentType, file);
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -1444,24 +1583,20 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                     <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       <p className="text-[11px] text-emerald-800 font-bold">
-                        ✔ All required documents have already been uploaded. No further action is required.
+                        ✔ All required documents have been uploaded! You may proceed to review your registration.
                       </p>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={onNavigateToRequirements}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-[#0C3B99]/30 hover:border-[#0C3B99]/60 text-[#0C3B99] rounded-xl text-xs font-bold transition-all hover:bg-blue-50/50"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 hover:border-slate-300 bg-white text-slate-700 rounded-xl text-xs font-bold transition-all hover:bg-slate-50"
                     >
-                      <FolderOpen className="w-4 h-4" />
-                      Go to Document Center
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <FolderOpen className="w-4 h-4 text-[#0C3B99]" />
+                      Open Document Center
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                     </button>
                   )}
-
-                  <p className="text-[11px] text-slate-400 font-medium italic text-center">
-                    You may submit your registration now and upload missing documents later from the Document Center.
-                  </p>
                 </div>
               );
             })()}
