@@ -57,7 +57,7 @@ export function SubjectsView() {
       console.error("Error deleting subject:", error);
     }
   };
-  const [isOpen, setIsOpen] = useState(false);
+  cogit statusnst [isOpen, setIsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);

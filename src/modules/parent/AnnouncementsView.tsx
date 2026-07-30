@@ -235,7 +235,7 @@ export function AnnouncementsView() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#fcfcfd] font-sans">
+    <div className="flex flex-col min-h-screen bg-[#F4F7F9] font-sans">
       {/* ── TOP HEADER WITH SEARCH BAR & NOTIFICATION BELL ── */}
       <header className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
         <div className="relative flex-1 max-w-md">
@@ -338,7 +338,7 @@ export function AnnouncementsView() {
 
         {/* ── ANNOUNCEMENT CARDS GRID (2 COLUMNS) ── */}
         {filteredAnnouncements.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-12 text-center space-y-3">
+          <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-12 text-center space-y-3">
             <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
               <Megaphone className="w-7 h-7" />
             </div>
@@ -367,7 +367,7 @@ export function AnnouncementsView() {
               return (
                 <div
                   key={item.id}
-                  className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-6 hover:shadow-md transition-all duration-200 ${borderLeft} space-y-4 flex flex-col justify-between`}
+                  className={`bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 ${borderLeft} space-y-4 flex flex-col justify-between`}
                 >
                   <div className="space-y-3">
                     {/* Top Row: Icon, Category & Time, Options */}

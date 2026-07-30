@@ -381,7 +381,7 @@ export function ChildDetailView({
   const attDetails = getAttendanceDetails(child);
 
   return (
-    <div className="flex flex-col h-full bg-[#fcfcfd]">
+    <div className="flex flex-col h-full bg-[#F4F7F9]">
       {/* ── TOP HEADER / BREADCRUMBS BAR ── */}
       <header className="px-6 py-4 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         {/* Left: Breadcrumb Navigation */}
@@ -467,7 +467,7 @@ export function ChildDetailView({
               <div className="lg:col-span-1 space-y-6">
                 
                 {/* 1. Student Profile Card */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center space-y-4 animate-fade-up">
+                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 text-center space-y-4 animate-fade-up">
                   {/* Circular Avatar Container */}
                   <div className="relative flex flex-col items-center">
                     <div className="relative w-28 h-28 flex items-center justify-center my-1 z-10">
@@ -650,7 +650,7 @@ export function ChildDetailView({
                 </div>
 
                 {/* 2. Student Summary Card (Replaces Account Meta) */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4 animate-fade-up">
+                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 space-y-4 animate-fade-up">
                   <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">STUDENT SUMMARY</h3>
                   
                   <div className="space-y-3.5 text-xs">
@@ -732,7 +732,7 @@ export function ChildDetailView({
                 <TabsContent value="personal" className="mt-0 outline-none space-y-6">
                   
                   {/* Card 1: Personal Information */}
-                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-100 shadow-sm space-y-6">
+                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                       <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]">
                         <User className="w-5 h-5" />
@@ -772,7 +772,7 @@ export function ChildDetailView({
                   </div>
 
                   {/* Card 2: Address & Contact */}
-                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-100 shadow-sm space-y-6">
+                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                       <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]">
                         <MapPin className="w-5 h-5" />
@@ -808,7 +808,7 @@ export function ChildDetailView({
 
                 <TabsContent value="medical" className="mt-0 outline-none space-y-6">
                   {/* Physical Details Card */}
-                  <Card className="p-6 sm:p-8 bg-white border border-slate-100 shadow-sm rounded-3xl">
+                  <Card className="p-6 sm:p-8 bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 pb-3 border-b border-slate-50">
                       <HeartPulse className="w-5 h-5 text-rose-500" />
                       Physical Details
@@ -832,7 +832,7 @@ export function ChildDetailView({
                   </Card>
 
                   {/* Health Conditions Card */}
-                  <Card className="p-6 sm:p-8 bg-white border border-slate-100 shadow-sm rounded-3xl">
+                  <Card className="p-6 sm:p-8 bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 pb-3 border-b border-slate-50">
                       <AlertCircle className="w-5 h-5 text-amber-500" />
                       Health Conditions
@@ -850,7 +850,7 @@ export function ChildDetailView({
                   </Card>
 
                   {/* Emergency Contact Card */}
-                  <Card className="p-6 sm:p-8 bg-white border border-slate-100 shadow-sm rounded-3xl">
+                  <Card className="p-6 sm:p-8 bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 pb-3 border-b border-slate-50">
                       <User className="w-5 h-5 text-indigo-500" />
                       Emergency Contact
@@ -869,7 +869,7 @@ export function ChildDetailView({
                 </TabsContent>
 
                 <TabsContent value="attendance" className="mt-0 outline-none space-y-6">
-                  <Card className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden">
+                  <Card className="bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl overflow-hidden">
                     <div className="p-6 sm:p-8 border-b border-slate-100">
                       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <CalendarCheck className="w-5 h-5 text-primary" />
