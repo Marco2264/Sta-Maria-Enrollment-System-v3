@@ -34,7 +34,7 @@ import {
 import {
   uploadToImageKit,
   buildImageKitFolder,
-  buildImageKitFileName
+  buildStandardizedFileName
 } from './services/imageUploadService';
 
 export type AttendanceRecord = {
@@ -369,16 +369,22 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
     const validationError = validateRequirementUpload(params.file);
     if (validationError) throw new Error(validationError);
 
-    // Build structured ImageKit folder path and clean filename
+    // Build clean flat ImageKit folder path (/students/psa-certificates, /students/report-cards, etc.)
     const folder = buildImageKitFolder({
       role: 'student',
-      gradeLevel: gLevel,
-      section,
       category: 'documents',
       documentType: params.documentType
     });
 
-    const fileName = buildImageKitFileName(sName, params.file.name, params.documentType);
+    // Standardized filename: Grade6_SectionA_FrancisMinoza_PSA.pdf
+    const fileName = buildStandardizedFileName({
+      role: 'student',
+      fullName: sName,
+      originalFileName: params.file.name,
+      gradeLevel: gLevel,
+      section,
+      documentType: params.documentType
+    });
 
     // Upload to ImageKit with automatic replacement (useUniqueFileName: false)
     const fileUrl = await uploadToImageKit(params.file, {

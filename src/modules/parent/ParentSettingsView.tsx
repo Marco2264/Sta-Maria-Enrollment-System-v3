@@ -4,7 +4,7 @@ import { db, auth } from '../../lib/firebase';
 import { ImageUpload } from '../../components/ui/ImageUpload';
 import { sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { uploadToImageKit, buildImageKitFolder, buildImageKitFileName } from '../../lib/services/imageUploadService';
+import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
 import { Input } from '../../components/ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import {
@@ -459,7 +459,11 @@ export function ParentSettingsView() {
       let finalPhotoUrl = photoURL;
       if (photoFile) {
         const folder = buildImageKitFolder({ role: 'parent' });
-        const fileName = buildImageKitFileName(`${formData.firstName} ${formData.lastName}`, photoFile.name);
+        const fileName = buildStandardizedFileName({
+          role: 'parent',
+          fullName: `${formData.firstName} ${formData.lastName}`,
+          originalFileName: photoFile.name
+        });
         finalPhotoUrl = await uploadToImageKit(photoFile, {
           folder,
           fileName,

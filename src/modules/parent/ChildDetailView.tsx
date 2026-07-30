@@ -47,7 +47,7 @@ import {
 } from 'lucide-react';
 import { useParentData } from '../../lib/parentData';
 import { uploadToCloudinary } from '../../lib/services/enrollmentDocumentsService';
-import { uploadToImageKit, buildImageKitFolder, buildImageKitFileName } from '../../lib/services/imageUploadService';
+import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
 
 export function ChildDetailView({
   childId,
@@ -172,19 +172,20 @@ export function ChildDetailView({
       try {
         const folder = buildImageKitFolder({
           role: 'student',
-          gradeLevel: child.gradeLevel,
-          section: child.section,
           category: 'profiles'
         });
-        const fileName = buildImageKitFileName(
-          `${child.firstName} ${child.lastName}`,
-          file.name,
-          'profile'
-        );
+        const fileName = buildStandardizedFileName({
+          role: 'student',
+          fullName: `${child.firstName} ${child.lastName}`,
+          originalFileName: file.name,
+          gradeLevel: child.gradeLevel,
+          section: child.section
+        });
 
         photoUrl = await uploadToImageKit(file, {
           folder,
-          fileName
+          fileName,
+          useUniqueFileName: false
         });
       } catch (cloudErr: any) {
         console.error('ImageKit upload failed:', cloudErr);

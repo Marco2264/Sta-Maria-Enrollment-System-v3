@@ -1,7 +1,12 @@
 /**
  * ImageKit Upload Service
- * Handles client-side upload validation, HMAC authentication signature generation,
- * ImageKit REST API communication, dynamic folder structuring, and clean error reporting.
+ * Clean, flat top-level folder structure with standardized filenames:
+ *   /students/student-profiles/           -> Grade6_SectionA_FrancisMinoza.jpg
+ *   /students/psa-certificates/           -> Grade6_SectionA_FrancisMinoza_PSA.pdf
+ *   /students/report-cards/               -> Grade6_SectionA_FrancisMinoza_ReportCard.pdf
+ *   /students/good-moral-certificates/    -> Grade6_SectionA_FrancisMinoza_GoodMoral.pdf
+ *   /students/medical-records/            -> Grade6_SectionA_FrancisMinoza_Medical.pdf
+ *   /parents/parent-profiles/             -> Parent_JuanDelaCruz.jpg
  */
 
 export const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit for images and documents
@@ -33,59 +38,145 @@ export interface ImageKitAuthResponse {
 }
 
 /**
- * Builds structured ImageKit folder paths based on user role, grade level, section, and document category.
- * Examples:
- *   Parent Profile:  /parents
- *   Student Avatar:   /students/Grade_6/Section_A/profiles
- *   PSA Document:    /students/Grade_6/Section_A/documents/PSA_BIRTH_CERTIFICATE
+ * Sanitizes names by removing diacritics/accents and non-alphanumeric characters.
+ * Example: "Francis R. Miñoz" -> "FrancisMinoza"
+ */
+export function sanitizeNameString(str: string): string {
+  if (!str) return 'User';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics (ñ -> n)
+    .replace(/[^a-zA-Z0-9]/g, '')     // Alphanumeric characters only
+    .trim();
+}
+
+/**
+ * Formats Grade level string cleanly without spaces or special characters.
+ * Example: "Grade 6" -> "Grade6", "6" -> "Grade6"
+ */
+export function sanitizeGradeString(grade?: string): string {
+  if (!grade || !grade.trim()) return 'GradeUnassigned';
+  const digits = grade.replace(/[^0-9]/g, '');
+  if (digits) return `Grade${digits}`;
+  const clean = grade.replace(/[^a-zA-Z0-9]/g, '');
+  return clean.toLowerCase().startsWith('grade') ? clean : `Grade${clean}`;
+}
+
+/**
+ * Formats Section string cleanly without spaces or special characters.
+ * Example: "Section A" -> "SectionA", "A" -> "SectionA"
+ */
+export function sanitizeSectionString(section?: string): string {
+  if (!section || !section.trim()) return 'SectionGeneral';
+  const clean = section.replace(/[^a-zA-Z0-9]/g, '');
+  return clean.toLowerCase().startsWith('section') ? clean : `Section${clean}`;
+}
+
+/**
+ * Maps DocumentType string to standardized filename suffix.
+ */
+export function getDocumentFilenameSuffix(docType?: string): string {
+  if (!docType) return '';
+  const typeUpper = docType.toUpperCase();
+  if (typeUpper.includes('PSA') || typeUpper.includes('BIRTH')) {
+    return 'PSA';
+  }
+  if (typeUpper.includes('REPORT') || typeUpper.includes('CARD') || typeUpper.includes('SF9')) {
+    return 'ReportCard';
+  }
+  if (typeUpper.includes('MORAL')) {
+    return 'GoodMoral';
+  }
+  if (typeUpper.includes('MEDICAL')) {
+    return 'Medical';
+  }
+  return 'Doc';
+}
+
+/**
+ * Maps DocumentType string to standardized flat ImageKit folder under /students.
+ */
+export function getDocumentImageKitFolder(docType?: string): string {
+  if (!docType) return '/students/student-profiles';
+  const typeUpper = docType.toUpperCase();
+  if (typeUpper.includes('PSA') || typeUpper.includes('BIRTH')) {
+    return '/students/psa-certificates';
+  }
+  if (typeUpper.includes('REPORT') || typeUpper.includes('CARD') || typeUpper.includes('SF9')) {
+    return '/students/report-cards';
+  }
+  if (typeUpper.includes('MORAL')) {
+    return '/students/good-moral-certificates';
+  }
+  if (typeUpper.includes('MEDICAL')) {
+    return '/students/medical-records';
+  }
+  return '/students/student-profiles';
+}
+
+/**
+ * Builds flat top-level ImageKit folder paths without deep nested folder chains.
  */
 export function buildImageKitFolder(params: {
   role: 'parent' | 'student';
-  gradeLevel?: string;
-  section?: string;
   category?: 'profiles' | 'documents';
   documentType?: string;
 }): string {
   if (params.role === 'parent') {
-    return '/parents';
+    return '/parents/parent-profiles';
   }
-
-  const gradeStr = params.gradeLevel && params.gradeLevel.trim()
-    ? `Grade_${params.gradeLevel.replace(/[^a-zA-Z0-9]/g, '_')}`
-    : 'Unassigned_Grade';
-
-  const sectionStr = params.section && params.section.trim()
-    ? `Section_${params.section.replace(/[^a-zA-Z0-9]/g, '_')}`
-    : 'General';
 
   if (params.category === 'documents' || params.documentType) {
-    const docTypeStr = params.documentType
-      ? params.documentType.replace(/[^a-zA-Z0-9]/g, '_')
-      : 'General_Docs';
-    return `/students/${gradeStr}/${sectionStr}/documents/${docTypeStr}`;
+    return getDocumentImageKitFolder(params.documentType);
   }
 
-  return `/students/${gradeStr}/${sectionStr}/profiles`;
+  return '/students/student-profiles';
 }
 
 /**
- * Builds a clean file name incorporating the user's actual name.
+ * Generates standardized ImageKit filenames containing Grade, Section, Full Name, and Document Suffix.
  * Examples:
- *   Student Profile: Francis_R_Minoz.jpg
- *   PSA Document:    Francis_R_Minoz_PSA_BIRTH_CERTIFICATE.pdf
+ *   Student Profile: Grade6_SectionA_FrancisMinoza.jpg
+ *   PSA:             Grade6_SectionA_FrancisMinoza_PSA.pdf
+ *   Parent Profile:  Parent_JuanDelaCruz.jpg
+ */
+export function buildStandardizedFileName(params: {
+  role: 'parent' | 'student';
+  fullName: string;
+  originalFileName: string;
+  gradeLevel?: string;
+  section?: string;
+  documentType?: string;
+}): string {
+  const ext = params.originalFileName.split('.').pop()?.toLowerCase() || 'jpg';
+  const cleanName = sanitizeNameString(params.fullName);
+
+  if (params.role === 'parent') {
+    return `Parent_${cleanName}.${ext}`;
+  }
+
+  const cleanGrade = sanitizeGradeString(params.gradeLevel);
+  const cleanSection = sanitizeSectionString(params.section);
+  const docSuffix = params.documentType ? getDocumentFilenameSuffix(params.documentType) : '';
+  const suffixStr = docSuffix ? `_${docSuffix}` : '';
+
+  return `${cleanGrade}_${cleanSection}_${cleanName}${suffixStr}.${ext}`;
+}
+
+/**
+ * Backward compatibility alias for buildStandardizedFileName
  */
 export function buildImageKitFileName(fullName: string, originalFileName: string, suffix?: string): string {
-  const cleanName = fullName
-    .trim()
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  const ext = originalFileName.split('.').pop()?.toLowerCase() || 'jpg';
-  const suffixStr = suffix ? `_${suffix.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
-  return `${cleanName || 'User'}${suffixStr}.${ext}`;
+  return buildStandardizedFileName({
+    role: 'student',
+    fullName,
+    originalFileName,
+    documentType: suffix
+  });
 }
 
 /**
- * Validates file type and file size for image & document uploads.
+ * Validates file format and file size for image & document uploads.
  */
 export function validateImageFile(file: File): UploadValidationResult {
   if (!file) {
@@ -117,7 +208,6 @@ export function validateImageFile(file: File): UploadValidationResult {
 
 /**
  * Generates an HMAC-SHA1 signature using the browser Web Crypto API.
- * ImageKit signature format: HMAC-SHA-1(token + expire, privateKey)
  */
 async function generateClientSignature(
   privateKey: string,
@@ -192,7 +282,7 @@ export async function uploadToImageKit(
   // 2. Prepare FormData
   const cleanFileName =
     options.fileName || `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  const folder = options.folder || '/uploads';
+  const folder = options.folder || '/students/student-profiles';
 
   const formData = new FormData();
   formData.append('file', file);
@@ -205,7 +295,6 @@ export async function uploadToImageKit(
   // 3. Attach authentication parameters (token, signature, expire)
   let authParams = await fetchImageKitAuthParams();
 
-  // If no backend endpoint is set, generate HMAC-SHA1 signature directly using privateKey
   if (!authParams && privateKey) {
     const token = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
