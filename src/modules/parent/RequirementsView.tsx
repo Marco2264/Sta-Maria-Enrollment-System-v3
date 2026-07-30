@@ -349,7 +349,7 @@ export function RequirementsView() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] font-sans">
+    <div className="flex flex-col h-full bg-[#F4F7F9] font-sans">
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────── */}
       <header className="px-6 py-7 bg-white border-b border-slate-200/80 shrink-0">
@@ -428,7 +428,7 @@ export function RequirementsView() {
             <>
               {/* ── REGISTRATION SUMMARY CARD ──────────────────────────── */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                <Card className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <Card className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
                   {/* Card top gradient accent */}
                   <div className="h-1 bg-gradient-to-r from-[#0038A8] via-blue-400 to-violet-500" />
 
@@ -579,7 +579,7 @@ export function RequirementsView() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.25, delay: idx * 0.06 }}
                         >
-                          <Card className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                          <Card className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 overflow-hidden">
                             {/* Status accent line */}
                             <div className={`h-1 ${
                               statusKey === 'APPROVED' ? 'bg-emerald-400' :

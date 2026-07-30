@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   Lock,
   UserCheck,
-  Bell
+  Bell,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
@@ -494,7 +495,7 @@ export function ParentDashboardView({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f8fafc] relative overflow-x-hidden text-slate-900 font-sans">
+    <div className="flex flex-col h-full bg-[#F4F7F9] relative overflow-x-hidden text-slate-900 font-sans">
       {/* ── 1. HEADER SECTION ── */}
       <header className="relative px-5 sm:px-8 py-6 bg-white border-b border-slate-100 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
@@ -530,21 +531,26 @@ export function ParentDashboardView({
         {/* ── ROW 1. SUMMARY STAT CARDS ── */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           {/* Card A: Registered Students */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Registered Students</p>
               <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
                 <Users className="w-4 h-4" />
               </div>
             </div>
-            <div>
-              <h3 className="text-3xl font-black text-slate-900 mb-0.5">{registeredStudentsCount}</h3>
-              <p className="text-xs text-slate-400 font-medium">Linked to your account</p>
+            <div className="flex items-baseline justify-between">
+              <div>
+                <h3 className="text-3xl font-black text-slate-900 mb-0.5">{registeredStudentsCount}</h3>
+                <p className="text-xs text-slate-400 font-medium">Linked to your account</p>
+              </div>
+              <span className="px-2 py-0.5 bg-blue-50 text-[#2563eb] text-[10px] font-extrabold rounded-full border border-blue-100">
+                Active
+              </span>
             </div>
           </div>
 
           {/* Card B: Pending Actions */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Actions</p>
               <div className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600 shrink-0 border border-rose-100">
@@ -560,7 +566,7 @@ export function ParentDashboardView({
           </div>
 
           {/* Card C: Average Grade */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Average Grade</p>
               <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
@@ -568,29 +574,50 @@ export function ParentDashboardView({
               </div>
             </div>
             <div>
-              <h3 className="text-3xl font-black text-slate-900 mb-0.5">
-                {children.length > 0 ? (
-                  (() => {
-                    const avgs = children.map(c => parseFloat(getStudentAverage(c))).filter(n => !isNaN(n));
-                    return avgs.length > 0 ? (avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(1) : 'N/A';
-                  })()
-                ) : 'N/A'}
-              </h3>
-              <p className="text-xs text-slate-400 font-medium">Across all children</p>
+              {(() => {
+                const avgs = children.map(c => parseFloat(getStudentAverage(c))).filter(n => !isNaN(n));
+                const hasGrade = avgs.length > 0;
+                const overallAvg = hasGrade ? (avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(1) : 'N/A';
+
+                return (
+                  <>
+                    <h3 className="text-3xl font-black text-slate-900 mb-0.5">{overallAvg}</h3>
+                    {hasGrade ? (
+                      <p className="text-xs text-slate-400 font-medium">Across all children</p>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5" title="Grades pending evaluation - available at end of Term 1">
+                        <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        Available at end of Term 1
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
           {/* Card D: Attendance Rate */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all space-y-3">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Attendance Rate</p>
               <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100">
                 <Calendar className="w-4 h-4" />
               </div>
             </div>
-            <div>
-              <h3 className="text-3xl font-black text-slate-900 mb-0.5">{attendanceRate}%</h3>
-              <p className="text-xs text-slate-400 font-medium">Across all children</p>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-3xl font-black text-slate-900 mb-0.5">{attendanceRate}%</h3>
+                <p className="text-xs text-slate-400 font-medium">Across all children</p>
+              </div>
+              <div className="relative w-11 h-11 shrink-0" title={`${attendanceRate}% Total Attendance`}>
+                <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                  <path className="text-slate-100 stroke-current" strokeWidth="3.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className="text-emerald-500 stroke-current transition-all duration-700" strokeDasharray={`${attendanceRate}, 100`} strokeWidth="3.5" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold text-emerald-600">
+                  {attendanceRate}%
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -599,7 +626,7 @@ export function ParentDashboardView({
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
           
           {/* 1. RECENT ACTIVITY CARD */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
+          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
             <div className="space-y-4">
               {/* Uniform Header Structure */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
@@ -619,7 +646,7 @@ export function ParentDashboardView({
               </div>
 
               {/* Scrollable Clean Timeline List (Max 5 items displayed by default) */}
-              <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 divide-y divide-slate-100 no-scrollbar">
+              <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 divide-y divide-slate-100 custom-scrollbar">
                 {recentUpdates.slice(0, 5).map((upd, idx) => (
                   <div key={upd.id} className={`pt-3 first:pt-0 flex items-start justify-between gap-3 group`}>
                     <div className="flex items-start gap-3 min-w-0">
@@ -649,7 +676,7 @@ export function ParentDashboardView({
           </div>
 
           {/* 2. SCHOOL ANNOUNCEMENTS CARD */}
-          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
+          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
             <div className="space-y-4">
               {/* Uniform Header Structure with Action Button on Top Right */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
@@ -674,7 +701,7 @@ export function ParentDashboardView({
               </div>
 
               {/* Scrollable Announcements List (Only 3 displayed by default) */}
-              <div className="max-h-[280px] overflow-y-auto pr-1 space-y-3 no-scrollbar">
+              <div className="max-h-[280px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                 {announcements.slice(0, 3).map((ann) => (
                   <div key={ann.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-1 transition-colors">
                     <div className="flex items-center justify-between text-[10px] font-bold">
@@ -694,7 +721,7 @@ export function ParentDashboardView({
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
           
           {/* 3. DOCUMENT STATUS CARD */}
-          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
+          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
             <div className="space-y-4">
               {/* Uniform Header Structure with Action Button on Top Right */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
@@ -723,7 +750,7 @@ export function ParentDashboardView({
               {documentTypesSummary.length === 0 ? (
                 <p className="text-xs font-medium text-slate-400 py-6 text-center">No documents submitted yet.</p>
               ) : (
-                <div className="max-h-[280px] overflow-y-auto pr-1 space-y-2.5 no-scrollbar">
+                <div className="max-h-[280px] overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
                   {documentTypesSummary.slice(0, 3).map((item) => (
                     <div key={item.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-colors">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -746,7 +773,7 @@ export function ParentDashboardView({
           </div>
 
           {/* 4. MY STUDENTS OVERVIEW CARD */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-sm transition-all">
+          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
             <div className="space-y-4">
               {/* Uniform Header Structure with Action Button on Top Right */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
@@ -777,7 +804,7 @@ export function ParentDashboardView({
                   <p>No registered students linked to your account.</p>
                 </div>
               ) : (
-                <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 no-scrollbar">
+                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                   {children.slice(0, 3).map((child) => {
                     const isApproved = child.status === 'Enrolled' || child.status === 'Approved';
                     const isPending = child.status === 'Pending';
@@ -803,9 +830,9 @@ export function ParentDashboardView({
 
                     return (
                       <div key={child.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5 transition-colors">
-                        {/* Top row: Avatar, Name, Grade & Badges */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                          <div className="flex items-center gap-3">
+                        {/* Top row: Avatar, Name, Grade & Badges with refined spacing */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
                             <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#2563eb] font-extrabold flex items-center justify-center text-xs border border-blue-200 shrink-0 overflow-hidden">
                               {child.photoURL ? (
                                 <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover" />
@@ -813,8 +840,8 @@ export function ParentDashboardView({
                                 <>{child.firstName?.[0]}{child.lastName?.[0]}</>
                               )}
                             </div>
-                            <div>
-                              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight uppercase">
+                            <div className="min-w-0">
+                              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight uppercase truncate">
                                 {child.firstName} {child.lastName}
                               </h4>
                               <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
@@ -823,25 +850,30 @@ export function ParentDashboardView({
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${regBadge.bg}`}>
+                          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0 sm:ml-auto">
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${regBadge.bg}`}>
                               {regBadge.label}
                             </span>
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${reqStatus.color}`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${reqStatus.color}`}>
                               Docs: {reqStatus.label}
                             </span>
                           </div>
                         </div>
 
-                        {/* Bottom Info row: Attendance & General Average */}
-                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/40 text-xs">
-                          <div className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-slate-100">
-                            <span className="text-slate-400 font-semibold text-[10px] uppercase">Attendance</span>
-                            <span className="font-extrabold text-slate-800 text-xs">{childAtt}</span>
+                        {/* Bottom Info row: Attendance & General Average with enhanced contrast labels */}
+                        <div className="grid grid-cols-2 gap-2.5 pt-1.5 border-t border-slate-200/40 text-xs">
+                          <div className="flex items-center justify-between bg-white px-3.5 py-2 rounded-xl border border-slate-200/60 shadow-2xs">
+                            <span className="text-slate-600 font-bold text-[10px] uppercase tracking-wider">Attendance</span>
+                            <span className="font-extrabold text-slate-900 text-xs">{childAtt}</span>
                           </div>
-                          <div className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-slate-100">
-                            <span className="text-slate-400 font-semibold text-[10px] uppercase">General Avg</span>
-                            <span className="font-extrabold text-slate-800 text-xs">{avgDisplay}</span>
+                          <div
+                            className="flex items-center justify-between bg-white px-3.5 py-2 rounded-xl border border-slate-200/60 shadow-2xs"
+                            title={rawAvg === 'N/A' ? 'Grades will be available at the end of Term 1' : `General Average: ${avgDisplay}`}
+                          >
+                            <span className="text-slate-600 font-bold text-[10px] uppercase tracking-wider">General Avg</span>
+                            <span className={`font-extrabold text-xs ${rawAvg === 'N/A' ? 'text-slate-500' : 'text-slate-900'}`}>
+                              {avgDisplay}
+                            </span>
                           </div>
                         </div>
                       </div>

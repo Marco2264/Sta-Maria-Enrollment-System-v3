@@ -649,7 +649,7 @@ export function ParentSettingsView() {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 w-full font-sans bg-[#f8fafc]">
+    <div className="h-full overflow-y-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 w-full font-sans bg-[#F4F7F9]">
       
       {/* ── NOTIFICATIONS ── */}
       {successMsg && (
@@ -666,7 +666,7 @@ export function ParentSettingsView() {
       )}
 
       {/* ── CARD 1: PERSONAL INFORMATION & PROFILE PHOTO UPLOAD ── */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
         
         {/* Header with Section Edit Button */}
         <div className="p-4 sm:p-6 md:p-8 border-b border-slate-100 flex items-center justify-between gap-3 sm:gap-4 bg-slate-50/50">
@@ -846,7 +846,7 @@ export function ParentSettingsView() {
       </div>
 
       {/* ── CARD 2: CONTACT INFORMATION ── */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
         <div className="p-4 sm:p-6 md:p-8 border-b border-slate-100 flex items-center justify-between gap-3 sm:gap-4 bg-slate-50/50">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <div className="w-9 h-9 sm:w-10 sm:h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 shrink-0">
@@ -1163,7 +1163,7 @@ export function ParentSettingsView() {
       </div>
 
       {/* ── CARD 4: ACCOUNT CREDENTIALS ── */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
         <div className="p-4 sm:p-6 md:p-8 border-b border-slate-100 flex items-center justify-between gap-3 sm:gap-4 bg-slate-50/50">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <div className="w-9 h-9 sm:w-10 sm:h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0">

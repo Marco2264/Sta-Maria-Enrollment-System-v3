@@ -228,7 +228,7 @@ function ParentPortalContent() {
   );
 
   return (
-    <div className="flex h-screen w-full bg-slate-50/50 overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-[#F4F7F9] overflow-hidden font-sans">
       <aside className="hidden lg:flex w-64 border-r border-slate-200/60 bg-white flex-col shrink-0">
         <SidebarContent />
       </aside>
@@ -252,7 +252,7 @@ function ParentPortalContent() {
           </div>
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-sm">{initials}</div>
         </header>
-        <div className="flex-1 overflow-y-auto bg-slate-50/50 flex flex-col">
+        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] flex flex-col">
           {renderActiveView()}
         </div>
       </main>

@@ -107,7 +107,7 @@ export function MyChildrenView({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#fcfcfd]">
+    <div className="flex flex-col h-full bg-[#F4F7F9]">
       {/* ── TOP HEADER BAR ── */}
       <header className="px-6 py-5 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
@@ -141,7 +141,7 @@ export function MyChildrenView({
       <div className="flex-1 overflow-y-auto p-6 sm:p-8">
         <div className="w-full space-y-6">
           {filteredChildren.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-12 text-center space-y-3">
               <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
                 <Users className="w-7 h-7" />
               </div>
@@ -153,7 +153,7 @@ export function MyChildrenView({
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>

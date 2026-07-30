@@ -10,7 +10,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     data-slot="card"
     data-size={size}
     className={cn(
-      'flex flex-col gap-4 overflow-hidden rounded-xl bg-card border border-border py-4 text-sm text-card-foreground data-[size=sm]:gap-3 data-[size=sm]:py-3',
+      'flex flex-col gap-4 overflow-hidden rounded-xl bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] py-4 text-sm text-card-foreground data-[size=sm]:gap-3 data-[size=sm]:py-3',
       className
     )}
     {...props} />
