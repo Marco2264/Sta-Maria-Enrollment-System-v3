@@ -150,7 +150,7 @@ export function DashboardView() {
     },
     {
       label: 'Active Classrooms',
-      value: classrooms.filter(c => c.status === 'Active').length.toString(),
+      value: classrooms.filter(c => c.status === 'Available').length.toString(),
       change: 'Updated just now',
       icon: Home,
       positive: true,

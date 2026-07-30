@@ -36,6 +36,7 @@ function AdminDashboardContent() {
   const navigate = useNavigate();
   const { setupComplete } = useAdminData();
   const { role, user, userData } = useAuth();
+  const uData = userData as { firstName?: string; lastName?: string; [key: string]: any } | null;
   const [activeView, setActiveView] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -80,8 +81,8 @@ function AdminDashboardContent() {
     }
   };
 
-  const initials = userData?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A';
-  const fullName = userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}` : 'Admin User';
+  const initials = uData?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A';
+  const fullName = uData?.firstName ? `${uData.firstName} ${uData.lastName || ''}` : 'Admin User';
   const displayRole = role || 'Admin';
 
   const SidebarContent = () => (

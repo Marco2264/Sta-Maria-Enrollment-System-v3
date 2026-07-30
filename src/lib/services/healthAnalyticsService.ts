@@ -169,7 +169,7 @@ export class HealthAnalyticsService {
         let height = 0;
         let weight = 0;
         let bmi = 0;
-        let status = '';
+        let status: HealthData['nutritionalStatus'] = 'Normal';
 
         let hfaStatus = d.medical?.heightForAge || 'Normal';
 

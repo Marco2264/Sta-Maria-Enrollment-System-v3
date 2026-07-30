@@ -215,7 +215,7 @@ function ParentPortalContent() {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 
   return (

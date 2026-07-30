@@ -58,6 +58,7 @@ export function ChildDetailView({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<any>(null);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
 
   if (!child) return null;
 

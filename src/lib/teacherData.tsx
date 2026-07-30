@@ -28,10 +28,31 @@ export type Student = {
   enrollmentDate?: string;
   grades?: Record<string, number>;
   observedValues?: Record<string, any>;
+  middleName?: string;
+  parentId?: string;
+  address?: {
+    street?: string;
+    barangay?: string;
+    city?: string;
+    province?: string;
+    zipCode?: string;
+  };
+  additional?: {
+    motherTongue?: string;
+    religion?: string;
+    isIndigenous?: boolean;
+    indigenousGroup?: string;
+    is4ps?: boolean;
+    learningMode?: string;
+  };
   medical?: {
     height: string;
     weight: string;
     [key: string]: string | boolean | string[] | undefined;
+  };
+  requirementUploads?: {
+    psaBirthCertificate?: { fileUrl?: string };
+    [key: string]: any;
   };
 };
 

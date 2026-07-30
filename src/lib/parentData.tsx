@@ -83,14 +83,18 @@ export type Child = {
     learningMode: 'Modular Print' | 'Digital' | 'Blended';
   };
   photoURL?: string;
-  status: 'Pending' | 'Enrolled' | 'Rejected';
+  status: 'Pending' | 'Enrolled' | 'Approved' | 'Rejected';
   requirements: 'Complete' | 'Incomplete' | string;
+  section?: string;
+  adviser?: string;
+  studentId?: string;
+  grades?: Record<string, number>;
   requirementUploads?: {
     psaBirthCertificate?: RequirementUploadMeta;
     [key: string]: RequirementUploadMeta | undefined;
   };
   schemaVersion?: number;
-  submittedAt: unknown;
+  submittedAt?: unknown;
   attendance: AttendanceRecord[];
 };
 type ParentContextType = {

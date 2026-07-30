@@ -508,14 +508,6 @@ export function RequirementsView() {
                 </Card>
               </motion.div>
 
-              {/* ── SYNC INFO BANNER ───────────────────────────────────── */}
-              <div className="p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-start gap-3">
-                <Info className="w-4 h-4 text-[#0038A8] shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-900 font-medium leading-relaxed">
-                  <strong className="font-bold">Auto-sync enabled.</strong> Any document you upload, replace, or delete here is automatically reflected in your learner's Student Registration Form and registration summary. There is only one copy of every document in the system.
-                </p>
-              </div>
-
               {/* ── DOCUMENT CARDS ─────────────────────────────────────── */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">

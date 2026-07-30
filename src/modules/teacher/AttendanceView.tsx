@@ -426,10 +426,11 @@ export function AttendanceView() {
     const st = localAttendance[s.id] || { am: 'Unmarked', pm: 'Unmarked' };
     const tabConfirmed = confirmed[s.id]?.[activeTab];
 
-    const rowColors = {
+    const rowColors: Record<string, string> = {
       Present: 'hover:bg-emerald-50/40',
       Absent: 'bg-rose-50/40 hover:bg-rose-50/60',
-      Late: 'bg-amber-50/40 hover:bg-amber-50/60'
+      Late: 'bg-amber-50/40 hover:bg-amber-50/60',
+      Unmarked: 'hover:bg-slate-50/60'
     };
     const avatarColors = {
       Present: 'bg-emerald-100 text-emerald-700 border-emerald-200',

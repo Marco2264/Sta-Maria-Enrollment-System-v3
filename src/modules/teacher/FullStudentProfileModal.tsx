@@ -12,9 +12,10 @@ import { Label } from '../../components/ui/Label';
 import { Badge } from '../../components/ui/Badge';
 import { User, MapPin, Activity, Info, Phone, Ruler, Scale } from 'lucide-react';
 import { Child } from '../../lib/parentData';
+import { Student } from '../../lib/teacherData';
 
 interface FullStudentProfileModalProps {
-  student: Child | null;
+  student: Child | Student | null;
   isOpen: boolean;
   onClose: () => void;
   onSaveBmi?: (id: string, height: string, weight: string) => void;
@@ -147,22 +148,22 @@ export function FullStudentProfileModal({
             </div>
             
             <div className="space-y-3">
-              {(student.medical?.hasDiagnosis || (student.medical?.diagnoses && student.medical.diagnoses.length > 0)) && (
+              {(student.medical?.hasDiagnosis || (Array.isArray(student.medical?.diagnoses) && student.medical.diagnoses.length > 0)) && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
                   <p className="text-amber-700 text-xs font-bold uppercase tracking-wider mb-1">Special Diagnoses</p>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {student.medical.diagnoses?.map((d, i) => (
+                    {Array.isArray(student.medical?.diagnoses) && student.medical.diagnoses.map((d: string, i: number) => (
                       <Badge key={i} variant="outline" className="bg-white border-amber-200 text-amber-800">{d}</Badge>
                     ))}
                   </div>
                 </div>
               )}
               
-              {(student.medical?.hasManifestations || (student.medical?.manifestations && student.medical.manifestations.length > 0)) && (
+              {(student.medical?.hasManifestations || (Array.isArray(student.medical?.manifestations) && student.medical.manifestations.length > 0)) && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
                   <p className="text-amber-700 text-xs font-bold uppercase tracking-wider mb-1">Manifestations</p>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {student.medical.manifestations?.map((m, i) => (
+                    {Array.isArray(student.medical?.manifestations) && student.medical.manifestations.map((m: string, i: number) => (
                       <Badge key={i} variant="outline" className="bg-white border-amber-200 text-amber-800">{m}</Badge>
                     ))}
                   </div>

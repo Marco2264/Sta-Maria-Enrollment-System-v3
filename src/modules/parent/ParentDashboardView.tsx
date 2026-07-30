@@ -32,7 +32,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { DOCUMENT_TYPES } from '../../lib/schema/phase2';
+import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
 
 interface AnnouncementItem {
   id: string;
@@ -172,7 +172,7 @@ export function ParentDashboardView({
   const getStudentRequirementStatus = (child: any) => {
     const classification = (child as any).studentClassification || (child.isReturning ? 'Transferee' : 'New Student');
     
-    let requiredTypes = [DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE];
+    let requiredTypes: DocumentType[] = [DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE];
     if (classification === 'Transferee') {
       requiredTypes = [
         DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE,
@@ -303,12 +303,13 @@ export function ParentDashboardView({
       // Attendance events
       if (c.attendance && c.attendance.length > 0) {
         const latestAtt = [...c.attendance].sort((a, b) => formatDate(b.date).localeCompare(formatDate(a.date)))[0];
-        const isPresent = latestAtt.status === 'Present' || latestAtt.status === 'Late';
+        const isPresent = latestAtt?.status === 'Present' || latestAtt?.status === 'Late';
         const formattedAttDate = formatDate(latestAtt.date);
+        const attStatusText = latestAtt?.status ? latestAtt.status.toLowerCase() : 'updated';
         updates.push({
           id: `att-${c.id}-${formattedAttDate}`,
           title: `Attendance Updated`,
-          subtitle: `Marked ${latestAtt.status.toLowerCase()} for ${c.firstName} ${c.lastName} on ${formattedAttDate}.`,
+          subtitle: `Marked ${attStatusText} for ${c.firstName} ${c.lastName} on ${formattedAttDate}.`,
           date: formattedAttDate,
           monthGroup: currentMonthLabel,
           type: 'attendance',
@@ -423,7 +424,7 @@ export function ParentDashboardView({
       const studentFullName = `${c.firstName || ''} ${c.lastName || ''}`.trim().toUpperCase() || 'LEARNER';
       const classification = (c as any).studentClassification || (c.isReturning ? 'Transferee' : 'New Student');
 
-      let requiredList = [
+      let requiredList: { key: DocumentType; name: string }[] = [
         { key: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, name: 'PSA Birth Certificate' }
       ];
 

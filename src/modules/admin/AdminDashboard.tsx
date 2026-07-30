@@ -38,6 +38,7 @@ function AdminDashboardContent() {
   const navigate = useNavigate();
   const { setupComplete } = useAdminData();
   const { role, user, userData } = useAuth();
+  const uData = userData as { firstName?: string; lastName?: string; [key: string]: any } | null;
   const [activeView, setActiveView] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -163,11 +164,11 @@ function AdminDashboardContent() {
           onClick={() => setShowUserMenu(!showUserMenu)}
         >
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs shrink-0">
-            {userData?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A'}
+            {uData?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A'}
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-bold truncate text-slate-900">
-              {userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}` : 'Admin User'}
+              {uData?.firstName ? `${uData.firstName} ${uData.lastName || ''}` : 'Admin User'}
             </p>
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground truncate">
               {user?.email || 'admin@school.edu'}
@@ -205,7 +206,7 @@ function AdminDashboardContent() {
             Admin Portal
           </div>
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
-            {userData?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A'}
+            {uData?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A'}
           </div>
         </header>
         <div className="flex-1 overflow-hidden flex flex-col">

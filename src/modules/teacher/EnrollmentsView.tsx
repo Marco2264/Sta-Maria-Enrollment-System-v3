@@ -211,7 +211,7 @@ export function EnrollmentsView() {
                             size="sm"
                             className="flex-1 rounded-xl h-10 text-xs font-bold border-blue-200 text-blue-600 hover:bg-blue-50/50 bg-blue-50/20 flex items-center justify-center gap-1.5"
                             onClick={() => {
-                              setPsaViewUrl(student.requirementUploads!.psaBirthCertificate!.fileUrl);
+                              setPsaViewUrl(student.requirementUploads!.psaBirthCertificate!.fileUrl || null);
                               setPsaViewName(`${student.lastName}_${student.firstName}_PSA_Birth_Certificate`);
                             }}
                           >

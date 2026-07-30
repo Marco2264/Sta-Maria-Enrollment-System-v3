@@ -16,6 +16,7 @@ import { TeacherEditStudentModal } from './TeacherEditStudentModal';
 import { Eye, Users, Activity, Scale, Ruler, Trash2, FileEdit, Search, Filter } from 'lucide-react';
 import { useTeacherData } from '../../lib/teacherData';
 import { doc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import { HealthAnalyticsService } from '../../lib/services/healthAnalyticsService';
 

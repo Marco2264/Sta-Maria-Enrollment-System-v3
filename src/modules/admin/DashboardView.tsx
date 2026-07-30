@@ -143,7 +143,7 @@ export function DashboardView() {
     },
     {
       label: 'Active Classrooms',
-      value: classrooms.filter(c => c.status === 'Active').length.toString(),
+      value: classrooms.filter(c => c.status === 'Available').length.toString(),
       change: 'live from firestore',
       icon: Home,
       positive: true,

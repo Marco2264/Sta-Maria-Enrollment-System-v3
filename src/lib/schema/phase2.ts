@@ -39,6 +39,7 @@ export type EnrollmentDocument = {
   sizeBytes: number;
   status: DocumentStatus;
   uploadedAt: unknown;
+  createdAt?: unknown;
   updatedAt: unknown;
   verifiedAt?: unknown;
   verifiedBy?: string;
