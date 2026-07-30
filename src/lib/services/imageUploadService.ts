@@ -22,6 +22,7 @@ export interface UploadValidationResult {
 export interface UploadOptions {
   folder?: string;
   fileName?: string;
+  useUniqueFileName?: boolean;
   onProgress?: (percent: number) => void;
 }
 
@@ -68,17 +69,19 @@ export function buildImageKitFolder(params: {
 }
 
 /**
- * Builds a clean file name incorporating the user's actual name and timestamp.
- * Example: Francis_R_Minoz_PSA_BIRTH_CERTIFICATE_1785382000.pdf
+ * Builds a clean file name incorporating the user's actual name.
+ * Examples:
+ *   Student Profile: Francis_R_Minoz.jpg
+ *   PSA Document:    Francis_R_Minoz_PSA_BIRTH_CERTIFICATE.pdf
  */
-export function buildImageKitFileName(fullName: string, originalFileName: string, prefix?: string): string {
+export function buildImageKitFileName(fullName: string, originalFileName: string, suffix?: string): string {
   const cleanName = fullName
     .trim()
     .replace(/[^a-zA-Z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'jpg';
-  const prefixStr = prefix ? `${prefix.replace(/[^a-zA-Z0-9]/g, '_')}_` : '';
-  return `${prefixStr}${cleanName || 'User'}_${Date.now()}.${ext}`;
+  const suffixStr = suffix ? `_${suffix.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+  return `${cleanName || 'User'}${suffixStr}.${ext}`;
 }
 
 /**
@@ -196,7 +199,8 @@ export async function uploadToImageKit(
   formData.append('fileName', cleanFileName);
   formData.append('publicKey', publicKey);
   formData.append('folder', folder);
-  formData.append('useUniqueFileName', 'true');
+  const useUnique = options.useUniqueFileName !== undefined ? String(options.useUniqueFileName) : 'false';
+  formData.append('useUniqueFileName', useUnique);
 
   // 3. Attach authentication parameters (token, signature, expire)
   let authParams = await fetchImageKitAuthParams();

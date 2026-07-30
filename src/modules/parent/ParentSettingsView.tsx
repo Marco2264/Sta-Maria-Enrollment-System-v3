@@ -4,6 +4,7 @@ import { db, auth } from '../../lib/firebase';
 import { ImageUpload } from '../../components/ui/ImageUpload';
 import { sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
+import { uploadToImageKit, buildImageKitFolder, buildImageKitFileName } from '../../lib/services/imageUploadService';
 import { Input } from '../../components/ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import {
@@ -455,13 +456,24 @@ export function ParentSettingsView() {
 
     setSavingSection('personal');
     try {
+      let finalPhotoUrl = photoURL;
+      if (photoFile) {
+        const folder = buildImageKitFolder({ role: 'parent' });
+        const fileName = buildImageKitFileName(`${formData.firstName} ${formData.lastName}`, photoFile.name);
+        finalPhotoUrl = await uploadToImageKit(photoFile, {
+          folder,
+          fileName,
+          useUniqueFileName: false
+        });
+      }
+
       await updateDoc(doc(db, 'users', user.uid), {
         firstName: formData.firstName.trim(),
         middleName: formData.middleName.trim(),
         lastName: formData.lastName.trim(),
         suffix: formData.suffix,
         relationship: formData.relationship,
-        photoURL: photoURL,
+        photoURL: finalPhotoUrl,
         updatedAt: new Date().toISOString()
       });
       setSuccessMsg('Personal Information updated successfully!');

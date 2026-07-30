@@ -31,6 +31,11 @@ import {
   uploadToCloudinary,
   validateRequirementUpload
 } from './services/enrollmentDocumentsService';
+import {
+  uploadToImageKit,
+  buildImageKitFolder,
+  buildImageKitFileName
+} from './services/imageUploadService';
 
 export type AttendanceRecord = {
   date: string;
@@ -356,20 +361,32 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
   }) => {
     if (!user) return;
 
-    let sName = params.studentName;
-    let gLevel = params.gradeLevel;
-
-    if (!sName || !gLevel) {
-      const child = children.find((c) => c.id === params.enrollmentId);
-      if (!child) throw new Error('Student enrollment not found.');
-      sName = `${child.firstName} ${child.lastName}`;
-      gLevel = child.gradeLevel;
-    }
+    const child = children.find((c) => c.id === params.enrollmentId);
+    const sName = params.studentName || (child ? `${child.firstName} ${child.lastName}` : 'Student');
+    const gLevel = params.gradeLevel || child?.gradeLevel || 'Level';
+    const section = child?.section || 'General';
 
     const validationError = validateRequirementUpload(params.file);
     if (validationError) throw new Error(validationError);
 
-    const fileUrl = await uploadToCloudinary(params.file);
+    // Build structured ImageKit folder path and clean filename
+    const folder = buildImageKitFolder({
+      role: 'student',
+      gradeLevel: gLevel,
+      section,
+      category: 'documents',
+      documentType: params.documentType
+    });
+
+    const fileName = buildImageKitFileName(sName, params.file.name, params.documentType);
+
+    // Upload to ImageKit with automatic replacement (useUniqueFileName: false)
+    const fileUrl = await uploadToImageKit(params.file, {
+      folder,
+      fileName,
+      useUniqueFileName: false
+    });
+
     const requirementKey = documentTypeToRequirementKey(params.documentType);
 
     const documentId = await addEnrollmentDocumentRecord({
@@ -391,6 +408,7 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
         documentId,
         documentType: params.documentType,
         fileName: params.file.name,
+        fileUrl,
         status: DOCUMENT_STATUS.PENDING,
         uploadedAt: serverTimestamp()
       }
