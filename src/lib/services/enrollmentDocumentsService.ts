@@ -224,37 +224,57 @@ export async function deleteRequirementDocument(params: {
   docRecordId?: string;
 }): Promise<void> {
   const { enrollmentId, documentType, docRecordId } = params;
+  const reqKey = documentTypeToRequirementKey(documentType);
 
+  let deletedAny = false;
+
+  // 1. Delete specific document record from enrollment_documents collection if valid ID exists
   if (docRecordId && docRecordId.trim()) {
     try {
       await deleteDoc(doc(db, ENROLLMENT_DOCUMENTS_COLLECTION, docRecordId));
+      deletedAny = true;
     } catch (err) {
-      console.warn('[enrollmentDocumentsService] Failed to delete by docRecordId:', err);
+      console.warn('[enrollmentDocumentsService] Error deleting document by ID:', err);
     }
   }
 
+  // 2. Query and delete ALL matching document records in enrollment_documents collection
   if (enrollmentId) {
     try {
       const q = query(
         collection(db, ENROLLMENT_DOCUMENTS_COLLECTION),
-        where('enrollmentId', '==', enrollmentId),
-        where('documentType', '==', documentType)
+        where('enrollmentId', '==', enrollmentId)
       );
       const snap = await getDocs(q);
-      const deletePromises = snap.docs.map((d) => deleteDoc(d.ref));
-      await Promise.all(deletePromises);
+      const matchingDocs = snap.docs.filter((d) => {
+        const data = d.data();
+        return data.documentType === documentType || data.documentType === reqKey;
+      });
+
+      for (const d of matchingDocs) {
+        await deleteDoc(d.ref);
+        deletedAny = true;
+      }
     } catch (err) {
-      console.warn('[enrollmentDocumentsService] Failed to delete matching docType records:', err);
+      console.warn('[enrollmentDocumentsService] Error querying enrollment_documents collection:', err);
     }
 
-    const reqKey = documentTypeToRequirementKey(documentType);
+    // 3. Clear requirementUploads reference from enrollments document in Firestore
     try {
       await updateDoc(doc(db, 'enrollments', enrollmentId), {
-        [`requirementUploads.${reqKey}`]: deleteField()
+        [`requirementUploads.${reqKey}`]: deleteField(),
+        [`requirementUploads.${documentType}`]: deleteField(),
+        [`requirementUploads.${documentType.toLowerCase()}`]: deleteField()
       });
+      deletedAny = true;
     } catch (err) {
-      console.warn('[enrollmentDocumentsService] Failed to clear requirementUploads on enrollment:', err);
+      console.error('[enrollmentDocumentsService] Error updating requirementUploads on enrollment:', err);
+      throw new Error('Failed to update student enrollment document in Firestore.');
     }
+  }
+
+  if (!deletedAny) {
+    console.warn('[enrollmentDocumentsService] No matching document records found to delete.');
   }
 }
 
