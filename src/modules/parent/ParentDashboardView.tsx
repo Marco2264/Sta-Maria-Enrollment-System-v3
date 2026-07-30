@@ -806,8 +806,12 @@ export function ParentDashboardView({
                         {/* Top row: Avatar, Name, Grade & Badges */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#2563eb] font-extrabold flex items-center justify-center text-xs border border-blue-200 shrink-0">
-                              {child.firstName?.[0]}{child.lastName?.[0]}
+                            <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#2563eb] font-extrabold flex items-center justify-center text-xs border border-blue-200 shrink-0 overflow-hidden">
+                              {child.photoURL ? (
+                                <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover" />
+                              ) : (
+                                <>{child.firstName?.[0]}{child.lastName?.[0]}</>
+                              )}
                             </div>
                             <div>
                               <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight uppercase">

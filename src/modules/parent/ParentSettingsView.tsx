@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { db, auth } from '../../lib/firebase';
+import { ImageUpload } from '../../components/ui/ImageUpload';
 import { sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Input } from '../../components/ui/Input';
@@ -64,8 +65,27 @@ export interface AddressItem {
 }
 
 export function ParentSettingsView() {
-  const { user, userData } = useAuth();
+  const { user, userData, updateUserData } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImageKitUploaded = async (url: string) => {
+    setPhotoURL(url);
+    if (user?.uid) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          photoURL: url,
+          updatedAt: new Date().toISOString()
+        });
+        if (updateUserData) {
+          updateUserData({ photoURL: url });
+        }
+        setSuccessMsg('Profile photo updated successfully!');
+      } catch (err: any) {
+        console.error('Failed to update photo URL in Firestore:', err);
+        setErrorMsg('Photo uploaded to ImageKit, but failed to save to database.');
+      }
+    }
+  };
 
   // Section Editing Flags
   const [editPersonal, setEditPersonal] = useState(false);
@@ -707,106 +727,16 @@ export function ParentSettingsView() {
               <p className="text-sm font-bold text-slate-900">Upload Profile Photo</p>
               <p className="text-[11px] text-slate-400 font-medium">Choose a photo that represents you.</p>
               
-              {/* Upload Circle Avatar with Dynamic Progress Ring & Percentage Badge */}
-              <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-inner relative z-0">
-                  {photoURL ? (
-                    <img src={photoURL} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-9 h-9 sm:w-10 sm:h-10 text-slate-300" />
-                  )}
-                </div>
-
-                {isUploadingPhoto && (
-                  <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none z-10 animate-in fade-in-50 duration-200" viewBox="0 0 120 120">
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="54"
-                      className="stroke-blue-100"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="54"
-                      className="stroke-[#0C3B99] transition-all duration-300 ease-out"
-                      strokeWidth="4"
-                      strokeDasharray={339.29}
-                      strokeDashoffset={339.29 - (uploadProgress / 100) * 339.29}
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                  </svg>
-                )}
-
-                {isUploadingPhoto && (
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-white/95 border border-blue-200/80 shadow-xs rounded-full text-[10px] font-black text-[#0C3B99] z-20 backdrop-blur-xs tracking-wide animate-in fade-in-50">
-                    {uploadProgress}%
-                  </div>
-                )}
-              </div>
-
-              {/* File Info Card */}
-              <div className="w-full bg-white border border-slate-100 rounded-xl p-3 flex items-center gap-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-50 rounded-lg flex items-center justify-center shrink-0 text-blue-600">
-                  <ImageIcon className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="text-left overflow-hidden flex-1">
-                  <p className="text-[11px] font-bold text-slate-700 truncate">
-                    {photoFileInfo ? photoFileInfo.name : (photoURL ? 'profile-photo.jpg' : 'Add Image')}
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-medium truncate">
-                    {photoFileInfo ? `${photoFileInfo.size} • ${photoFileInfo.type}` : (photoURL ? 'Loaded Profile Photo' : 'No photo selected')}
-                  </p>
-                </div>
-              </div>
-
-              {/* Hidden File Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png, image/jpeg, image/jpg, image/webp, image/gif"
-                onChange={handleFileSelect}
-                className="hidden"
-                disabled={!editPersonal}
+              <ImageUpload
+                currentImageUrl={photoURL}
+                onImageUploaded={handleImageKitUploaded}
+                folder="/parent_profiles"
+                name={`${formData.firstName} ${formData.lastName}`}
+                shape="circle"
+                size={120}
               />
 
-              {/* Action Buttons */}
-              <div className="w-full grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={!editPersonal}
-                  onClick={() => {
-                    if (!editPersonal) return;
-                    if (photoFile) {
-                      setSuccessMsg('Profile photo confirmed! Click "Save" to save your profile.');
-                    } else {
-                      fileInputRef.current?.click();
-                    }
-                  }}
-                  className={`px-3 sm:px-4 py-2 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 min-h-[38px] ${
-                    !editPersonal ? 'bg-slate-300 cursor-not-allowed' : 'bg-[#0C3B99] hover:bg-blue-800'
-                  }`}
-                >
-                  {photoFile ? 'Confirm' : 'Select Image'}
-                </button>
-                <button
-                  type="button"
-                  disabled={!editPersonal}
-                  onClick={handleCancelPhoto}
-                  className={`px-3 sm:px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all min-h-[38px] ${
-                    !editPersonal ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  Cancel
-                </button>
-              </div>
 
-              <p className="text-[9px] font-bold text-slate-400 tracking-wider uppercase">
-                JPG, PNG, WEBP UP TO 5MB
-              </p>
             </div>
           </div>
 

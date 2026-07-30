@@ -228,13 +228,13 @@ export class AnalyticsService {
 
       snapshot.forEach(doc => {
         const data = doc.data();
+        totalStudents++;
+        
+        const gender = (data.gender || '').toString().toLowerCase();
+        if (gender.startsWith('f')) totalFemale++;
+        else totalMale++;
         
         if (data.additional) {
-          totalStudents++;
-          
-          const gender = data.gender || 'Male';
-          if (gender === 'Male') totalMale++;
-          else if (gender === 'Female') totalFemale++;
           
           if (data.additional.isIndigenous) {
             totalIp++;

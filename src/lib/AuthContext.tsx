@@ -8,6 +8,7 @@ interface AuthContextType {
   role: 'admin' | 'subadmin' | 'teacher' | 'parent' | null;
   userData: Record<string, unknown> | null;
   loading: boolean;
+  updateUserData?: (updates: Record<string, unknown>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   userData: null,
   loading: true,
+  updateUserData: () => {}
 });
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -25,6 +27,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<'admin' | 'subadmin' | 'teacher' | 'parent' | null>(null);
   const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const updateUserData = (updates: Record<string, unknown>) => {
+    setUserData((prev) => (prev ? { ...prev, ...updates } : updates));
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -58,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, role, userData, loading }}>
+    <AuthContext.Provider value={{ user, role, userData, loading, updateUserData }}>
       {!loading && children}
     </AuthContext.Provider>
   );

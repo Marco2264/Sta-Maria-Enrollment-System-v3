@@ -39,8 +39,9 @@ import {
 } from 'lucide-react';
 import { useParentData } from '../../lib/parentData';
 import { DOCUMENT_TYPES, DOCUMENT_STATUS, DocumentType, EnrollmentDocument } from '../../lib/schema/phase2';
+import { documentTypeToRequirementKey, deleteRequirementDocument } from '../../lib/services/enrollmentDocumentsService';
 import { db } from '../../lib/firebase';
-import { doc, deleteDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, deleteField, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 
 // ─── Status Config ───────────────────────────────────────────────────────────
 
@@ -176,14 +177,20 @@ export function RequirementsView() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
 
+  // Staged files selected for confirmation per document type
+  const [stagedFiles, setStagedFiles] = useState<Record<string, File>>({});
+  // Optimistic tracking for instant document deletion from UI
+  const [deletedDocTypes, setDeletedDocTypes] = useState<Record<string, boolean>>({});
+
   // Preview modal
   const [previewDoc, setPreviewDoc] = useState<{ title: string; url: string; isPdf: boolean } | null>(null);
 
-  // Upload history panel toggle per doc
-  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
-  // History records per doc type (loaded from Firestore on expand)
-  const [historyData, setHistoryData] = useState<Record<string, HistoryEntry[]>>({});
-  const [historyLoading, setHistoryLoading] = useState<Record<string, boolean>>({});
+  // Warning modal for document deletion confirmation
+  const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<{
+    docRecordId?: string;
+    docType: string;
+    docName: string;
+  } | null>(null);
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -224,9 +231,13 @@ export function RequirementsView() {
   }, [classification]);
 
   // Summary stats
-  const uploadedCount = requiredDocList.filter(req =>
-    childDocuments.some(d => d.documentType === req.key)
-  ).length;
+  const uploadedCount = requiredDocList.filter(req => {
+    const deleteKey = `${selectedEnrollmentId}_${req.key}`;
+    if (deletedDocTypes[deleteKey]) return false;
+    const reqKey = documentTypeToRequirementKey(req.key as DocumentType);
+    const reqMeta = (selectedChild as any)?.requirementUploads?.[reqKey];
+    return childDocuments.some(d => d.documentType === req.key) || !!reqMeta;
+  }).length;
 
   const getCleanName = (child: any) => {
     if (!child) return 'Learner';
@@ -239,6 +250,13 @@ export function RequirementsView() {
     setUploadError(null);
     setSuccessMsg(null);
     setUploadingDocType(docType);
+
+    // Clear deleted state if re-uploading
+    setDeletedDocTypes(prev => {
+      const next = { ...prev };
+      delete next[`${selectedEnrollmentId}_${docType}`];
+      return next;
+    });
 
     // Fake progress simulation (real upload is async)
     let prog = 0;
@@ -257,8 +275,8 @@ export function RequirementsView() {
       setTimeout(() => setUploadProgress(p => { const n = { ...p }; delete n[docType]; return n; }), 1200);
       setSuccessMsg(`"${file.name}" uploaded successfully and is now synchronized with registration.`);
       setTimeout(() => setSuccessMsg(null), 5000);
-      // Reload history if expanded
-      if (expandedHistory[docType]) loadHistory(docType);
+      // Clear staged file after successful upload
+      setStagedFiles(prev => { const n = { ...prev }; delete n[docType]; return n; });
     } catch (err: any) {
       clearInterval(interval);
       setUploadProgress(p => { const n = { ...p }; delete n[docType]; return n; });
@@ -272,46 +290,46 @@ export function RequirementsView() {
   };
 
   // ─── Delete Handler ─────────────────────────────────────────────────────────
-  const handleDelete = async (docRecordId: string, docType: string, docName: string) => {
+  const handleDelete = async (docRecordId: string | undefined, docType: string, docName: string) => {
+    const isEnrolled = selectedChild?.status === 'Enrolled' || selectedChild?.status === 'Approved';
+    if (isEnrolled) {
+      setUploadError('Documents cannot be deleted once the student is officially enrolled.');
+      return;
+    }
+
+    if (!selectedEnrollmentId) return;
+
+    // Optimistic UI update: instantly hide the document from the card
+    const deleteKey = `${selectedEnrollmentId}_${docType}`;
+    setDeletedDocTypes(prev => ({ ...prev, [deleteKey]: true }));
+    setStagedFiles(prev => {
+      const next = { ...prev };
+      delete next[docType];
+      return next;
+    });
+
     setUploadError(null);
     setSuccessMsg(null);
+
     try {
-      await deleteDoc(doc(db, 'enrollment_documents', docRecordId));
+      await deleteRequirementDocument({
+        enrollmentId: selectedEnrollmentId,
+        documentType: docType as DocumentType,
+        docRecordId
+      });
+
       setSuccessMsg(`"${docName}" deleted successfully.`);
       setTimeout(() => setSuccessMsg(null), 4000);
-    } catch {
-      setUploadError('Failed to delete document. Please try again.');
+    } catch (err: any) {
+      console.error('Delete document error:', err);
+      // Revert optimistic delete on error
+      setDeletedDocTypes(prev => {
+        const next = { ...prev };
+        delete next[deleteKey];
+        return next;
+      });
+      setUploadError(err?.message || 'Failed to delete document. Please try again.');
     }
-  };
-
-  // ─── History Loader ─────────────────────────────────────────────────────────
-  const loadHistory = useCallback(async (docType: string) => {
-    if (!selectedEnrollmentId) return;
-    setHistoryLoading(h => ({ ...h, [docType]: true }));
-    try {
-      const q = query(
-        collection(db, 'enrollment_documents'),
-        where('enrollmentId', '==', selectedEnrollmentId),
-        where('documentType', '==', docType),
-        orderBy('uploadedAt', 'desc')
-      );
-      const snap = await getDocs(q);
-      const entries: HistoryEntry[] = snap.docs.map(d => ({
-        id: d.id,
-        ...(d.data() as any)
-      }));
-      setHistoryData(h => ({ ...h, [docType]: entries }));
-    } catch {
-      setHistoryData(h => ({ ...h, [docType]: [] }));
-    } finally {
-      setHistoryLoading(h => ({ ...h, [docType]: false }));
-    }
-  }, [selectedEnrollmentId]);
-
-  const toggleHistory = (docType: string) => {
-    const willOpen = !expandedHistory[docType];
-    setExpandedHistory(e => ({ ...e, [docType]: willOpen }));
-    if (willOpen && !historyData[docType]) loadHistory(docType);
   };
 
   // ─── Preview Handler ────────────────────────────────────────────────────────
@@ -531,13 +549,27 @@ export function RequirementsView() {
                 ) : (
                   <div className="space-y-4">
                     {requiredDocList.map((req, idx) => {
-                      const docRecord = childDocuments.find(d => d.documentType === req.key);
+                      const deleteKey = `${selectedEnrollmentId}_${req.key}`;
+                      const isDeletedLocally = deletedDocTypes[deleteKey];
+                      const reqKey = documentTypeToRequirementKey(req.key as DocumentType);
+                      const reqMeta = (selectedChild as any)?.requirementUploads?.[reqKey];
+
+                      const docRecord = isDeletedLocally ? undefined : (childDocuments.find(d => d.documentType === req.key) || (reqMeta ? {
+                        id: reqMeta.documentId || '',
+                        enrollmentId: selectedEnrollmentId,
+                        documentType: req.key as DocumentType,
+                        fileName: reqMeta.fileName || req.title,
+                        fileUrl: reqMeta.fileUrl || '',
+                        mimeType: reqMeta.mimeType || 'application/pdf',
+                        sizeBytes: reqMeta.sizeBytes || 0,
+                        status: reqMeta.status || 'PENDING'
+                      } as EnrollmentDocument : undefined));
+
                       const statusKey: StatusKey = docRecord
                         ? (docRecord.status as StatusKey) ?? 'PENDING'
                         : 'NOT_UPLOADED';
                       const isUploading = uploadingDocType === req.key;
                       const progress = uploadProgress[req.key] ?? 0;
-                      const isHistoryOpen = expandedHistory[req.key] ?? false;
                       const docRec = docRecord as (EnrollmentDocument & { rejectionReason?: string }) | undefined;
 
                       return (
@@ -607,9 +639,9 @@ export function RequirementsView() {
                                 </div>
                               )}
 
-                              {/* ── Action Buttons ── */}
+                              {/* ── Action Buttons & Two-Step Confirmation ── */}
                               {!isUploading && (
-                                <div className="flex items-center gap-2 flex-wrap">
+                                <div className="space-y-3">
                                   {/* Hidden file input */}
                                   <input
                                     type="file"
@@ -618,129 +650,128 @@ export function RequirementsView() {
                                     className="hidden"
                                     onChange={e => {
                                       const file = e.target.files?.[0];
-                                      if (file) handleUpload(req.key as DocumentType, file);
+                                      if (file) {
+                                        if (file.size > 10 * 1024 * 1024) {
+                                          setUploadError('File size exceeds 10MB limit. Please choose a smaller file.');
+                                          return;
+                                        }
+                                        setUploadError(null);
+                                        setStagedFiles(prev => ({ ...prev, [req.key]: file }));
+                                      }
                                     }}
                                   />
 
-                                  {!docRec ? (
+                                  {/* Staged File Confirmation Bar */}
+                                  {stagedFiles[req.key] ? (
+                                    <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-in fade-in-50">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                                          <FileText className="w-5 h-5 text-[#0038A8]" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="text-xs font-bold text-slate-900 truncate">
+                                            {stagedFiles[req.key].name}
+                                          </p>
+                                          <p className="text-[11px] text-slate-500 font-medium">
+                                            Selected for upload ({formatBytes(stagedFiles[req.key].size)})
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const fileToUpload = stagedFiles[req.key];
+                                            if (fileToUpload) {
+                                              handleUpload(req.key as DocumentType, fileToUpload);
+                                            }
+                                          }}
+                                          className="px-4 py-2 bg-[#0038A8] hover:bg-[#002d86] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                        >
+                                          <Upload className="w-3.5 h-3.5" /> Confirm Upload
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setStagedFiles(prev => {
+                                              const next = { ...prev };
+                                              delete next[req.key];
+                                              return next;
+                                            });
+                                            if (fileInputRefs.current[req.key]) {
+                                              fileInputRefs.current[req.key]!.value = '';
+                                            }
+                                          }}
+                                          className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : !docRec ? (
                                     <button
                                       type="button"
                                       onClick={() => fileInputRefs.current[req.key]?.click()}
-                                      className="px-4 py-2 bg-[#0038A8] hover:bg-[#002d86] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                                      className="px-4 py-2 bg-[#0038A8] hover:bg-[#002d86] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
                                     >
-                                      <Upload className="w-3.5 h-3.5" /> Upload Document
+                                      <Upload className="w-3.5 h-3.5" /> Select Document
                                     </button>
                                   ) : (
-                                    <>
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <button
                                         type="button"
                                         onClick={() => openPreview(req.title, docRec.fileUrl, docRec.mimeType)}
-                                        className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-[#0038A8] border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                                       >
-                                        <Eye className="w-3.5 h-3.5 text-[#0038A8]" /> View
+                                        <Eye className="w-3.5 h-3.5 text-[#0038A8]" /> View Document
                                       </button>
 
                                       <button
                                         type="button"
                                         onClick={() => fileInputRefs.current[req.key]?.click()}
-                                        className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                        className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                                       >
-                                        <RefreshCw className="w-3.5 h-3.5 text-amber-500" /> Replace
+                                        <RefreshCw className="w-3.5 h-3.5 text-amber-600" /> Replace Document
                                       </button>
 
                                       <button
                                         type="button"
                                         onClick={() => window.open(docRec.fileUrl, '_blank')}
-                                        className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                        className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                                       >
                                         <Download className="w-3.5 h-3.5 text-violet-500" /> Download
                                       </button>
 
-                                      {statusKey !== 'APPROVED' && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDelete(docRec.id, req.key, req.title)}
-                                          className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                                        </button>
-                                      )}
-                                    </>
+                                      {(() => {
+                                        const isEnrolled = selectedChild?.status === 'Enrolled' || selectedChild?.status === 'Approved';
+                                        return (
+                                          <button
+                                            type="button"
+                                            disabled={isEnrolled}
+                                            onClick={() => {
+                                              if (isEnrolled) return;
+                                              setDeleteConfirmDoc({
+                                                docRecordId: docRec.id,
+                                                docType: req.key,
+                                                docName: req.title
+                                              });
+                                            }}
+                                            title={isEnrolled ? "Cannot delete documents after official enrollment" : "Delete document"}
+                                            className={`px-3.5 py-2 border rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                              isEnrolled
+                                                ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
+                                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 cursor-pointer shadow-xs'
+                                            }`}
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                                          </button>
+                                        );
+                                      })()}
+                                    </div>
                                   )}
                                 </div>
                               )}
-
-                              {/* ── Upload History Collapsible ── */}
-                              <div className="border-t border-slate-100 pt-3">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleHistory(req.key)}
-                                  className="flex items-center gap-1.5 text-[11px] font-bold text-[#64748B] hover:text-[#0038A8] transition-colors"
-                                >
-                                  <History className="w-3.5 h-3.5" />
-                                  Upload History
-                                  {isHistoryOpen
-                                    ? <ChevronUp className="w-3.5 h-3.5" />
-                                    : <ChevronDown className="w-3.5 h-3.5" />
-                                  }
-                                </button>
-
-                                <AnimatePresence>
-                                  {isHistoryOpen && (
-                                    <motion.div
-                                      initial={{ height: 0, opacity: 0 }}
-                                      animate={{ height: 'auto', opacity: 1 }}
-                                      exit={{ height: 0, opacity: 0 }}
-                                      transition={{ duration: 0.2 }}
-                                      className="overflow-hidden"
-                                    >
-                                      <div className="pt-3 space-y-2">
-                                        {historyLoading[req.key] ? (
-                                          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading history...
-                                          </div>
-                                        ) : (historyData[req.key]?.length ?? 0) === 0 ? (
-                                          <p className="text-[11px] text-slate-400 font-medium italic">
-                                            No upload history available for this document.
-                                          </p>
-                                        ) : (
-                                          historyData[req.key].map((entry, vi) => {
-                                            const eStatus = (entry.status as StatusKey) ?? 'PENDING';
-                                            const eCfg = STATUS_CONFIG[eStatus];
-                                            return (
-                                              <div key={entry.id} className="flex items-start justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px]">
-                                                <div className="flex items-start gap-2 min-w-0">
-                                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${eCfg.bg} border ${eCfg.border}`}>
-                                                    <span className={`text-[9px] font-black ${eCfg.text}`}>{vi + 1}</span>
-                                                  </div>
-                                                  <div className="min-w-0">
-                                                    <p className="font-bold text-[#1E293B] truncate">{entry.fileName}</p>
-                                                    <p className="text-[#64748B] font-medium">{formatUploadDate(entry.uploadedAt)}</p>
-                                                    {entry.rejectionReason && (
-                                                      <p className="text-rose-600 font-medium mt-0.5">Reason: {entry.rejectionReason}</p>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                  <span className={`px-2 py-1 rounded-full font-bold border ${eCfg.bg} ${eCfg.text} ${eCfg.border}`}>
-                                                    {eCfg.label}
-                                                  </span>
-                                                  <button
-                                                    onClick={() => openPreview(req.title, entry.fileUrl, entry.mimeType)}
-                                                    className="text-[#0038A8] hover:underline font-bold flex items-center gap-0.5"
-                                                  >
-                                                    <Eye className="w-3 h-3" /> View
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            );
-                                          })
-                                        )}
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
                             </div>
                           </Card>
                         </motion.div>
@@ -829,6 +860,62 @@ export function RequirementsView() {
                   className="px-5 py-2 bg-[#0038A8] hover:bg-[#002d86] text-white font-bold rounded-xl text-xs transition-colors"
                 >
                   Close Preview
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── DELETE WARNING CONFIRMATION MODAL ────────────────────────────── */}
+      <AnimatePresence>
+        {deleteConfirmDoc && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+            onClick={() => setDeleteConfirmDoc(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 space-y-5 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-14 h-14 bg-rose-100/80 rounded-2xl flex items-center justify-center mx-auto text-rose-600">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                  Delete Requirement Document?
+                </h3>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  Are you sure you want to delete <span className="font-bold text-slate-900">"{deleteConfirmDoc.docName}"</span>? This document will be permanently removed and you will need to re-upload it to complete verification.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmDoc(null)}
+                  className="flex-1 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const { docRecordId, docType, docName } = deleteConfirmDoc;
+                    setDeleteConfirmDoc(null);
+                    handleDelete(docRecordId, docType, docName);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Document</span>
                 </button>
               </div>
             </motion.div>

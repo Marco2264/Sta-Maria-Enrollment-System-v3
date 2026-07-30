@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { useParentData } from '../../lib/parentData';
 import { uploadToCloudinary } from '../../lib/services/enrollmentDocumentsService';
+import { uploadToImageKit, buildImageKitFolder, buildImageKitFileName } from '../../lib/services/imageUploadService';
 
 export function ChildDetailView({
   childId,
@@ -169,15 +170,25 @@ export function ChildDetailView({
     try {
       let photoUrl = '';
       try {
-        photoUrl = await uploadToCloudinary(file);
-      } catch (cloudErr) {
-        console.warn('Cloudinary upload failed, converting to local data URL:', cloudErr);
-        photoUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
+        const folder = buildImageKitFolder({
+          role: 'student',
+          gradeLevel: child.gradeLevel,
+          section: child.section,
+          category: 'profiles'
         });
+        const fileName = buildImageKitFileName(
+          `${child.firstName} ${child.lastName}`,
+          file.name,
+          'profile'
+        );
+
+        photoUrl = await uploadToImageKit(file, {
+          folder,
+          fileName
+        });
+      } catch (cloudErr: any) {
+        console.error('ImageKit upload failed:', cloudErr);
+        throw new Error(cloudErr?.message || 'Failed to upload student photo to ImageKit.');
       }
 
       clearInterval(progressTimer);
@@ -243,6 +254,7 @@ export function ChildDetailView({
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
+    // Set preview state for explicit user confirmation
     setSelectedFile(file);
     setPreviewUrl(objectUrl);
     setFileInfo({
@@ -250,9 +262,6 @@ export function ChildDetailView({
       size: formattedSize,
       type: file.type.split('/')[1]?.toUpperCase() || 'IMAGE'
     });
-
-    // Begin loading & upload immediately upon photo selection
-    startAutoUpload(file, objectUrl);
   };
 
   const handleCancelPhotoSelect = () => {
@@ -611,20 +620,20 @@ export function ChildDetailView({
 
                   {/* Student Full Name */}
                   <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    <h2 className="text-xl font-semibold text-slate-800 tracking-normal">
                       {child.firstName} {child.middleName ? `${child.middleName} ` : ''}{child.lastName}
                     </h2>
                   </div>
 
                   {/* Status Badges */}
                   <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
-                    <span className="px-3 py-1 bg-green-50 text-green-700 border border-green-100 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> 🟢 Active Enrollment
+                    <span className="px-3 py-1 bg-green-50 text-green-700 border border-green-100 rounded-full text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Active Enrollment
                     </span>
-                    <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200/60">
+                    <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full border border-slate-200/60">
                       Grade {child.gradeLevel}
                     </span>
-                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-100">
+                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-100">
                       School Year 2026–2027
                     </span>
                   </div>
@@ -632,17 +641,17 @@ export function ChildDetailView({
                   {/* Attendance & Performance Summary Cards */}
                   <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 text-left">
                     <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">ATTENDANCE</span>
-                      <div className="text-lg font-extrabold text-slate-900">{attDetails.percentage}</div>
-                      <p className="text-[10px] font-semibold text-slate-500">{attDetails.detail}</p>
+                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">ATTENDANCE</span>
+                      <div className="text-lg font-semibold text-slate-800">{attDetails.percentage}</div>
+                      <p className="text-[10px] font-medium text-slate-500">{attDetails.detail}</p>
                     </div>
                     <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">GENERAL AVERAGE</span>
-                      <div className="text-lg font-extrabold text-slate-900">
+                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">GENERAL AVERAGE</span>
+                      <div className="text-lg font-semibold text-slate-800">
                         {perfDetails.average}
                       </div>
                       {perfDetails.label && (
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${perfDetails.badgeClass}`}>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${perfDetails.badgeClass}`}>
                           {perfDetails.label}
                         </span>
                       )}

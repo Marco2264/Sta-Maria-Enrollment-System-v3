@@ -2,6 +2,9 @@ import {
   addDoc,
   collection,
   doc,
+  deleteDoc,
+  deleteField,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -45,25 +48,33 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-  if (!cloudName || !uploadPreset) {
-    throw new Error('Cloudinary configuration is missing in environment variables.');
+  if (cloudName && uploadPreset) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
+      
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.secure_url) return data.secure_url;
+      }
+    } catch (cloudErr) {
+      console.warn('Cloudinary upload error, using local Data URL fallback:', cloudErr);
+    }
   }
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', uploadPreset);
-  
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-    method: 'POST',
-    body: formData
+  // Graceful fallback to Data URL for instant document viewing and verification
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Failed to read document file.'));
+    reader.readAsDataURL(file);
   });
-
-  if (!response.ok) {
-    throw new Error('Failed to upload document to Cloudinary');
-  }
-
-  const data = await response.json();
-  return data.secure_url;
 }
 
 export async function addEnrollmentDocumentRecord(params: {
@@ -205,6 +216,46 @@ export async function reviewEnrollmentDocument(params: {
     [`requirementUploads.${requirementKey}.verifiedBy`]: reviewerId,
     requirements: status === DOCUMENT_STATUS.APPROVED ? 'Complete' : 'Incomplete'
   });
+}
+
+export async function deleteRequirementDocument(params: {
+  enrollmentId: string;
+  documentType: DocumentType;
+  docRecordId?: string;
+}): Promise<void> {
+  const { enrollmentId, documentType, docRecordId } = params;
+
+  if (docRecordId && docRecordId.trim()) {
+    try {
+      await deleteDoc(doc(db, ENROLLMENT_DOCUMENTS_COLLECTION, docRecordId));
+    } catch (err) {
+      console.warn('[enrollmentDocumentsService] Failed to delete by docRecordId:', err);
+    }
+  }
+
+  if (enrollmentId) {
+    try {
+      const q = query(
+        collection(db, ENROLLMENT_DOCUMENTS_COLLECTION),
+        where('enrollmentId', '==', enrollmentId),
+        where('documentType', '==', documentType)
+      );
+      const snap = await getDocs(q);
+      const deletePromises = snap.docs.map((d) => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+    } catch (err) {
+      console.warn('[enrollmentDocumentsService] Failed to delete matching docType records:', err);
+    }
+
+    const reqKey = documentTypeToRequirementKey(documentType);
+    try {
+      await updateDoc(doc(db, 'enrollments', enrollmentId), {
+        [`requirementUploads.${reqKey}`]: deleteField()
+      });
+    } catch (err) {
+      console.warn('[enrollmentDocumentsService] Failed to clear requirementUploads on enrollment:', err);
+    }
+  }
 }
 
  

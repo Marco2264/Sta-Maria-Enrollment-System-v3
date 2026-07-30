@@ -121,7 +121,7 @@ export function LoginPage() {
     setError(null);
     setIsLoggingIn(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
       const loggedUser = userCredential.user;
       const docRef = doc(db, 'users', loggedUser.uid);
       const docSnap = await getDoc(docRef);
@@ -139,8 +139,28 @@ export function LoginPage() {
         setError('User role not found. Please contact administrator.');
       }
     } catch (err) {
-      const errorObj = err as Error & { message?: string };
-      setError(errorObj.message || 'Failed to sign in. Please check your credentials.');
+      const errorObj = err as Error & { code?: string; message?: string };
+      const code = errorObj.code || '';
+      const msg = errorObj.message?.toLowerCase() || '';
+
+      if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/user-not-found' ||
+        msg.includes('invalid-credential') ||
+        msg.includes('wrong-password') ||
+        msg.includes('user-not-found')
+      ) {
+        setError('Invalid email or password. Please check your credentials and try again.');
+      } else if (code === 'auth/invalid-email' || msg.includes('invalid-email')) {
+        setError('Invalid email address format.');
+      } else if (code === 'auth/user-disabled' || msg.includes('user-disabled')) {
+        setError('This account has been disabled. Please contact administrator.');
+      } else if (code === 'auth/too-many-requests' || msg.includes('too-many-requests')) {
+        setError('Too many failed login attempts. Please try again later or reset your password.');
+      } else {
+        setError('Failed to sign in. Please check your credentials and try again.');
+      }
     } finally {
       setIsLoggingIn(false);
     }
