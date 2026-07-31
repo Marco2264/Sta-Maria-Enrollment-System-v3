@@ -34,6 +34,7 @@ import { useParentData } from '../../lib/parentData';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
+import { subscribeParentActivityLogs, ActivityLog } from '../../lib/services/activityLogService';
 
 interface AnnouncementItem {
   id: string;
@@ -85,8 +86,24 @@ export function ParentDashboardView({
     return 'Parent';
   }, [userData, user]);
 
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+
+  // Real-time Activity Logs for Current Parent
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeParentActivityLogs(user.uid, (logs) => {
+      setActivityLogs(logs);
+    });
+    return () => {
+      setTimeout(() => unsub(), 100);
+    };
+  }, [user?.uid]);
+
   // Real-time Announcements from Firestore
   useEffect(() => {
+    console.log("Collection:", "announcements");
+    console.log("Doc ID:", "N/A");
+    console.log("Query params:", { orderBy: "createdAt desc" });
     const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(
       q,
@@ -110,8 +127,20 @@ export function ParentDashboardView({
         console.warn('[ParentDashboardView] Using default announcements:', err);
       }
     );
-    return () => unsubscribe();
+    return () => {
+      setTimeout(() => unsubscribe(), 100);
+    };
   }, []);
+
+  // Helper to get Unix Epoch MS for sorting newest at top
+  const toEpochMs = (val: any): number => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    if (typeof val?.toDate === 'function') return val.toDate().getTime();
+    if (typeof val?.seconds === 'number') return val.seconds * 1000;
+    const parsed = Date.parse(String(val));
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   // Reusable Date Formatter
   const formatDate = (value: any): string => {
@@ -247,7 +276,7 @@ export function ParentDashboardView({
     return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }, []);
 
-  // Comprehensive Recent Activity Timeline (Grouped by Month, default current month events)
+  // Comprehensive Recent Activity Timeline (Sorted by latest timestamp at top)
   const recentUpdates = useMemo(() => {
     const updates: Array<{
       id: string;
@@ -255,14 +284,32 @@ export function ParentDashboardView({
       subtitle: string;
       date: string;
       monthGroup: string;
-      type: 'registration' | 'document' | 'attendance' | 'grade' | 'announcement' | 'profile';
+      type: 'registration' | 'document' | 'attendance' | 'grade' | 'announcement' | 'profile' | 'delete';
       badgeText: string;
       badgeColor: string;
       dotColor: string;
+      timestamp: number;
     }> = [];
 
-    // 1. Children Registration & Profile updates
+    // 1. Real-time Activity Logs (User uploads, deletes, profile updates)
+    activityLogs.forEach((log) => {
+      updates.push({
+        id: `act-${log.id}`,
+        title: log.title,
+        subtitle: log.subtitle,
+        date: formatDate(log.timestamp),
+        monthGroup: currentMonthLabel,
+        type: log.type as any,
+        badgeText: log.badgeText,
+        badgeColor: log.badgeColor,
+        dotColor: log.dotColor,
+        timestamp: log.timestamp
+      });
+    });
+
+    // 2. Children Registration & Profile updates
     children.forEach((c) => {
+      const ts = toEpochMs(c.submittedAt || (c as any).createdAt || Date.now());
       if (c.status === 'Enrolled' || c.status === 'Approved') {
         updates.push({
           id: `app-appr-${c.id}`,
@@ -273,7 +320,8 @@ export function ParentDashboardView({
           type: 'registration',
           badgeText: 'APPROVED',
           badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          dotColor: 'bg-emerald-500'
+          dotColor: 'bg-emerald-500',
+          timestamp: ts
         });
       } else if (c.status === 'Rejected') {
         updates.push({
@@ -285,7 +333,8 @@ export function ParentDashboardView({
           type: 'registration',
           badgeText: 'REJECTED',
           badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
-          dotColor: 'bg-rose-500'
+          dotColor: 'bg-rose-500',
+          timestamp: ts
         });
       } else if (c.status === 'Pending') {
         updates.push({
@@ -297,7 +346,8 @@ export function ParentDashboardView({
           type: 'registration',
           badgeText: 'UNDER REVIEW',
           badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-          dotColor: 'bg-amber-500'
+          dotColor: 'bg-amber-500',
+          timestamp: ts
         });
       }
 
@@ -307,6 +357,7 @@ export function ParentDashboardView({
         const isPresent = latestAtt?.status === 'Present' || latestAtt?.status === 'Late';
         const formattedAttDate = formatDate(latestAtt.date);
         const attStatusText = latestAtt?.status ? latestAtt.status.toLowerCase() : 'updated';
+        const attTs = toEpochMs(latestAtt.date);
         updates.push({
           id: `att-${c.id}-${formattedAttDate}`,
           title: `Attendance Updated`,
@@ -316,29 +367,15 @@ export function ParentDashboardView({
           type: 'attendance',
           badgeText: isPresent ? 'PRESENT' : 'ABSENT',
           badgeColor: isPresent ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200',
-          dotColor: isPresent ? 'bg-emerald-500' : 'bg-rose-500'
-        });
-      }
-
-      // Grade Published event
-      const avg = getStudentAverage(c);
-      if (avg !== 'N/A') {
-        updates.push({
-          id: `grade-${c.id}`,
-          title: `Grades Published`,
-          subtitle: `New evaluation scores recorded for ${c.firstName} ${c.lastName} (Avg: ${avg}%).`,
-          date: 'Recent',
-          monthGroup: currentMonthLabel,
-          type: 'grade',
-          badgeText: 'PUBLISHED',
-          badgeColor: 'bg-blue-50 text-[#2563eb] border-blue-200',
-          dotColor: 'bg-[#2563eb]'
+          dotColor: isPresent ? 'bg-emerald-500' : 'bg-rose-500',
+          timestamp: attTs
         });
       }
     });
 
-    // 2. Document events (uploaded / approved / rejected / missing)
+    // 3. Document events (uploaded / approved / rejected)
     documents.forEach((d) => {
+      const docTs = toEpochMs(d.updatedAt || d.createdAt || Date.now());
       if (d.status === 'APPROVED') {
         updates.push({
           id: `doc-appr-${d.id}`,
@@ -349,7 +386,8 @@ export function ParentDashboardView({
           type: 'document',
           badgeText: 'APPROVED',
           badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          dotColor: 'bg-emerald-500'
+          dotColor: 'bg-emerald-500',
+          timestamp: docTs
         });
       } else if (d.status === 'REJECTED') {
         updates.push({
@@ -361,7 +399,8 @@ export function ParentDashboardView({
           type: 'document',
           badgeText: 'REJECTED',
           badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
-          dotColor: 'bg-rose-500'
+          dotColor: 'bg-rose-500',
+          timestamp: docTs
         });
       } else {
         updates.push({
@@ -373,24 +412,10 @@ export function ParentDashboardView({
           type: 'document',
           badgeText: 'UNDER REVIEW',
           badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-          dotColor: 'bg-amber-500'
+          dotColor: 'bg-amber-500',
+          timestamp: docTs
         });
       }
-    });
-
-    // 3. Announcement acknowledgements
-    announcements.forEach((a) => {
-      updates.push({
-        id: `ann-act-${a.id}`,
-        title: `Announcement Acknowledged`,
-        subtitle: `Advisory "${a.title}" made available to parent portal.`,
-        date: a.date,
-        monthGroup: currentMonthLabel,
-        type: 'announcement',
-        badgeText: 'NOTICE',
-        badgeColor: 'bg-blue-50 text-[#2563eb] border-blue-200',
-        dotColor: 'bg-[#2563eb]'
-      });
     });
 
     // Fallback if no updates
@@ -404,12 +429,16 @@ export function ParentDashboardView({
         type: 'profile',
         badgeText: 'ACTIVE',
         badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        dotColor: 'bg-emerald-500'
+        dotColor: 'bg-emerald-500',
+        timestamp: Date.now()
       });
     }
 
+    // 4. SORT BY TIMESTAMP DESCENDING (NEWEST / LATEST AT TOP)
+    updates.sort((a, b) => b.timestamp - a.timestamp);
+
     return updates;
-  }, [children, documents, announcements, currentMonthLabel]);
+  }, [children, documents, announcements, activityLogs, currentMonthLabel]);
 
   // Document Status Summary (Top 3 recent items)
   const documentTypesSummary = useMemo(() => {
@@ -497,7 +526,7 @@ export function ParentDashboardView({
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9] relative overflow-x-hidden text-slate-900 font-sans">
       {/* ── 1. HEADER SECTION ── */}
-      <header className="relative px-5 sm:px-8 py-6 bg-white border-b border-slate-100 shrink-0">
+      <header className="relative px-5 sm:px-8 py-6 lg:py-0 lg:h-28 flex items-center bg-white border-b border-slate-100 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
           <div className="space-y-1 text-left">
             <div className="flex items-center gap-2">

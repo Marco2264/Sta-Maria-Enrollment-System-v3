@@ -127,7 +127,7 @@ export function ParentProfileView() {
 
   return (
     <div className="flex-1 flex flex-col bg-[#F4F7F9]">
-      <header className="px-6 py-6 border-b border-slate-200 bg-white shrink-0">
+      <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex items-center shrink-0">
         <div className="max-w-4xl mx-auto w-full space-y-2">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 rounded-lg">

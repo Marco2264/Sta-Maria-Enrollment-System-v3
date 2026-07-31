@@ -141,6 +141,9 @@ export function AnnouncementsView() {
   // Real-time Firestore sync with fallback
   useEffect(() => {
     try {
+      console.log("Collection:", "announcements");
+      console.log("Doc ID:", "N/A");
+      console.log("Query params:", { orderBy: "createdAt desc" });
       const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
@@ -169,7 +172,9 @@ export function AnnouncementsView() {
         console.warn('Firestore announcements subscription note:', error);
       });
 
-      return () => unsubscribe();
+      return () => {
+        setTimeout(() => unsubscribe(), 100);
+      };
     } catch (err) {
       console.warn('Firestore announcements sync fallback:', err);
     }
@@ -236,53 +241,53 @@ export function AnnouncementsView() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F4F7F9] font-sans">
-      {/* ── TOP HEADER WITH SEARCH BAR & NOTIFICATION BELL ── */}
-      <header className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-          <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search announcements..."
-            className="pl-10 pr-4 py-2 bg-slate-50 border-slate-200/80 rounded-full text-xs font-medium focus:bg-white transition-all w-full"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        <button className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative cursor-pointer">
-          <Bell className="w-4 h-4" />
-          {badgeCounts.school + badgeCounts.subject + badgeCounts.adviser > 0 && (
-            <span className="w-2 h-2 rounded-full bg-[#2563eb] absolute top-2 right-2 ring-2 ring-white" />
-          )}
-        </button>
-      </header>
-
-      {/* ── MAIN CONTENT AREA ── */}
-      <main className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 w-full">
-        
-        {/* ── HERO TITLE & SEGMENTED CONTROL TABS BAR ── */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-2">
-            <span className="inline-block px-3 py-1 bg-blue-50 text-[#2563eb] border border-blue-100 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
-              LATEST CAMPUS ACTIVITY
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Announcements
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium italic max-w-md">
+      {/* ── TOP HEADER WITH TITLE, SEARCH & BELL ── */}
+      <header className="bg-white px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
+            <Megaphone className="w-5 h-5" />
+          </div>
+          <div className="text-left">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Announcements</h1>
+            <p className="text-xs text-slate-500 font-medium hidden sm:block max-w-lg leading-snug">
               Stay informed about class suspensions, school activities, and important advisories.
             </p>
           </div>
+        </div>
 
-          {/* Segmented Control Bar matching user screenshot */}
-          <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 inline-flex items-center gap-1 shadow-2xs self-start md:self-auto">
+        <div className="flex items-center gap-3">
+          <div className="relative w-40 sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search announcements..."
+              className="pl-9 pr-8 py-1.5 bg-slate-50 border-slate-200/80 rounded-full text-xs font-semibold focus:bg-white transition-all w-full h-9"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <button className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative cursor-pointer shrink-0">
+            <Bell className="w-4 h-4" />
+            {badgeCounts.school + badgeCounts.subject + badgeCounts.adviser > 0 && (
+              <span className="w-2 h-2 rounded-full bg-[#2563eb] absolute top-2 right-2 ring-2 ring-white" />
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* ── MAIN CONTENT AREA ── */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 w-full">
+        {/* ── SEGMENTED CONTROL TABS BAR ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 inline-flex items-center gap-1 shadow-2xs self-start">
             <button
               onClick={() => setActiveTab('school')}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -360,14 +365,13 @@ export function AnnouncementsView() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredAnnouncements.map(item => {
               const isEmergency = item.category === 'Emergency' || item.category === 'Class Suspension';
-              const borderLeft = isEmergency ? 'border-l-4 border-l-rose-500' : 'border-l-4 border-l-[#2563eb]';
               const iconBg = isEmergency ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-[#2563eb]';
               const categoryTextColor = isEmergency ? 'text-rose-600' : 'text-[#2563eb]';
 
               return (
                 <div
                   key={item.id}
-                  className={`bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 ${borderLeft} space-y-4 flex flex-col justify-between`}
+                  className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 space-y-4 flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     {/* Top Row: Icon, Category & Time, Options */}

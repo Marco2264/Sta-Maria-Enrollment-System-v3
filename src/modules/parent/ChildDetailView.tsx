@@ -45,14 +45,17 @@ import {
   Lock,
   ShieldCheck
 } from 'lucide-react';
+import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
 import { uploadToCloudinary } from '../../lib/services/enrollmentDocumentsService';
 import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
+import { logActivity } from '../../lib/services/activityLogService';
 
 export function ChildDetailView({
   childId,
   onBack
 }: {childId: string;onBack: () => void;}) {
+  const { user } = useAuth();
   const { children, updateChild } = useParentData();
   const child = children.find((c) => c.id === childId);
   
@@ -198,6 +201,20 @@ export function ChildDetailView({
 
       // Save image URL to student profile in Firebase & local context immediately
       await updateChild(child.id, { photoURL: photoUrl });
+
+      try {
+        await logActivity({
+          parentId: child.parentId || user?.uid || '',
+          title: 'Student Photo Updated',
+          subtitle: `Updated profile picture for ${child.firstName} ${child.lastName}.`,
+          type: 'profile',
+          badgeText: 'SUCCESSFUL',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          dotColor: 'bg-emerald-500'
+        });
+      } catch (err) {
+        console.warn('Could not log student photo activity:', err);
+      }
 
       // Keep 100% indicator visible for ~1 second
       const elapsed = Date.now() - startTime;
@@ -394,7 +411,7 @@ export function ChildDetailView({
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9]">
       {/* ── TOP HEADER / BREADCRUMBS BAR ── */}
-      <header className="px-6 py-4 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+      <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         {/* Left: Breadcrumb Navigation */}
         <div className="flex items-center gap-2 text-sm">
           <button

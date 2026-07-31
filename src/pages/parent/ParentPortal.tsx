@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import {
   LayoutDashboard,
@@ -13,7 +14,8 @@ import {
   ChevronRight,
   Menu,
   LogOut,
-  GraduationCap
+  GraduationCap,
+  AlertTriangle
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { ParentDataProvider } from '../../lib/parentData';
@@ -84,7 +86,7 @@ function ParentPortalContent() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white font-sans border-r border-slate-100 z-50">
       {/* Brand Header */}
-      <div className="p-6 sm:p-8 flex items-center gap-3 border-b border-slate-100 shrink-0 cursor-pointer" onClick={() => navigate('/')}>
+      <div className="h-16 lg:h-28 flex items-center gap-3 px-6 sm:px-8 border-b border-slate-100 shrink-0 cursor-pointer" onClick={() => navigate('/')}>
         <div className="w-10 h-10 bg-[#2563eb] rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
           <GraduationCap className="w-6 h-6 text-white" />
         </div>
@@ -252,18 +254,69 @@ function ParentPortalContent() {
           </div>
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-sm">{initials}</div>
         </header>
-        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] flex flex-col">
-          {renderActiveView()}
+        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] flex flex-col relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView + (selectedChildId || '')}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35, ease: 'easeInOut' }}
+              className="flex-1 flex flex-col h-full"
+            >
+              <ViewErrorBoundary key={activeView}>
+                {renderActiveView()}
+              </ViewErrorBoundary>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>
   );
 }
 
+class ViewErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[ViewErrorBoundary] Caught view error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 m-6 shadow-sm space-y-4">
+          <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-black text-slate-900">Unable to display view</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">{this.state.error?.message || 'An unexpected rendering error occurred.'}</p>
+          <Button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="bg-[#2563eb] text-white px-5 py-2.5 rounded-xl font-bold text-xs cursor-pointer"
+          >
+            Reload View
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function ParentPortal() {
   return (
     <ParentDataProvider>
-      <ParentPortalContent />
+      <ViewErrorBoundary>
+        <ParentPortalContent />
+      </ViewErrorBoundary>
     </ParentDataProvider>
   );
 }

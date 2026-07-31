@@ -5,6 +5,7 @@ import { ImageUpload } from '../../components/ui/ImageUpload';
 import { sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
+import { logActivity } from '../../lib/services/activityLogService';
 import { Input } from '../../components/ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import {
@@ -480,6 +481,21 @@ export function ParentSettingsView() {
         photoURL: finalPhotoUrl,
         updatedAt: new Date().toISOString()
       });
+
+      try {
+        await logActivity({
+          parentId: user.uid,
+          title: 'Parent Profile Updated',
+          subtitle: 'Personal information and profile details updated successfully.',
+          type: 'profile',
+          badgeText: 'SUCCESSFUL',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          dotColor: 'bg-emerald-500'
+        });
+      } catch (logErr) {
+        console.warn('Could not log parent profile activity:', logErr);
+      }
+
       setSuccessMsg('Personal Information updated successfully!');
       setEditPersonal(false);
       setPhotoFile(null);

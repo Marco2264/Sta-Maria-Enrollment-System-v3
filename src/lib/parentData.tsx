@@ -10,6 +10,7 @@ import {
   updateDoc, 
   setDoc,
   deleteDoc,
+  getDocs,
   doc, 
   serverTimestamp 
 } from 'firebase/firestore';
@@ -29,13 +30,15 @@ import {
   addEnrollmentDocumentRecord,
   documentTypeToRequirementKey,
   uploadToCloudinary,
-  validateRequirementUpload
+  validateRequirementUpload,
+  deleteRequirementDocument as deleteRequirementDocumentService
 } from './services/enrollmentDocumentsService';
 import {
   uploadToImageKit,
   buildImageKitFolder,
   buildStandardizedFileName
 } from './services/imageUploadService';
+import { logActivity } from './services/activityLogService';
 
 export type AttendanceRecord = {
   date: string;
@@ -127,6 +130,11 @@ type ParentContextType = {
       file: File;
     }
   ) => Promise<string>;
+  deleteRequirementDocument: (params: {
+    enrollmentId: string;
+    documentType: DocumentType;
+    docRecordId?: string;
+  }) => Promise<void>;
   deleteChild: (id: string) => Promise<void>;
   loading: boolean;
   documentsLoading: boolean;
@@ -174,58 +182,56 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
       setChildren(merged);
     };
 
+    console.log("Collection:", "enrollments");
+    console.log("Doc ID:", "N/A");
+    console.log("Query params:", { parentId: user.uid });
     const q = query(collection(db, 'enrollments'), where('parentId', '==', user.uid));
     const unsubscribeEnrollments = onSnapshot(
       q,
-      (snapshot) => {
+      async (snapshot) => {
         currentChildren = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Child));
         rebuildChildren();
 
-        while (attendanceUnsubs.length > 0) {
-          const unsub = attendanceUnsubs.pop();
-          if (unsub) unsub();
-        }
-
-        currentChildren.forEach((child) => {
-          const attendanceQuery = query(collection(db, 'attendance'), where('studentId', '==', child.id));
-          const attendanceUnsub = onSnapshot(
-            attendanceQuery,
-            (attendanceSnapshot) => {
-              attendanceByStudent[child.id] = attendanceSnapshot.docs.map((d) => {
-                const row = d.data() as any;
-                let derivedStatus = row.status;
-                if (!derivedStatus) {
-                  if (row.amStatus === 'Absent' || row.pmStatus === 'Absent') {
-                    derivedStatus = 'Absent';
-                  } else if (row.amStatus === 'Late' || row.pmStatus === 'Late') {
-                    derivedStatus = 'Late';
-                  } else if (row.amStatus === 'Present' || row.pmStatus === 'Present') {
-                    derivedStatus = 'Present';
-                  } else {
-                    derivedStatus = 'Present';
-                  }
+        // Safely fetch attendance records for current children without creating nested onSnapshot streams
+        for (const child of currentChildren) {
+          try {
+            console.log("Collection:", "attendance");
+            console.log("Doc ID:", "N/A");
+            console.log("Query params:", { studentId: child.id });
+            const attQ = query(collection(db, 'attendance'), where('studentId', '==', child.id));
+            const attSnap = await getDocs(attQ);
+            attendanceByStudent[child.id] = attSnap.docs.map((d: any) => {
+              const row = d.data() as any;
+              let derivedStatus = row.status;
+              if (!derivedStatus) {
+                if (row.amStatus === 'Absent' || row.pmStatus === 'Absent') {
+                  derivedStatus = 'Absent';
+                } else if (row.amStatus === 'Late' || row.pmStatus === 'Late') {
+                  derivedStatus = 'Late';
+                } else if (row.amStatus === 'Present' || row.pmStatus === 'Present') {
+                  derivedStatus = 'Present';
+                } else {
+                  derivedStatus = 'Present';
                 }
-                return { 
-                  date: row.date, 
-                  status: derivedStatus,
-                  amStatus: row.amStatus,
-                  pmStatus: row.pmStatus
-                };
-              });
-              rebuildChildren();
-            },
-            (err) => {
-              console.warn("Attendance subscription warning:", err);
-            }
-          );
-          attendanceUnsubs.push(attendanceUnsub);
-        });
+              }
+              return { 
+                date: row.date, 
+                status: derivedStatus,
+                amStatus: row.amStatus,
+                pmStatus: row.pmStatus
+              };
+            });
+          } catch (attErr) {
+            console.warn('[parentData] Error reading student attendance:', attErr);
+          }
+        }
+        rebuildChildren();
 
         clearTimeout(safetyTimer);
         setLoading(false);
       },
       (error) => {
-        console.error("Error subscribing to parent enrollments:", error);
+        console.warn("[parentData] Error subscribing to parent enrollments:", error);
         clearTimeout(safetyTimer);
         setLoading(false);
       }
@@ -238,14 +244,18 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
 
     return () => {
       clearTimeout(safetyTimer);
-      unsubscribeEnrollments();
-      unsubscribeDocuments();
+      setTimeout(() => {
+        unsubscribeEnrollments();
+        unsubscribeDocuments();
+      }, 100);
       while (attendanceUnsubs.length > 0) {
         const unsub = attendanceUnsubs.pop();
-        if (unsub) unsub();
+        if (unsub) {
+          setTimeout(() => unsub(), 100);
+        }
       }
     };
-  }, [user]);
+  }, [user?.uid]);
 
   const generateEnrollmentId = () => {
     return doc(collection(db, 'enrollments')).id;
@@ -419,6 +429,77 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
         uploadedAt: serverTimestamp()
       }
     }, { merge: true });
+
+    try {
+      await logActivity({
+        parentId: user.uid,
+        title: 'Document Uploaded',
+        subtitle: `Uploaded ${params.file.name} for ${sName}.`,
+        type: 'document',
+        badgeText: 'UPLOADED',
+        badgeColor: 'bg-blue-50 text-[#2563eb] border-blue-200',
+        dotColor: 'bg-[#2563eb]'
+      });
+    } catch (err) {
+      console.warn('Could not log document upload activity:', err);
+    }
+  };
+
+  const deleteRequirementDocument = async (params: {
+    enrollmentId: string;
+    documentType: DocumentType;
+    docRecordId?: string;
+  }) => {
+    if (!user) return;
+
+    const reqKey = documentTypeToRequirementKey(params.documentType);
+
+    // 1. Execute Firestore database deletion
+    await deleteRequirementDocumentService(params);
+
+    // 2. Instantly purge from React context documents state
+    setDocuments((prevDocs) =>
+      prevDocs.filter(
+        (d) =>
+          d.id !== params.docRecordId &&
+          !(d.enrollmentId === params.enrollmentId && (
+            d.documentType === params.documentType ||
+            d.documentType === reqKey ||
+            d.documentType?.toLowerCase() === params.documentType.toLowerCase() ||
+            d.documentType?.toLowerCase() === reqKey.toLowerCase()
+          ))
+      )
+    );
+
+    // 3. Purge ONLY the specific requirementUploads key from React context children state
+    setChildren((prevChildren) =>
+      prevChildren.map((child) => {
+        if (child.id === params.enrollmentId) {
+          const reqs = { ...(child.requirementUploads || {}) };
+          delete reqs[reqKey];
+          delete reqs[params.documentType];
+          return {
+            ...child,
+            requirementUploads: reqs
+          };
+        }
+        return child;
+      })
+    );
+
+    try {
+      await logActivity({
+        parentId: user.uid,
+        title: 'Document Deleted',
+        subtitle: `Deleted requirement document from student records.`,
+        type: 'delete',
+        badgeText: 'DELETED',
+        badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotColor: 'bg-rose-500'
+      });
+    } catch (err) {
+      console.warn('Could not log document deletion activity:', err);
+    }
   };
 
   return (
@@ -431,6 +512,7 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
         updateChild,
         deleteChild,
         uploadRequirementDocument,
+        deleteRequirementDocument,
         submitFullEnrollment,
         loading,
         documentsLoading

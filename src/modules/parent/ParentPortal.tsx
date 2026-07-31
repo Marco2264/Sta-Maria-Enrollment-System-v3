@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import {
   LayoutDashboard,
@@ -17,13 +18,13 @@ import {
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { ParentDataProvider } from '../../lib/parentData';
-import { ParentDashboardView } from '../../components/parent/ParentDashboardView';
-import { MyChildrenView } from '../../components/parent/MyChildrenView';
+import { ParentDashboardView } from './ParentDashboardView';
+import { MyChildrenView } from './MyChildrenView';
 import { EnrollmentForm } from '../../components/parent/EnrollmentForm';
-import { ChildDetailView } from '../../components/parent/ChildDetailView';
-import { RequirementsView } from '../../components/parent/RequirementsView';
-import { ParentSettingsView } from '../../components/parent/ParentSettingsView';
-import { AnnouncementsView } from '../../components/parent/AnnouncementsView';
+import { ChildDetailView } from './ChildDetailView';
+import { RequirementsView } from './RequirementsView';
+import { ParentSettingsView } from './ParentSettingsView';
+import { AnnouncementsView } from './AnnouncementsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -76,7 +77,7 @@ function ParentPortalContent() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white font-sans border-r border-slate-100 z-50">
       {/* Brand Header */}
-      <div className="p-6 sm:p-8 flex items-center gap-3 border-b border-slate-100 shrink-0 cursor-pointer" onClick={() => navigate('/')}>
+      <div className="h-16 lg:h-28 flex items-center gap-3 px-6 sm:px-8 border-b border-slate-100 shrink-0 cursor-pointer" onClick={() => navigate('/')}>
         <div className="w-10 h-10 bg-[#2563eb] rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
           <GraduationCap className="w-6 h-6 text-white" />
         </div>
@@ -167,52 +168,54 @@ function ParentPortalContent() {
         </div>
       </div>
 
-      <div className="border-t border-border p-3 shrink-0">
-        {showUserMenu && (
-          <div className="mb-2 space-y-1 animate-in slide-in-from-bottom-2 duration-200">
-            <button
-              onClick={() => {
-                handleNavigate('settings');
-                setShowUserMenu(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${activeView === 'settings' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
-            >
-              <Settings className="w-4 h-4" />
-              Settings
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
-          </div>
-        )}
-        <div
-          className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
-          onClick={() => setShowUserMenu(!showUserMenu)}
-        >
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase overflow-hidden">
-            {uData?.photoURL ? (
-              <img src={uData.photoURL} alt="Profile" className="w-full h-full object-cover" />
+      <div className="h-20 border-t border-slate-100 p-3 shrink-0 flex items-center">
+        <div className="w-full">
+          {showUserMenu && (
+            <div className="mb-2 space-y-1 animate-in slide-in-from-bottom-2 duration-200">
+              <button
+                onClick={() => {
+                  handleNavigate('settings');
+                  setShowUserMenu(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${activeView === 'settings' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </div>
+          )}
+          <div
+            className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+          >
+            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase overflow-hidden">
+              {uData?.photoURL ? (
+                <img src={uData.photoURL} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <>{uData?.firstName?.charAt(0) || 'P'}{uData?.lastName?.charAt(0) || 'U'}</>
+              )}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-bold truncate text-slate-900">
+                {uData?.firstName} {uData?.lastName}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-wider">
+                {uData?.relationship || 'Parent'} | {uData?.email}
+              </p>
+            </div>
+            {showUserMenu ? (
+              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
             ) : (
-              <>{uData?.firstName?.charAt(0) || 'P'}{uData?.lastName?.charAt(0) || 'U'}</>
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
             )}
           </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-bold truncate text-slate-900">
-              {uData?.firstName} {uData?.lastName}
-            </p>
-            <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-wider">
-              {uData?.relationship || 'Parent'} | {uData?.email}
-            </p>
-          </div>
-          {showUserMenu ? (
-            <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-          )}
         </div>
       </div>
     </div>
@@ -247,8 +250,19 @@ function ParentPortalContent() {
             )}
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto bg-muted/30 flex flex-col">
-          {renderActiveView()}
+        <div className="flex-1 overflow-y-auto bg-muted/30 flex flex-col relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView + (selectedChildId || '')}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="flex-1 flex flex-col h-full"
+            >
+              {renderActiveView()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

@@ -10,6 +10,7 @@ import {
   SelectValue
 } from '../../components/ui/Select';
 import {
+  Plus,
   FileText,
   Upload,
   CheckCircle2,
@@ -137,14 +138,14 @@ function UploadProgressBar({ progress }: { progress: number }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-[11px] font-bold">
-        <span className="text-[#0038A8] flex items-center gap-1.5">
+        <span className="text-[#2563eb] flex items-center gap-1.5">
           <Loader2 className="w-3 h-3 animate-spin" /> Uploading document...
         </span>
         <span className="text-slate-500">{Math.round(progress)}%</span>
       </div>
       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
         <motion.div
-          className="h-full bg-gradient-to-r from-[#0038A8] to-blue-400 rounded-full"
+          className="h-full bg-gradient-to-r from-[#2563eb] to-blue-400 rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3 }}
@@ -176,6 +177,7 @@ export function RequirementsView() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Staged files selected for confirmation per document type
   const [stagedFiles, setStagedFiles] = useState<Record<string, File>>({});
@@ -201,6 +203,31 @@ export function RequirementsView() {
     }
   }, [children, selectedEnrollmentId]);
 
+  if (documentsLoading) {
+    return (
+      <div className="flex flex-col h-full bg-[#F4F7F9] font-sans">
+        <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex items-center shrink-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
+            <div className="space-y-2">
+              <div className="h-7 w-48 bg-slate-200 animate-pulse rounded-lg" />
+              <div className="h-3 w-80 bg-slate-100 animate-pulse rounded-md" />
+            </div>
+            <div className="h-9 w-44 bg-slate-100 animate-pulse rounded-xl" />
+          </div>
+        </header>
+        <div className="flex-1 p-6 sm:p-10 space-y-6 max-w-7xl mx-auto w-full">
+          <div className="h-24 bg-white border border-slate-100 rounded-2xl animate-pulse p-6" />
+          <div className="space-y-3 pt-4">
+            <div className="h-4 w-32 bg-slate-200 animate-pulse rounded-md" />
+            <div className="h-20 bg-white border border-slate-100 rounded-xl animate-pulse" />
+            <div className="h-20 bg-white border border-slate-100 rounded-xl animate-pulse" />
+            <div className="h-20 bg-white border border-slate-100 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const selectedChild = children.find((c) => c.id === selectedEnrollmentId) || null;
   const classification: string = (selectedChild as any)?.studentClassification
     || (selectedChild?.isReturning ? 'Transferee' : 'New Student');
@@ -214,9 +241,9 @@ export function RequirementsView() {
   const requiredDocList = useMemo(() => {
     if (classification === 'Transferee') {
       return [
-        { key: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, title: 'PSA Birth Certificate', description: 'Official Philippine Statistics Authority (PSA) birth certificate.' },
-        { key: DOCUMENT_TYPES.REPORT_CARD,            title: 'Report Card (SF9)',           description: 'Official Form 138 / SF9 from previous school.' },
-        { key: DOCUMENT_TYPES.GOOD_MORAL,             title: 'Good Moral Certificate',      description: 'Certificate of Good Moral Character from previous school.' }
+        { key: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, title: 'PSA Birth Certificate', description: 'Official copy from Statistics Authority.' },
+        { key: DOCUMENT_TYPES.REPORT_CARD,            title: 'Report Card (SF9)',           description: 'Official Form 138 from previous school.' },
+        { key: DOCUMENT_TYPES.GOOD_MORAL,             title: 'Medical Certificate',         description: 'Requirement for specific cases.' }
       ];
     }
     if (classification === 'Balik-Aral') {
@@ -338,7 +365,6 @@ export function RequirementsView() {
     setPreviewDoc({ title, url, isPdf });
   };
 
-  // ─── Registration status label ──────────────────────────────────────────────
   const regStatusLabel = (status: string) => {
     if (status === 'Enrolled') return { label: 'Officially Enrolled', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
     if (status === 'Approved') return { label: 'Approved', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
@@ -346,56 +372,45 @@ export function RequirementsView() {
     return { label: 'Registration Submitted', color: 'text-blue-700 bg-blue-50 border-blue-200' };
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
-
   return (
-    <div className="flex flex-col h-full bg-[#F4F7F9] font-sans">
+    <div className="flex flex-col h-full bg-[#F4F7F9] font-sans relative">
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────── */}
-      <header className="px-6 py-7 bg-white border-b border-slate-200/80 shrink-0">
-        <div className="w-full">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 bg-[#0038A8]/10 rounded-2xl flex items-center justify-center shrink-0">
-                  <FolderOpen className="w-5 h-5 text-[#0038A8]" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-black text-[#1E293B] tracking-tight leading-tight">Document Center</h1>
-                  <p className="text-xs text-[#64748B] font-medium mt-0.5">
-                    Manage and upload your learner's required documents. Uploads sync automatically with the Student Registration Form.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Learner Selector */}
-            {children.length > 0 && (
-              <div className="w-full lg:w-80 space-y-1.5 shrink-0">
-                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest block">
-                  Select Learner
-                </label>
-                <Select value={selectedEnrollmentId} onValueChange={setSelectedEnrollmentId}>
-                  <SelectTrigger className="h-12 px-4 bg-slate-50 border-slate-200 rounded-2xl text-sm font-bold text-slate-900 shadow-sm hover:bg-white transition-colors">
-                    <SelectValue placeholder="Choose a learner..." />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-slate-200 shadow-lg">
-                    {children.map((c) => (
-                      <SelectItem key={c.id} value={c.id} className="font-semibold">
-                        {getCleanName(c)} — Grade {c.gradeLevel || 'Level'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+      <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex items-center shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">Document Center</h1>
+            <p className="text-xs text-slate-500 font-medium">
+              Manage and sync required documents for your learner's registration.
+            </p>
           </div>
+
+          {/* Learner Selector */}
+          {children.length > 0 && (
+            <div className="space-y-1 shrink-0 w-full md:w-auto text-left md:text-right">
+              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
+                LEARNER
+              </label>
+              <Select value={selectedEnrollmentId} onValueChange={setSelectedEnrollmentId}>
+                <SelectTrigger className="h-9 px-4 bg-white border-slate-200 rounded-xl text-xs font-bold text-slate-900 shadow-2xs hover:bg-slate-50 transition-colors min-w-[200px] text-left">
+                  <SelectValue placeholder="Choose a learner..." />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-slate-200 shadow-lg">
+                  {children.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="font-semibold text-xs">
+                      {getCleanName(c)} — Grade {c.gradeLevel || 'Level'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </header>
 
       {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="w-full px-6 sm:px-8 py-6 space-y-6">
+        <div className="w-full px-6 sm:px-10 py-6 space-y-5 max-w-7xl mx-auto">
 
           {/* Toast Alerts */}
           <AnimatePresence>
@@ -417,7 +432,7 @@ export function RequirementsView() {
                 <div className="flex-1">
                   <span className="text-sm font-semibold">{uploadError}</span>
                 </div>
-                <button onClick={() => setUploadError(null)} className="text-rose-400 hover:text-rose-600 transition-colors">
+                <button onClick={() => setUploadError(null)} className="text-rose-400 hover:text-rose-600 transition-colors bg-transparent border-0 cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </motion.div>
@@ -426,359 +441,274 @@ export function RequirementsView() {
 
           {selectedChild ? (
             <>
-              {/* ── REGISTRATION SUMMARY CARD ──────────────────────────── */}
+              {/* Student Summary Card */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                <Card className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
-                  {/* Card top gradient accent */}
-                  <div className="h-1 bg-gradient-to-r from-[#0038A8] via-blue-400 to-violet-500" />
+                <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xs">
+                  {/* Left Side: Avatar + Name + Grade */}
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center shrink-0">
+                      <User className="w-5 h-5 text-slate-300" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900 leading-tight uppercase tracking-tight">
+                        {getCleanName(selectedChild)}
+                      </h2>
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1">
+                        {selectedChild.status || 'PENDING'} • {
+                          (selectedChild.gradeLevel || '').toString().toLowerCase().startsWith('grade')
+                            ? selectedChild.gradeLevel.toUpperCase()
+                            : `GRADE ${selectedChild.gradeLevel || '4'}`
+                        }
+                      </p>
+                    </div>
+                  </div>
 
-                  <div className="p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-[#0038A8]/10 to-blue-100 rounded-2xl flex items-center justify-center shrink-0">
-                            <User className="w-6 h-6 text-[#0038A8]" />
-                          </div>
-                          <div>
-                            <h2 className="text-lg font-black text-[#1E293B] leading-tight">{getCleanName(selectedChild)}</h2>
-                            <p className="text-xs text-[#64748B] font-medium">Enrolled Learner</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          {/* Grade */}
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-1">
-                              <GraduationCap className="w-3 h-3" /> Grade
-                            </div>
-                            <p className="text-sm font-black text-[#1E293B]">Grade {selectedChild.gradeLevel}</p>
-                          </div>
-
-                          {/* Classification */}
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-1">
-                              <Tag className="w-3 h-3" /> Classification
-                            </div>
-                            <p className="text-sm font-black text-[#1E293B] leading-tight">{classification}</p>
-                          </div>
-
-                          {/* Reg Status */}
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-1">
-                              <FileCheck className="w-3 h-3" /> Status
-                            </div>
-                            <span className={`text-[11px] font-black px-2 py-0.5 rounded-full border ${regStatusLabel(selectedChild.status || '').color}`}>
-                              {regStatusLabel(selectedChild.status || '').label}
-                            </span>
-                          </div>
-
-                          {/* Documents progress */}
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-1">
-                              <FilePlus2 className="w-3 h-3" /> Documents
-                            </div>
-                            <p className="text-sm font-black text-[#1E293B]">
-                              <span className={uploadedCount === requiredDocList.length ? 'text-emerald-600' : 'text-[#0038A8]'}>
-                                {uploadedCount}
-                              </span>
-                              <span className="text-slate-400"> of {requiredDocList.length}</span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Overall upload progress circle */}
-                      <div className="shrink-0 flex flex-col items-center gap-1.5">
-                        <div className="relative w-20 h-20">
-                          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-                            <circle cx="40" cy="40" r="32" fill="none" stroke="#E2E8F0" strokeWidth="7" />
-                            <circle
-                              cx="40" cy="40" r="32" fill="none"
-                              stroke={uploadedCount === requiredDocList.length ? '#10B981' : '#0038A8'}
-                              strokeWidth="7"
-                              strokeLinecap="round"
-                              strokeDasharray={`${2 * Math.PI * 32}`}
-                              strokeDashoffset={`${2 * Math.PI * 32 * (1 - uploadedCount / requiredDocList.length)}`}
-                              className="transition-all duration-700"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-lg font-black text-[#1E293B]">{Math.round((uploadedCount / requiredDocList.length) * 100)}%</span>
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-bold text-[#64748B]">Completion</span>
-                      </div>
+                  {/* Middle / Right: Classification and Progress Bar */}
+                  <div className="flex items-center gap-12 flex-wrap">
+                    {/* Classification */}
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                        CLASSIFICATION
+                      </span>
+                      <span className="text-xs font-bold text-slate-800">
+                        {classification}
+                      </span>
                     </div>
 
-                    {/* All-complete banner */}
-                    {uploadedCount === requiredDocList.length && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
-                        className="mt-4 p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5"
-                      >
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                        <p className="text-xs font-bold text-emerald-800">
-                          All required documents have been uploaded. No further action is required at this time.
-                        </p>
-                      </motion.div>
-                    )}
+                    {/* Upload Progress */}
+                    <div className="w-48">
+                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                        <span>UPLOAD PROGRESS</span>
+                        <span className="text-[#2563eb] font-extrabold">
+                          {Math.round((uploadedCount / requiredDocList.length) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#2563eb] rounded-full transition-all duration-500"
+                          style={{ width: `${(uploadedCount / requiredDocList.length) * 100}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </Card>
+                </div>
               </motion.div>
 
-              {/* ── DOCUMENT CARDS ─────────────────────────────────────── */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-extrabold text-[#1E293B] flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-[#0038A8]" />
-                    Required Documents
-                    <span className="ml-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[11px] font-bold border border-slate-200">
-                      {requiredDocList.length}
-                    </span>
+              {/* Required Items Section */}
+              <div className="space-y-4 pt-2">
+                <div className="border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    REQUIRED ITEMS
                   </h3>
-                  <span className="text-[11px] font-semibold text-[#64748B]">
-                    {uploadedCount} of {requiredDocList.length} uploaded
-                  </span>
                 </div>
 
-                {documentsLoading ? (
-                  <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="text-sm font-semibold">Loading documents...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {requiredDocList.map((req, idx) => {
-                      const deleteKey = `${selectedEnrollmentId}_${req.key}`;
-                      const isDeletedLocally = deletedDocTypes[deleteKey];
-                      const reqKey = documentTypeToRequirementKey(req.key as DocumentType);
-                      const reqMeta = (selectedChild as any)?.requirementUploads?.[reqKey];
+                {/* Table Headers */}
+                <div className="hidden md:grid grid-cols-[1fr_200px_200px] gap-4 px-4 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div>DOCUMENT DETAILS</div>
+                  <div className="text-center">STATUS</div>
+                  <div className="text-right pr-4">ACTIONS</div>
+                </div>
 
-                      const docRecord = isDeletedLocally ? undefined : (childDocuments.find(d => d.documentType === req.key) || (reqMeta ? {
-                        id: reqMeta.documentId || '',
-                        enrollmentId: selectedEnrollmentId,
-                        documentType: req.key as DocumentType,
-                        fileName: reqMeta.fileName || req.title,
-                        fileUrl: reqMeta.fileUrl || '',
-                        mimeType: reqMeta.mimeType || 'application/pdf',
-                        sizeBytes: reqMeta.sizeBytes || 0,
-                        status: reqMeta.status || 'PENDING'
-                      } as EnrollmentDocument : undefined));
+                {/* Document Rows */}
+                <div className="space-y-3">
+                  {requiredDocList.map((req, idx) => {
+                    const deleteKey = `${selectedEnrollmentId}_${req.key}`;
+                    const isDeletedLocally = deletedDocTypes[deleteKey];
+                    const reqKey = documentTypeToRequirementKey(req.key as DocumentType);
+                    const reqMeta = (selectedChild as any)?.requirementUploads?.[reqKey];
 
-                      const statusKey: StatusKey = docRecord
-                        ? (docRecord.status as StatusKey) ?? 'PENDING'
-                        : 'NOT_UPLOADED';
-                      const isUploading = uploadingDocType === req.key;
-                      const progress = uploadProgress[req.key] ?? 0;
-                      const docRec = docRecord as (EnrollmentDocument & { rejectionReason?: string }) | undefined;
+                    const docRecord = isDeletedLocally ? undefined : (childDocuments.find(d => d.documentType === req.key) || (reqMeta ? {
+                      id: reqMeta.documentId || '',
+                      enrollmentId: selectedEnrollmentId,
+                      documentType: req.key as DocumentType,
+                      fileName: reqMeta.fileName || req.title,
+                      fileUrl: reqMeta.fileUrl || '',
+                      mimeType: reqMeta.mimeType || 'application/pdf',
+                      sizeBytes: reqMeta.sizeBytes || 0,
+                      status: reqMeta.status || 'PENDING'
+                    } as EnrollmentDocument : undefined));
 
-                      return (
-                        <motion.div
-                          key={req.key}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.25, delay: idx * 0.06 }}
-                        >
-                          <Card className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 overflow-hidden">
-                            {/* Status accent line */}
-                            <div className={`h-1 ${
-                              statusKey === 'APPROVED' ? 'bg-emerald-400' :
-                              statusKey === 'PENDING' ? 'bg-blue-400' :
-                              statusKey === 'REJECTED' ? 'bg-rose-400' :
-                              'bg-slate-200'
-                            }`} />
+                    const statusKey: StatusKey = docRecord
+                      ? (docRecord.status as StatusKey) ?? 'PENDING'
+                      : 'NOT_UPLOADED';
+                    const isUploading = uploadingDocType === req.key;
+                    const progress = uploadProgress[req.key] ?? 0;
+                    const docRec = docRecord as (EnrollmentDocument & { rejectionReason?: string }) | undefined;
 
-                            <div className="p-5 sm:p-6 space-y-4">
-                              {/* ── Card Header ── */}
-                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                <div className="flex items-start gap-3">
-                                  <div className="w-11 h-11 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                                    {DOC_ICONS[req.key] || <FileText className="w-5 h-5 text-slate-500" />}
+                    return (
+                      <motion.div
+                        key={req.key}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: idx * 0.05 }}
+                      >
+                        <div className={`bg-white rounded-xl border border-slate-100 p-5 shadow-2xs transition-all duration-200 ${
+                          !docRec && !stagedFiles[req.key] ? 'opacity-80' : ''
+                        }`}>
+                          <div className="grid grid-cols-1 md:grid-cols-[1fr_200px_200px] gap-4 items-center">
+                            {/* Column 1: Document Details */}
+                            <div className="flex items-start gap-3.5 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                                {docRec || stagedFiles[req.key] ? (
+                                  <FileText className="w-5 h-5 text-slate-400" />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center">
+                                    <Plus className="w-3.5 h-3.5 text-slate-300" />
                                   </div>
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <h4 className="text-sm font-black text-[#1E293B]">{req.title}</h4>
-                                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-black uppercase rounded-full border border-rose-200">
-                                        Required
-                                      </span>
-                                    </div>
-                                    <p className="text-[11px] text-[#64748B] font-medium">{req.description}</p>
-                                    {docRec && (
-                                      <p className="text-[11px] font-bold text-[#0038A8] flex items-center gap-1.5 pt-0.5">
-                                        <FileText className="w-3.5 h-3.5" />
-                                        {docRec.fileName} <span className="text-[10px] text-slate-400 font-medium">({formatBytes(docRec.sizeBytes)})</span>
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <StatusBadge status={statusKey} />
+                                )}
                               </div>
-
-                              {/* ── Upload Progress ── */}
-                              {isUploading && <UploadProgressBar progress={progress} />}
-
-                              {/* Rejection feedback if any */}
-                              {docRec && statusKey === 'REJECTED' && docRec.rejectionReason && (
-                                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
-                                  <CircleAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-[11px] font-bold text-rose-800">Rejection Reason:</p>
-                                    <p className="text-[11px] text-rose-700 font-medium">{docRec.rejectionReason}</p>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* ── Not Uploaded hint ── */}
-                              {!docRec && !isUploading && (
-                                <div className="bg-slate-50 rounded-2xl p-4 border border-dashed border-slate-200 flex items-center gap-3">
-                                  <FilePlus2 className="w-5 h-5 text-slate-300 shrink-0" />
-                                  <p className="text-xs text-[#64748B] font-medium">
-                                    No file has been uploaded for this requirement yet.
-                                    Upload your document using the button below.
+                              <div className="min-w-0">
+                                <h4 className={`text-sm font-bold ${!docRec && !stagedFiles[req.key] ? 'text-slate-400' : 'text-slate-900'}`}>
+                                  {req.title}
+                                </h4>
+                                <p className="text-[11px] text-slate-400 mt-0.5">{req.description}</p>
+                                {(docRec || stagedFiles[req.key]) && (
+                                  <p className="text-[10px] font-semibold text-[#2563eb] mt-1.5 truncate">
+                                    {stagedFiles[req.key] ? stagedFiles[req.key].name : docRec?.fileName}{' '}
+                                    <span className="text-slate-400 font-normal ml-1">
+                                      {formatBytes(stagedFiles[req.key] ? stagedFiles[req.key].size : docRec?.sizeBytes || 0)}
+                                    </span>
                                   </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Column 2: Status */}
+                            <div className="flex items-center md:justify-center">
+                              {isUploading ? (
+                                <div className="w-full max-w-[120px]">
+                                  <UploadProgressBar progress={progress} />
                                 </div>
-                              )}
-
-                              {/* ── Action Buttons & Two-Step Confirmation ── */}
-                              {!isUploading && (
-                                <div className="space-y-3">
-                                  {/* Hidden file input */}
-                                  <input
-                                    type="file"
-                                    ref={el => { fileInputRefs.current[req.key] = el; }}
-                                    accept="image/*,.pdf,application/pdf"
-                                    className="hidden"
-                                    onChange={e => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        if (file.size > 10 * 1024 * 1024) {
-                                          setUploadError('File size exceeds 10MB limit. Please choose a smaller file.');
-                                          return;
-                                        }
-                                        setUploadError(null);
-                                        setStagedFiles(prev => ({ ...prev, [req.key]: file }));
-                                      }
-                                    }}
-                                  />
-
-                                  {/* Staged File Confirmation Bar */}
-                                  {stagedFiles[req.key] ? (
-                                    <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-in fade-in-50">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                                          <FileText className="w-5 h-5 text-[#0038A8]" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <p className="text-xs font-bold text-slate-900 truncate">
-                                            {stagedFiles[req.key].name}
-                                          </p>
-                                          <p className="text-[11px] text-slate-500 font-medium">
-                                            Selected for upload ({formatBytes(stagedFiles[req.key].size)})
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const fileToUpload = stagedFiles[req.key];
-                                            if (fileToUpload) {
-                                              handleUpload(req.key as DocumentType, fileToUpload);
-                                            }
-                                          }}
-                                          className="px-4 py-2 bg-[#0038A8] hover:bg-[#002d86] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                                        >
-                                          <Upload className="w-3.5 h-3.5" /> Confirm Upload
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setStagedFiles(prev => {
-                                              const next = { ...prev };
-                                              delete next[req.key];
-                                              return next;
-                                            });
-                                            if (fileInputRefs.current[req.key]) {
-                                              fileInputRefs.current[req.key]!.value = '';
-                                            }
-                                          }}
-                                          className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : !docRec ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => fileInputRefs.current[req.key]?.click()}
-                                      className="px-4 py-2 bg-[#0038A8] hover:bg-[#002d86] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-                                    >
-                                      <Upload className="w-3.5 h-3.5" /> Select Document
-                                    </button>
-                                  ) : (
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <button
-                                        type="button"
-                                        onClick={() => openPreview(req.title, docRec.fileUrl, docRec.mimeType)}
-                                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-[#0038A8] border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-                                      >
-                                        <Eye className="w-3.5 h-3.5 text-[#0038A8]" /> View Document
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => fileInputRefs.current[req.key]?.click()}
-                                        className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-                                      >
-                                        <RefreshCw className="w-3.5 h-3.5 text-amber-600" /> Replace Document
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => window.open(docRec.fileUrl, '_blank')}
-                                        className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                                      >
-                                        <Download className="w-3.5 h-3.5 text-violet-500" /> Download
-                                      </button>
-
-                                      {(() => {
-                                        const isEnrolled = selectedChild?.status === 'Enrolled' || selectedChild?.status === 'Approved';
-                                        return (
-                                          <button
-                                            type="button"
-                                            disabled={isEnrolled}
-                                            onClick={() => {
-                                              if (isEnrolled) return;
-                                              setDeleteConfirmDoc({
-                                                docRecordId: docRec.id,
-                                                docType: req.key,
-                                                docName: req.title
-                                              });
-                                            }}
-                                            title={isEnrolled ? "Cannot delete documents after official enrollment" : "Delete document"}
-                                            className={`px-3.5 py-2 border rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                              isEnrolled
-                                                ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
-                                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 cursor-pointer shadow-xs'
-                                            }`}
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                                          </button>
-                                        );
-                                      })()}
-                                    </div>
-                                  )}
-                                </div>
+                              ) : (
+                                <span className={`text-[10px] font-extrabold tracking-widest uppercase ${
+                                  statusKey === 'APPROVED' ? 'text-emerald-600' :
+                                  statusKey === 'PENDING' ? 'text-blue-600' :
+                                  statusKey === 'REJECTED' ? 'text-rose-600' :
+                                  stagedFiles[req.key] ? 'text-amber-600' :
+                                  'text-slate-300'
+                                }`}>
+                                  {statusKey === 'APPROVED' ? 'VERIFIED' :
+                                   statusKey === 'PENDING' ? 'UNDER REVIEW' :
+                                   statusKey === 'REJECTED' ? 'NEEDS RE-UPLOAD' :
+                                   stagedFiles[req.key] ? 'DOCUMENT INSERTED' :
+                                   'MISSING'}
+                                </span>
                               )}
                             </div>
-                          </Card>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
+
+                            {/* Column 3: Actions */}
+                            <div className="flex items-center justify-start md:justify-end gap-5">
+                              {stagedFiles[req.key] ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const file = stagedFiles[req.key];
+                                      const localUrl = URL.createObjectURL(file);
+                                      openPreview(req.title, localUrl, file.type);
+                                    }}
+                                    className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 hover:text-slate-800 border-0 bg-transparent p-0 cursor-pointer outline-none transition-colors"
+                                  >
+                                    VIEW
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRefs.current[req.key]?.click()}
+                                    className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 hover:text-slate-800 border-0 bg-transparent p-0 cursor-pointer outline-none transition-colors"
+                                  >
+                                    REPLACE
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setStagedFiles(prev => {
+                                        const next = { ...prev };
+                                        delete next[req.key];
+                                        return next;
+                                      });
+                                      if (fileInputRefs.current[req.key]) {
+                                        fileInputRefs.current[req.key]!.value = '';
+                                      }
+                                    }}
+                                    className="text-[10px] font-extrabold tracking-widest uppercase text-rose-600 hover:text-rose-700 border-0 bg-transparent p-0 cursor-pointer outline-none transition-colors"
+                                  >
+                                    DELETE
+                                  </button>
+                                </>
+                              ) : docRec ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openPreview(req.title, docRec.fileUrl, docRec.mimeType)}
+                                    className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 hover:text-slate-800 border-0 bg-transparent p-0 cursor-pointer outline-none transition-colors"
+                                  >
+                                    VIEW
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRefs.current[req.key]?.click()}
+                                    className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 hover:text-slate-800 border-0 bg-transparent p-0 cursor-pointer outline-none transition-colors"
+                                  >
+                                    REPLACE
+                                  </button>
+                                  {(() => {
+                                    const isEnrolled = selectedChild?.status === 'Enrolled' || selectedChild?.status === 'Approved';
+                                    return (
+                                      <button
+                                        type="button"
+                                        disabled={isEnrolled}
+                                        onClick={() => {
+                                          if (isEnrolled) return;
+                                          setDeleteConfirmDoc({
+                                            docRecordId: docRec.id,
+                                            docType: req.key,
+                                            docName: req.title
+                                          });
+                                        }}
+                                        className={`text-[10px] font-extrabold tracking-widest uppercase border-0 bg-transparent p-0 transition-colors outline-none ${
+                                          isEnrolled
+                                            ? 'text-slate-200 cursor-not-allowed'
+                                            : 'text-rose-600 hover:text-rose-700 cursor-pointer'
+                                        }`}
+                                      >
+                                        DELETE
+                                      </button>
+                                    );
+                                  })()}
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRefs.current[req.key]?.click()}
+                                  className="px-5 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-[10px] font-black tracking-widest uppercase cursor-pointer border-0 outline-none transition-colors shadow-2xs"
+                                >
+                                  UPLOAD
+                                </button>
+                              )}
+                              <input
+                                type="file"
+                                ref={el => { fileInputRefs.current[req.key] = el; }}
+                                accept="image/*,.pdf,application/pdf"
+                                className="hidden"
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    if (file.size > 10 * 1024 * 1024) {
+                                      setUploadError('File size exceeds 10MB limit. Please choose a smaller file.');
+                                      return;
+                                    }
+                                    setUploadError(null);
+                                    setStagedFiles(prev => ({ ...prev, [req.key]: file }));
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
             </>
           ) : (
@@ -799,6 +729,70 @@ export function RequirementsView() {
           )}
         </div>
       </div>
+
+      {/* Sticky Bottom Footer for Staged Documents or Submission */}
+      <footer className="h-20 sm:h-24 bg-white border-t border-slate-100 px-6 sm:px-10 flex items-center shrink-0">
+        <div className="w-full max-w-7xl mx-auto flex items-center justify-end gap-6 sm:gap-8">
+          <button
+            type="button"
+            onClick={() => {
+              setStagedFiles({});
+              requiredDocList.forEach(req => {
+                if (fileInputRefs.current[req.key]) {
+                  fileInputRefs.current[req.key]!.value = '';
+                }
+              });
+            }}
+            className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-0 cursor-pointer p-0 outline-none"
+          >
+            DISCARD CHANGES
+          </button>
+          <button
+            type="button"
+            disabled={uploading || Object.keys(stagedFiles).length === 0}
+            onClick={async () => {
+              if (Object.keys(stagedFiles).length === 0 || !selectedEnrollmentId) return;
+              setUploading(true);
+              setUploadError(null);
+              setSuccessMsg(null);
+              try {
+                for (const [docType, file] of Object.entries(stagedFiles)) {
+                  setUploadingDocType(docType);
+                  await uploadRequirementDocument({
+                    enrollmentId: selectedEnrollmentId,
+                    documentType: docType as DocumentType,
+                    file
+                  });
+                }
+                setStagedFiles({});
+                setSuccessMsg('Documents successfully submitted and saved!');
+                setTimeout(() => setSuccessMsg(null), 5000);
+              } catch (err: any) {
+                console.error('Batch upload error:', err);
+                setUploadError(err?.message || 'Failed to upload documents. Please try again.');
+              } finally {
+                setUploading(false);
+                setUploadingDocType(null);
+                setUploadProgress({});
+              }
+            }}
+            className={`px-6 py-3 rounded-xl text-xs font-extrabold transition-all shadow-md border-0 outline-none flex items-center gap-2 cursor-pointer ${
+              Object.keys(stagedFiles).length > 0
+                ? 'bg-[#2563eb] hover:bg-blue-700 text-white shadow-blue-500/10'
+                : 'bg-[#2563eb]/50 text-white opacity-80 cursor-not-allowed'
+            }`}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>UPLOADING...</span>
+              </>
+            ) : (
+              <span>SUBMIT DOCUMENTS</span>
+            )}
+          </button>
+        </div>
+      </footer>
 
       {/* ── DOCUMENT PREVIEW MODAL ─────────────────────────────────────── */}
       <AnimatePresence>

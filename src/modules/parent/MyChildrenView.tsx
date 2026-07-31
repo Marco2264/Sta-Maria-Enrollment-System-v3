@@ -26,25 +26,46 @@ import { useParentData } from '../../lib/parentData';
 export function MyChildrenView({
   onSelectChild
 }: { onSelectChild: (id: string) => void; }) {
-  const { children, loading, deleteChild } = useParentData();
+  const parentData = useParentData();
+  const children = parentData?.children || [];
+  const loading = parentData?.loading || false;
+  const deleteChild = parentData?.deleteChild;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [childToDelete, setChildToDelete] = useState<any | null>(null);
 
   const filteredChildren = useMemo(() => {
-    if (!searchQuery.trim()) return children;
+    const list = children || [];
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return children.filter(c => {
-      const fullName = `${c.firstName} ${c.middleName || ''} ${c.lastName}`.toLowerCase();
+    return list.filter(c => {
+      if (!c) return false;
+      const fullName = `${c.firstName || ''} ${c.middleName || ''} ${c.lastName || ''}`.toLowerCase();
       const lrn = (c.lrn || '').toLowerCase();
-      const grade = `grade ${c.gradeLevel}`.toLowerCase();
+      const grade = `grade ${c.gradeLevel || ''}`.toLowerCase();
       return fullName.includes(q) || lrn.includes(q) || grade.includes(q);
     });
   }, [children, searchQuery]);
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-[#2563eb]/30 border-t-[#2563eb] rounded-full animate-spin"></div>
+      <div className="flex flex-col h-full bg-[#F4F7F9] font-sans">
+        <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex items-center shrink-0">
+          <div className="flex items-center justify-between w-full">
+            <div className="space-y-2">
+              <div className="h-7 w-40 bg-slate-200 animate-pulse rounded-lg" />
+              <div className="h-3 w-64 bg-slate-100 animate-pulse rounded-md" />
+            </div>
+            <div className="h-9 w-60 bg-slate-100 animate-pulse rounded-full" />
+          </div>
+        </header>
+        <div className="flex-1 p-6 sm:p-8 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/60 p-6 space-y-4">
+            <div className="h-12 bg-slate-100 animate-pulse rounded-xl" />
+            <div className="h-12 bg-slate-50 animate-pulse rounded-xl" />
+            <div className="h-12 bg-slate-50 animate-pulse rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -53,27 +74,28 @@ export function MyChildrenView({
     switch (status) {
       case 'Enrolled':
       case 'Approved':
+      case 'Active':
         return (
-          <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-100 inline-flex items-center gap-1.5 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Active
+          <span className="px-3.5 py-1 bg-emerald-50 text-emerald-600 text-xs font-semibold rounded-full border border-emerald-100/80 inline-flex items-center gap-1.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Enrolled
           </span>
         );
       case 'Pending':
         return (
-          <span className="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-100 inline-flex items-center gap-1.5 shadow-2xs">
-            <CircleDashed className="w-3.5 h-3.5 text-amber-600 animate-spin-slow" /> Pending
+          <span className="px-3.5 py-1 bg-amber-50 text-amber-600 text-xs font-semibold rounded-full border border-amber-100/80 inline-flex items-center gap-1.5 shadow-2xs">
+            <CircleDashed className="w-3.5 h-3.5 text-amber-500 animate-spin-slow" /> Pending
           </span>
         );
       case 'Rejected':
         return (
-          <span className="px-3 py-1 bg-rose-50 text-rose-700 text-xs font-semibold rounded-full border border-rose-100 inline-flex items-center gap-1.5 shadow-2xs">
-            <XCircle className="w-3.5 h-3.5 text-rose-600" /> Rejected
+          <span className="px-3.5 py-1 bg-rose-50 text-rose-600 text-xs font-semibold rounded-full border border-rose-100/80 inline-flex items-center gap-1.5 shadow-2xs">
+            <XCircle className="w-3.5 h-3.5 text-rose-500" /> Rejected
           </span>
         );
       default:
         return (
-          <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200/60">
-            {status || 'Active'}
+          <span className="px-3.5 py-1 bg-amber-50 text-amber-600 text-xs font-semibold rounded-full border border-amber-100/80 inline-flex items-center gap-1.5 shadow-2xs">
+            <CircleDashed className="w-3.5 h-3.5 text-amber-500 animate-spin-slow" /> Pending
           </span>
         );
     }
@@ -109,7 +131,7 @@ export function MyChildrenView({
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9]">
       {/* ── TOP HEADER BAR ── */}
-      <header className="px-6 py-5 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+      <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]">
             <GraduationCap className="w-5 h-5" />
@@ -157,96 +179,87 @@ export function MyChildrenView({
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200/60 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                       <th className="py-4 px-6 w-12 text-center">#</th>
                       <th className="py-4 px-6">STUDENT NAME</th>
-                      <th className="py-4 px-6">GRADE LEVEL</th>
+                      <th className="py-4 px-6">GRADE & SECTION</th>
                       <th className="py-4 px-6">LRN NUMBER</th>
                       <th className="py-4 px-6">ENROLLMENT STATUS</th>
                       <th className="py-4 px-6">GENERAL AVERAGE</th>
-                      <th className="py-4 px-6 text-right">ACTION</th>
+                      <th className="py-4 px-6 text-center">ACTION</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
                     {filteredChildren.map((child, index) => {
                       const rawAvg = getStudentAverage(child);
                       const avgDisplay = rawAvg === 'N/A' ? 'No grades yet' : `${rawAvg}%`;
-                      const standing = getAcademicStandingBadge(rawAvg);
                       const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
                         ? child.gradeLevel
                         : `Grade ${child.gradeLevel || 'Level'}`;
                       const displaySection = child.section
                         ? (child.section.toString().toLowerCase().startsWith('section') ? child.section : `Section ${child.section}`)
                         : 'Section A';
+                      const studentId = child.lrn || '126220200414';
 
                       return (
                         <tr
                           key={child.id}
                           onClick={() => onSelectChild(child.id)}
-                          className="hover:bg-blue-50/40 transition-colors duration-150 cursor-pointer group"
+                          className="hover:bg-slate-50/60 transition-colors duration-150 cursor-pointer group"
                         >
                           {/* Row Index */}
-                          <td className="py-4 px-6 text-slate-400 font-bold text-center">
+                          <td className="py-5 px-6 text-slate-400 font-medium text-center">
                             {index + 1}
                           </td>
 
                           {/* Student Name & Avatar */}
-                          <td className="py-4 px-6">
+                          <td className="py-5 px-6">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+                              <div className="w-10 h-10 rounded-full bg-blue-100/70 text-[#2563eb] font-bold text-xs flex items-center justify-center shrink-0 uppercase">
                                 {child.photoURL ? (
-                                  <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover" />
+                                  <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover rounded-full" />
                                 ) : (
-                                  <span className="text-xs font-black text-[#2563eb]">
-                                    {child.firstName.charAt(0)}{child.lastName.charAt(0)}
+                                  <span>
+                                    {child.firstName?.charAt(0)}{child.lastName?.charAt(0)}
                                   </span>
                                 )}
                               </div>
                               <div>
-                                <p className="font-extrabold text-slate-900 uppercase group-hover:text-[#2563eb] transition-colors">
+                                <p className="font-extrabold text-slate-900 uppercase text-xs leading-snug">
                                   {child.lastName}, {child.firstName} {child.middleName ? `${child.middleName.charAt(0)}.` : ''}
-                                </p>
-                                <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-                                  {displaySection}
                                 </p>
                               </div>
                             </div>
                           </td>
 
-                          {/* Grade Level */}
-                          <td className="py-4 px-6 font-bold text-slate-800">
-                            {displayGrade}
+                          {/* Grade & Section */}
+                          <td className="py-5 px-6">
+                            <p className="font-bold text-slate-900 text-xs leading-snug">{displayGrade}</p>
+                            <p className="text-[11px] font-medium text-slate-400 mt-0.5">{displaySection}</p>
                           </td>
 
                           {/* LRN Number */}
-                          <td className="py-4 px-6 font-mono font-bold text-slate-700">
-                            {child.lrn || '126220200414'}
+                          <td className="py-5 px-6 font-bold text-slate-800 text-xs">
+                            {studentId}
                           </td>
 
                           {/* Enrollment Status */}
-                          <td className="py-4 px-6">
+                          <td className="py-5 px-6">
                             {getStatusBadge(child.status)}
                           </td>
 
                           {/* General Average */}
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-slate-900">{avgDisplay}</span>
-                              {standing && (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${standing.color}`}>
-                                  {standing.label}
-                                </span>
-                              )}
-                            </div>
+                          <td className="py-5 px-6 font-extrabold text-slate-900 text-xs">
+                            {avgDisplay}
                           </td>
 
                           {/* Action Button */}
-                          <td className="py-4 px-6 text-right" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-2">
+                          <td className="py-5 px-6" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => onSelectChild(child.id)}
-                                className="px-3.5 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1 cursor-pointer"
+                                className="px-4 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-full text-xs font-semibold transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
                               >
                                 View Profile
                                 <ArrowRight className="w-3.5 h-3.5" />
@@ -255,10 +268,10 @@ export function MyChildrenView({
                                 <button
                                   type="button"
                                   disabled
-                                  className="p-1.5 text-slate-300 rounded-lg cursor-not-allowed opacity-50"
+                                  className="p-1.5 text-slate-300 rounded-lg cursor-not-allowed opacity-40"
                                   title="Officially enrolled student profiles cannot be deleted."
                                 >
-                                  <Lock className="w-4 h-4 text-slate-300" />
+                                  <Trash2 className="w-4 h-4 text-slate-300" />
                                 </button>
                               ) : (
                                 <button

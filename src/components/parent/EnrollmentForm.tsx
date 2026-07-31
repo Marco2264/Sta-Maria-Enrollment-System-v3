@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
+import { logActivity } from '../../lib/services/activityLogService';
 import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
 import { db } from '../../lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -102,7 +103,7 @@ type StudentClassificationType = 'New Student' | 'Transferee' | 'Balik-Aral' | '
 
 export function EnrollmentForm({ onComplete, onNavigateToRequirements }: EnrollmentFormProps) {
   const { user, userData } = useAuth();
-  const { submitFullEnrollment, documents, children } = useParentData();
+  const { submitFullEnrollment, documents, children, uploadRequirementDocument } = useParentData();
 
   const uData = userData as Record<string, any> | null;
 
@@ -111,76 +112,45 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
   const [direction, setDirection] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
-  // Store local uploads performed during Step 5 before registration is submitted
+  // Store local files selected for confirmation during Step 5 before registration is submitted
   const [step5Uploads, setStep5Uploads] = useState<Record<string, {
-    documentId?: string;
+    file: File;
     fileName: string;
     fileUrl: string;
     mimeType: string;
     sizeBytes: number;
   }>>({});
 
-  const handleStep5DocUpload = async (docType: DocumentType, file: File) => {
-    if (!user) return;
+  const handleStep5DocSelect = (docType: DocumentType, file: File) => {
     const valErr = validateRequirementUpload(file);
     if (valErr) {
       setErrorMsg(valErr);
       return;
     }
-    try {
-      setUploadingDocType(docType);
-      setErrorMsg(null);
-      const fileUrl = await uploadToCloudinary(file);
-      const studentName = `${studentInfo.firstName} ${studentInfo.lastName}`.trim() || 'New Student';
-      const documentId = await addEnrollmentDocumentRecord({
-        enrollmentId: 'temp_registration',
-        parentId: user.uid,
-        studentName,
-        gradeLevel: studentInfo.gradeLevel || 'N/A',
-        documentType: docType,
+    setErrorMsg(null);
+    const localUrl = URL.createObjectURL(file);
+    setStep5Uploads((prev) => ({
+      ...prev,
+      [docType]: {
+        file,
         fileName: file.name,
-        fileUrl,
+        fileUrl: localUrl,
         mimeType: file.type,
         sizeBytes: file.size
-      });
-      setStep5Uploads((prev) => ({
-        ...prev,
-        [docType]: {
-          documentId,
-          fileName: file.name,
-          fileUrl,
-          mimeType: file.type,
-          sizeBytes: file.size
-        }
-      }));
-    } catch (err: any) {
-      console.error('Error uploading document in Step 5:', err);
-      setErrorMsg(err.message || 'Failed to upload document. Please try again.');
-    } finally {
-      setUploadingDocType(null);
-    }
+      }
+    }));
   };
 
-  const handleStep5DocRemove = async (docType: DocumentType, documentId?: string) => {
-    try {
-      if (documentId) {
-        setDeletingDocId(documentId);
-        await deleteDoc(doc(db, 'enrollment_documents', documentId));
-      }
-      setErrorMsg(null);
-      setStep5Uploads((prev) => {
-        const next = { ...prev };
-        delete next[docType];
-        return next;
-      });
-    } catch (err: any) {
-      console.error('Error deleting document in Step 5:', err);
-      setErrorMsg(err.message || 'Failed to remove document.');
-    } finally {
-      setDeletingDocId(null);
-    }
+  const handleStep5DocRemove = (docType: DocumentType) => {
+    setErrorMsg(null);
+    setStep5Uploads((prev) => {
+      const next = { ...prev };
+      delete next[docType];
+      return next;
+    });
   };
 
   // Student Info
@@ -545,8 +515,38 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
 
       const enrollmentId = await submitFullEnrollment(registrationPayload);
 
-      // Documents are managed exclusively from the Document Center.
-      // No document uploads happen here.
+      try {
+        await logActivity({
+          parentId: user?.uid || '',
+          title: 'Learner Registration Submitted',
+          subtitle: `Submitted registration for ${studentInfo.firstName} ${studentInfo.lastName} (${studentInfo.classification}).`,
+          type: 'registration',
+          badgeText: 'SUBMITTED',
+          badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+          dotColor: 'bg-amber-500'
+        });
+      } catch (err) {
+        console.warn('Could not log registration activity:', err);
+      }
+
+      // Upload staged documents only after successful registration submission
+      const localUploadedKeys = Object.keys(step5Uploads);
+      for (const docType of localUploadedKeys) {
+        const fileData = step5Uploads[docType];
+        if (fileData && fileData.file) {
+          try {
+            if (uploadRequirementDocument) {
+              await uploadRequirementDocument({
+                enrollmentId,
+                documentType: docType as DocumentType,
+                file: fileData.file
+              });
+            }
+          } catch (docErr) {
+            console.error(`Failed to upload ${docType} document during registration:`, docErr);
+          }
+        }
+      }
 
       setSubStep(13); // Success screen
     } catch (err: any) {
@@ -576,7 +576,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     if (subStep <= 2) return 1; // Student Info
     if (subStep <= 5) return 2; // Address Info
     if (subStep <= 7) return 3; // Medical Info
-    if (subStep <= 9) return 4; // Parent & Student Info
+    if (subStep === 8 || subStep === 85 || subStep === 9) return 4; // Parent & Student Info (Guardian Info)
     if (subStep === 10) return 5; // Supporting Documents
     if (subStep === 11 || subStep === 12) return 6; // Review & Submit
     return 6;
@@ -633,8 +633,8 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 Your registration for <strong className="text-slate-900 font-bold">{studentInfo.firstName} {studentInfo.lastName}</strong> ({studentInfo.gradeLevel}) is now submitted.
               </p>
               <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl text-xs text-blue-900 font-medium leading-relaxed text-left space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-sm text-[#0C3B99]">
-                  <FileCheck className="w-4 h-4 text-[#0C3B99]" /> Requirements Management
+                <div className="flex items-center gap-1.5 font-bold text-sm text-[#2563eb]">
+                  <FileCheck className="w-4 h-4 text-[#2563eb]" /> Requirements Management
                 </div>
                 <p className="text-[11px] leading-normal text-blue-800">
                   You can upload missing supporting documents anytime from the <strong>Document Center</strong> in the sidebar.
@@ -644,7 +644,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
 
             <Button
               onClick={onComplete}
-              className="w-full px-6 py-3 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-2xl font-bold shadow-xs transition-all flex items-center justify-center gap-2"
+              className="w-full px-6 py-3 bg-[#2563eb] hover:bg-blue-800 text-white rounded-2xl font-bold shadow-xs transition-all flex items-center justify-center gap-2"
             >
               Go to Requirements Page
               <ArrowRight className="w-4 h-4" />
@@ -658,125 +658,141 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
   const activeAddrDetails = getSelectedAddressDetails();
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-center items-center px-4 py-6 font-sans w-full">
-      <div className="w-full max-w-4xl space-y-4 my-auto">
+    <div className="flex flex-col h-full bg-white font-sans text-slate-900 w-full overflow-hidden text-left">
       
       {/* ── HEADER CARD WITH PROGRESS BAR ── */}
-      <Card className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center text-[#0C3B99] font-black text-xs">
-              {mainStep}
+      <header className="px-8 bg-white border-b border-slate-100 lg:h-28 flex flex-col justify-between pt-7 pb-5 shrink-0">
+        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3.5">
+              <div className="w-9 h-9 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-[#2563eb] font-black text-sm shrink-0">
+                {mainStep}
+              </div>
+              <div className="text-left">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Student Registration Form</h1>
+                <p className="text-xs text-slate-400 font-medium mt-1 leading-none">Sta. Maria Elementary School Learner Portal</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-base font-black text-slate-900 leading-tight">Student Registration Form</h1>
-              <p className="text-[11px] text-slate-400 font-medium">Sta. Maria Elementary School Learner Portal</p>
+            <span className="px-3 py-1 bg-white border border-slate-200 text-slate-655 rounded-lg text-[10px] font-extrabold uppercase tracking-widest shrink-0">
+              STEP {mainStep} OF 6
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-[10px] font-extrabold tracking-wider uppercase">
+              <span className="text-[#2563eb]">PROGRESS: {Math.round((mainStep / 6) * 100)}%</span>
+              <span className="text-slate-450">{[
+                'STUDENT INFORMATION',
+                'ADDRESS INFORMATION',
+                'MEDICAL INFORMATION',
+                'PARENT & GUARDIAN DETAILS',
+                'SUPPORTING DOCUMENTS',
+                'REVIEW & SUBMISSION'
+              ][mainStep - 1]}</span>
+            </div>
+            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#2563eb] rounded-full transition-all duration-500"
+                style={{ width: `${(mainStep / 6) * 100}%` }}
+              />
             </div>
           </div>
-          <span className="px-2.5 py-1 bg-blue-50 text-[#0C3B99] rounded-lg text-[10px] font-black uppercase tracking-wider">
-            Step {mainStep} of 6
-          </span>
         </div>
+      </header>
 
-        {/* Progress Bar */}
-        <div className="space-y-1">
-          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
-            <div
-              className="h-full bg-[#0C3B99] rounded-full transition-all duration-300"
-              style={{ width: `${(mainStep / 6) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            <span>Progress: {Math.round((mainStep / 6) * 100)}%</span>
-            <span>{[
-              'Student Info',
-              'Address Info',
-              'Medical Info',
-              'Parent Info',
-              'Supporting Documents',
-              'Review & Submit'
-            ][mainStep - 1]}</span>
-          </div>
-        </div>
-      </Card>
+      {/* ── MAIN SCROLLABLE CONTENT ── */}
+      <div className="flex-1 overflow-y-auto pt-10 pb-8 px-8 bg-white border-b border-slate-100">
+        <div className="max-w-4xl mx-auto space-y-6">
+          
+          {/* Toast Alerts */}
+          {errorMsg && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl flex items-center gap-2.5 animate-in fade-in-50 duration-200">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span className="text-xs font-semibold">{errorMsg}</span>
+            </div>
+          )}
 
-      {/* ── ERROR ALERT ── */}
-      {errorMsg && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl flex items-center gap-2.5 animate-in fade-in-50 duration-200">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span className="text-xs font-semibold">{errorMsg}</span>
-        </div>
-      )}
+          {successMsg && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-2.5 animate-in fade-in-50 duration-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="text-xs font-semibold">{successMsg}</span>
+            </div>
+          )}
 
-      {/* ── STEP CONTENT AREA (MAX 4 INPUT FIELDS AT A TIME) ── */}
-      <AnimatePresence custom={direction} mode="wait">
-        <motion.div
-          key={subStep}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.18, ease: 'easeInOut' }}
-        >
-          <Card className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-5">
+          {/* ── STEP CONTENT AREA (MAX 4 INPUT FIELDS AT A TIME) ── */}
+          <AnimatePresence custom={direction} mode="wait">
+            <motion.div
+              key={subStep}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              className="space-y-6"
+            >
             
             {/* ── SUB-STEP 1: STUDENT NAME & BIRTH DATE (4 FIELDS MAX) ── */}
             {subStep === 1 && (
-              <div className="space-y-4">
-                <div className="border-b border-slate-100 pb-2.5">
-                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <User className="w-4 h-4 text-[#0C3B99]" />
-                    Student Information (Part 1 of 2)
-                  </h2>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Learner's basic information.</p>
+              <div className="space-y-6">
+                <div className="border-b border-slate-100 pb-3 flex items-start gap-3 text-left">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0">
+                    <User className="w-5 h-5 text-[#2563eb]" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 tracking-tight leading-tight flex items-center gap-1.5">
+                      Student Information <span className="text-xs text-slate-400 font-medium">(Part 1 of 2)</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 font-medium mt-1">Provide the learner's basic identification details.</p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
                   {/* Field 1: First Name */}
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">First Name *</Label>
+                    <Label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block mb-1">First Name *</Label>
                     <Input
                       value={studentInfo.firstName}
                       onChange={e => setStudentInfo({ ...studentInfo, firstName: e.target.value })}
                       placeholder="e.g. Juan"
-                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      className="w-full h-14 px-5 bg-slate-50 border-slate-100/60 rounded-2xl text-slate-800 font-bold text-sm placeholder:text-slate-350 focus:bg-white focus:border-blue-500 transition-all"
                     />
                     <p className="text-[10px] text-slate-400 font-medium">First name as shown on PSA birth certificate.</p>
                   </div>
 
                   {/* Field 2: Last Name */}
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Last Name *</Label>
+                    <Label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block mb-1">Last Name *</Label>
                     <Input
                       value={studentInfo.lastName}
                       onChange={e => setStudentInfo({ ...studentInfo, lastName: e.target.value })}
                       placeholder="e.g. Dela Cruz"
-                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      className="w-full h-14 px-5 bg-slate-50 border-slate-100/60 rounded-2xl text-slate-800 font-bold text-sm placeholder:text-slate-350 focus:bg-white focus:border-blue-500 transition-all"
                     />
                     <p className="text-[10px] text-slate-400 font-medium">Learner's legal surname / family name.</p>
                   </div>
 
                   {/* Field 3: Middle Name */}
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                      Middle Name <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                    <Label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block mb-1">
+                      Middle Name <span className="text-slate-400 font-bold lowercase">(optional)</span>
                     </Label>
                     <Input
                       value={studentInfo.middleName}
                       onChange={e => setStudentInfo({ ...studentInfo, middleName: e.target.value })}
                       placeholder="e.g. Santos"
-                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-800 font-medium text-xs h-11"
+                      className="w-full h-14 px-5 bg-slate-50 border-slate-100/60 rounded-2xl text-slate-800 font-bold text-sm placeholder:text-slate-350 focus:bg-white focus:border-blue-500 transition-all"
                     />
                     <p className="text-[10px] text-slate-400 font-medium">Middle name or leave blank if none.</p>
                   </div>
 
                   {/* Field 4: Birth Date */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Birth Date *</Label>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Birth Date *</Label>
                       {computedAge !== null && (
-                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
                           {computedAge} yrs old
                         </span>
                       )}
@@ -785,9 +801,20 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                       type="date"
                       value={studentInfo.birthDate}
                       onChange={e => setStudentInfo({ ...studentInfo, birthDate: e.target.value })}
-                      className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      className="w-full h-14 px-5 bg-slate-50 border-slate-100/60 rounded-2xl text-slate-800 font-bold text-sm placeholder:text-slate-350 focus:bg-white focus:border-blue-500 transition-all"
                     />
                     <p className="text-[10px] text-slate-400 font-medium">Date of birth (age calculated automatically).</p>
+                  </div>
+                </div>
+
+                {/* Important Notice alert notice */}
+                <div className="p-4 sm:p-5 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-start gap-3 mt-4 text-left">
+                  <Info className="w-5 h-5 text-[#2563eb] shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-blue-900 tracking-wider uppercase">IMPORTANT NOTICE</h4>
+                    <p className="text-xs text-blue-800 font-semibold leading-relaxed">
+                      Please ensure all information matches legal documents exactly. Any discrepancies may delay the registration and verification process for the upcoming school year.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -798,7 +825,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
               <div className="space-y-4">
                 <div className="border-b border-slate-100 pb-2.5">
                   <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <User className="w-4 h-4 text-[#0C3B99]" />
+                    <User className="w-4 h-4 text-[#2563eb]" />
                     Student Information (Part 2 of 2)
                   </h2>
                   <p className="text-[11px] text-slate-400 font-medium mt-0.5">Gender, grade level, DepEd LRN, and applicant classification.</p>
@@ -880,7 +907,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                         <SelectItem value="Balik-Aral">Balik-Aral (Returning Student)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] font-semibold text-[#0C3B99] bg-blue-50/70 p-2.5 rounded-lg border border-blue-100 mt-1">
+                    <p className="text-[10px] font-semibold text-[#2563eb] bg-blue-50/70 p-2.5 rounded-lg border border-blue-100 mt-1">
                       {getClassificationHelper(studentInfo.classification)}
                     </p>
                   </div>
@@ -910,7 +937,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                         key={addr.id || idx}
                         className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                           selectedAddressOption === `${idx}`
-                            ? 'bg-blue-50/80 border-[#0C3B99] text-slate-900 shadow-xs'
+                            ? 'bg-blue-50/80 border-[#2563eb] text-slate-900 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -919,7 +946,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                           name="addressChoice"
                           checked={selectedAddressOption === `${idx}`}
                           onChange={() => setSelectedAddressOption(`${idx}`)}
-                          className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99] mt-0.5 shrink-0"
+                          className="w-4 h-4 text-[#2563eb] accent-[#2563eb] mt-0.5 shrink-0"
                         />
                         <div className="text-xs font-semibold">
                           <span className="font-bold text-slate-900 block">
@@ -935,7 +962,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                     <label
                       className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                         selectedAddressOption === 'other'
-                          ? 'bg-blue-50/80 border-[#0C3B99] text-slate-900 shadow-xs'
+                          ? 'bg-blue-50/80 border-[#2563eb] text-slate-900 shadow-xs'
                           : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
@@ -944,7 +971,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                         name="addressChoice"
                         checked={selectedAddressOption === 'other'}
                         onChange={() => setSelectedAddressOption('other')}
-                        className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99] mt-0.5 shrink-0"
+                        className="w-4 h-4 text-[#2563eb] accent-[#2563eb] mt-0.5 shrink-0"
                       />
                       <div className="text-xs font-semibold">
                         <span className="font-bold text-slate-900 block">Other Address</span>
@@ -1180,7 +1207,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                                 setMedicalInfo({ ...medicalInfo, diagnoses: ['Other'] });
                               }
                             }}
-                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                            className="w-4 h-4 text-[#2563eb] accent-[#2563eb]"
                           />
                           {opt}
                         </label>
@@ -1249,7 +1276,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                                 setMedicalInfo({ ...medicalInfo, functionalDifficulties: [FUNCTIONAL_DIFFICULTIES[0]] });
                               }
                             }}
-                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                            className="w-4 h-4 text-[#2563eb] accent-[#2563eb]"
                           />
                           {opt}
                         </label>
@@ -1300,7 +1327,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                             name="hasPwdId"
                             checked={medicalInfo.hasPwdId === opt}
                             onChange={() => setMedicalInfo({ ...medicalInfo, hasPwdId: opt as 'Yes' | 'No' })}
-                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                            className="w-4 h-4 text-[#2563eb] accent-[#2563eb]"
                           />
                           {opt}
                         </label>
@@ -1328,7 +1355,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 {/* Header & Subtitle */}
                 <div className="border-b border-slate-100 pb-2.5">
                   <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-[#0C3B99]" />
+                    <Users className="w-4 h-4 text-[#2563eb]" />
                     Guardian Confirmation ({parentStudentInfo.isPrimaryGuardian === 'Yes' ? 'Step 1 of 3' : 'Step 1 of 4'})
                   </h2>
                   <p className="text-[11px] text-slate-400 font-medium mt-0.5">
@@ -1339,11 +1366,11 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 {/* Account Holder Card */}
                 <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-[#0C3B99] uppercase tracking-wider">
+                    <span className="text-[10px] font-black text-[#2563eb] uppercase tracking-wider">
                       REGISTERED ACCOUNT HOLDER
                     </span>
-                    <span className="px-2.5 py-0.5 bg-blue-100/80 text-[#0C3B99] border border-blue-200 rounded-full text-[10px] font-extrabold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-[#0C3B99]" /> Synchronized from Account
+                    <span className="px-2.5 py-0.5 bg-blue-100/80 text-[#2563eb] border border-blue-200 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-[#2563eb]" /> Synchronized from Account
                     </span>
                   </div>
 
@@ -1377,7 +1404,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                           name="isPrimaryGuardian"
                           checked={parentStudentInfo.isPrimaryGuardian === opt}
                           onChange={() => setParentStudentInfo({ ...parentStudentInfo, isPrimaryGuardian: opt as 'Yes' | 'No' })}
-                          className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                          className="w-4 h-4 text-[#2563eb] accent-[#2563eb]"
                         />
                         {opt}
                       </label>
@@ -1401,7 +1428,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 {/* Header & Subtitle */}
                 <div className="border-b border-slate-100 pb-2.5">
                   <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-[#0C3B99]" />
+                    <Users className="w-4 h-4 text-[#2563eb]" />
                     Guardian & Emergency Contact Details (Step 2 of 4)
                   </h2>
                   <p className="text-[11px] text-slate-400 font-medium mt-0.5">
@@ -1503,7 +1530,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
               <div className="space-y-4">
                 <div className="border-b border-slate-100 pb-2.5">
                   <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-[#0C3B99]" />
+                    <Users className="w-4 h-4 text-[#2563eb]" />
                     Additional Information ({parentStudentInfo.isPrimaryGuardian === 'Yes' ? 'Step 2 of 3' : 'Step 3 of 4'})
                   </h2>
                   <p className="text-[11px] text-slate-400 font-medium mt-0.5">Religion, Indigenous Peoples, and 4Ps affiliation.</p>
@@ -1554,7 +1581,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                             name="isIndigenous"
                             checked={parentStudentInfo.isIndigenous === opt}
                             onChange={() => setParentStudentInfo({ ...parentStudentInfo, isIndigenous: opt as 'Yes' | 'No' })}
-                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                            className="w-4 h-4 text-[#2563eb] accent-[#2563eb]"
                           />
                           {opt}
                         </label>
@@ -1585,7 +1612,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                             name="is4ps"
                             checked={parentStudentInfo.is4ps === opt}
                             onChange={() => setParentStudentInfo({ ...parentStudentInfo, is4ps: opt as 'Yes' | 'No' })}
-                            className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99]"
+                            className="w-4 h-4 text-[#2563eb] accent-[#2563eb]"
                           />
                           {opt}
                         </label>
@@ -1606,7 +1633,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 <div className="space-y-4">
                   <div className="border-b border-slate-100 pb-2.5">
                     <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                      <FileCheck className="w-4 h-4 text-[#0C3B99]" />
+                      <FileCheck className="w-4 h-4 text-[#2563eb]" />
                       Supporting Documents
                     </h2>
                     <p className="text-[11px] text-slate-400 font-medium mt-0.5">
@@ -1616,7 +1643,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
 
                   {/* Clarification Reminder Banner */}
                   <div className="p-3.5 bg-blue-50/90 border border-blue-200/90 rounded-xl flex items-start gap-3 shadow-xs">
-                    <Info className="w-4 h-4 text-[#0C3B99] shrink-0 mt-0.5" />
+                    <Info className="w-4 h-4 text-[#2563eb] shrink-0 mt-0.5" />
                     <div className="space-y-1">
                       <p className="text-[11px] text-blue-950 font-bold leading-relaxed">
                         You may upload your documents now or skip this step. Missing documents can be uploaded later through the Document Center.
@@ -1630,7 +1657,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                   {/* Student Classification Badge */}
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between">
                     <span className="text-slate-500 font-bold">Student Classification:</span>
-                    <span className="font-extrabold text-[#0C3B99] bg-white px-2.5 py-1 rounded-lg border border-blue-100">
+                    <span className="font-extrabold text-[#2563eb] bg-white px-2.5 py-1 rounded-lg border border-blue-100">
                       {studentInfo.classification}
                     </span>
                   </div>
@@ -1643,18 +1670,16 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
 
                     {requiredDocDefs.map(docDef => {
                       const localDoc = step5Uploads[docDef.type];
-                      const isUploading = uploadingDocType === docDef.type;
-                      const isDeleting = localDoc && deletingDocId === localDoc.documentId;
 
                       return (
-                        <div key={docDef.key} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 transition-all hover:border-slate-300">
+                        <div key={docDef.key} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 transition-all hover:border-slate-300 text-left">
                           <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div className="flex items-start gap-2.5 min-w-0">
-                              <FileText className="w-4.5 h-4.5 text-[#0C3B99] shrink-0 mt-0.5" />
+                              <FileText className="w-4.5 h-4.5 text-[#2563eb] shrink-0 mt-0.5" />
                               <div className="min-w-0">
                                 <h3 className="text-xs font-bold text-slate-900">{docDef.title}</h3>
                                 {localDoc && (
-                                  <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                                  <p className="text-[10px] text-slate-500 truncate mt-0.5 font-medium font-sans">
                                     {localDoc.fileName}
                                   </p>
                                 )}
@@ -1663,11 +1688,11 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
 
                             {/* Status Badge */}
                             {localDoc ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                <Clock className="w-3 h-3 animate-pulse" /> Status: Uploaded
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                Status: Document Inserted
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-650 border border-slate-200">
                                 Status: Not Uploaded
                               </span>
                             )}
@@ -1681,31 +1706,21 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                                 <button
                                   type="button"
                                   onClick={() => window.open(localDoc.fileUrl, '_blank')}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-[#0C3B99] rounded-lg text-[11px] font-bold text-[#0C3B99] shadow-2xs transition-all hover:bg-blue-50/50"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-[#2563eb] rounded-lg text-[11px] font-bold text-[#2563eb] shadow-2xs transition-all hover:bg-blue-50/50 cursor-pointer"
                                 >
                                   <Eye className="w-3.5 h-3.5" /> View
                                 </button>
 
                                 {/* Replace Button */}
-                                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-[#0C3B99] rounded-lg text-[11px] font-bold text-[#0C3B99] shadow-2xs transition-all cursor-pointer hover:bg-blue-50/50">
-                                  {isUploading ? (
-                                    <>
-                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0C3B99]" />
-                                      Replacing...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <RefreshCw className="w-3.5 h-3.5 text-[#0C3B99]" />
-                                      Replace
-                                    </>
-                                  )}
+                                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-[#2563eb] rounded-lg text-[11px] font-bold text-[#2563eb] shadow-2xs transition-all cursor-pointer hover:bg-blue-50/50">
+                                  <RefreshCw className="w-3.5 h-3.5 text-[#2563eb]" />
+                                  Replace
                                   <input
                                     type="file"
                                     accept=".pdf,.jpg,.jpeg,.png"
-                                    disabled={isUploading}
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
-                                      if (file) handleStep5DocUpload(docDef.type as DocumentType, file);
+                                      if (file) handleStep5DocSelect(docDef.type as DocumentType, file);
                                     }}
                                     className="hidden"
                                   />
@@ -1714,39 +1729,24 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                                 {/* Remove Button */}
                                 <button
                                   type="button"
-                                  disabled={isDeleting}
-                                  onClick={() => handleStep5DocRemove(docDef.type as DocumentType, localDoc.documentId)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-rose-200 hover:border-rose-300 rounded-lg text-[11px] font-bold text-rose-600 shadow-2xs transition-all hover:bg-rose-50/50 disabled:opacity-50"
+                                  onClick={() => handleStep5DocRemove(docDef.type as DocumentType)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-rose-200 hover:border-rose-350 rounded-lg text-[11px] font-bold text-rose-600 shadow-2xs transition-all hover:bg-rose-50/50 cursor-pointer"
                                 >
-                                  {isDeleting ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                  )}
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                                   Remove
                                 </button>
                               </>
                             ) : (
                               /* Upload Button (When Not Uploaded) */
-                              <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#0C3B99] hover:bg-[#002878] text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer hover:shadow-sm active:scale-98">
-                                {isUploading ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                    Uploading...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Upload className="w-4 h-4" />
-                                    Upload Document
-                                  </>
-                                )}
+                              <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#002878] text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer hover:shadow-sm active:scale-98">
+                                <Upload className="w-4 h-4" />
+                                Upload Document
                                 <input
                                   type="file"
                                   accept=".pdf,.jpg,.jpeg,.png"
-                                  disabled={isUploading}
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];
-                                    if (file) handleStep5DocUpload(docDef.type as DocumentType, file);
+                                    if (file) handleStep5DocSelect(docDef.type as DocumentType, file);
                                   }}
                                   className="hidden"
                                 />
@@ -1771,7 +1771,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                       onClick={onNavigateToRequirements}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 hover:border-slate-300 bg-white text-slate-700 rounded-xl text-xs font-bold transition-all hover:bg-slate-50"
                     >
-                      <FolderOpen className="w-4 h-4 text-[#0C3B99]" />
+                      <FolderOpen className="w-4 h-4 text-[#2563eb]" />
                       Open Document Center
                       <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                     </button>
@@ -1786,7 +1786,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 {/* Header & Subtitle */}
                 <div className="border-b border-slate-100 pb-3">
                   <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
-                    <Sparkles className="w-4.5 h-4.5 text-[#0C3B99]" />
+                    <Sparkles className="w-4.5 h-4.5 text-[#2563eb]" />
                     Review Registration Information (Part 1 of 2)
                   </h2>
                   <p className="text-xs text-slate-400 font-medium mt-0.5">
@@ -1799,15 +1799,15 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                   <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        <User className="w-3.5 h-3.5 text-[#2563eb]" />
                         Student Information
                       </h3>
                       <button
                         type="button"
                         onClick={() => setSubStep(1)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                       >
-                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                        <Pencil className="w-3 h-3 text-[#2563eb]" /> Edit
                       </button>
                     </div>
 
@@ -1822,7 +1822,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Classification</span>
-                        <span className="font-bold text-[#0C3B99]">{studentInfo.classification}</span>
+                        <span className="font-bold text-[#2563eb]">{studentInfo.classification}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">LRN Number</span>
@@ -1844,7 +1844,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Users className="w-3.5 h-3.5 text-[#0C3B99]" />
+                          <Users className="w-3.5 h-3.5 text-[#2563eb]" />
                           Guardian & Emergency Contact
                         </h3>
                         {parentStudentInfo.isPrimaryGuardian === 'Yes' ? (
@@ -1852,17 +1852,17 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Synced from Parent Account
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-blue-50 text-[#0C3B99] border border-blue-200 rounded-full text-[10px] font-extrabold flex items-center gap-1">
-                            <UserCheck className="w-3 h-3 text-[#0C3B99]" /> Manually Provided
+                          <span className="px-2 py-0.5 bg-blue-50 text-[#2563eb] border border-blue-200 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                            <UserCheck className="w-3 h-3 text-[#2563eb]" /> Manually Provided
                           </span>
                         )}
                       </div>
                       <button
                         type="button"
                         onClick={() => setSubStep(8)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                       >
-                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                        <Pencil className="w-3 h-3 text-[#2563eb]" /> Edit
                       </button>
                     </div>
 
@@ -1898,15 +1898,15 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                   <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        <MapPin className="w-3.5 h-3.5 text-[#2563eb]" />
                         Address Information
                       </h3>
                       <button
                         type="button"
                         onClick={() => setSubStep(3)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                       >
-                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                        <Pencil className="w-3 h-3 text-[#2563eb]" /> Edit
                       </button>
                     </div>
 
@@ -1929,7 +1929,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 {/* Header & Subtitle */}
                 <div className="border-b border-slate-100 pb-3">
                   <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
-                    <Sparkles className="w-4.5 h-4.5 text-[#0C3B99]" />
+                    <Sparkles className="w-4.5 h-4.5 text-[#2563eb]" />
                     Supporting Information & Submission (Part 2 of 2)
                   </h2>
                   <p className="text-xs text-slate-400 font-medium mt-0.5">
@@ -1942,15 +1942,15 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                   <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <HeartPulse className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        <HeartPulse className="w-3.5 h-3.5 text-[#2563eb]" />
                         Medical Information
                       </h3>
                       <button
                         type="button"
                         onClick={() => setSubStep(6)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#0C3B99] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                       >
-                        <Pencil className="w-3 h-3 text-[#0C3B99]" /> Edit
+                        <Pencil className="w-3 h-3 text-[#2563eb]" /> Edit
                       </button>
                     </div>
 
@@ -1986,15 +1986,15 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                   <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <FileCheck className="w-3.5 h-3.5 text-[#0C3B99]" />
+                        <FileCheck className="w-3.5 h-3.5 text-[#2563eb]" />
                         Supporting Documents
                       </h3>
                       <button
                         type="button"
                         onClick={onNavigateToRequirements}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold text-[#0C3B99] hover:bg-blue-50/60 transition-all cursor-pointer shadow-2xs"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-bold text-[#2563eb] hover:bg-blue-50/60 transition-all cursor-pointer shadow-2xs"
                       >
-                        <FolderOpen className="w-3.5 h-3.5 text-[#0C3B99]" /> Go to Document Center
+                        <FolderOpen className="w-3.5 h-3.5 text-[#2563eb]" /> Go to Document Center
                       </button>
                     </div>
 
@@ -2008,7 +2008,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                           <div key={docDef.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white rounded-xl border border-slate-200/70 text-xs">
                             <div className="space-y-0.5">
                               <div className="font-bold text-slate-900 flex items-center gap-2">
-                                <FileText className="w-3.5 h-3.5 text-[#0C3B99] shrink-0" />
+                                <FileText className="w-3.5 h-3.5 text-[#2563eb] shrink-0" />
                                 <span>{docDef.title}</span>
                               </div>
                               {localDoc ? (
@@ -2045,9 +2045,9 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
 
                   {/* 4. Submission Notice Card (Registration Reminder Card) */}
                   <div className="p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-start gap-3.5 shadow-2xs">
-                    <Info className="w-5 h-5 text-[#0C3B99] shrink-0 mt-0.5" />
+                    <Info className="w-5 h-5 text-[#2563eb] shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <h4 className="text-xs font-extrabold text-[#0C3B99] tracking-tight">Registration Reminder</h4>
+                      <h4 className="text-xs font-extrabold text-[#2563eb] tracking-tight">Registration Reminder</h4>
                       <p className="text-xs text-blue-950 font-medium leading-relaxed">
                         You may submit your registration even if some supporting documents are still missing. Missing documents can be uploaded later through the Document Center. Your registration will remain pending until the school has reviewed all required documents.
                       </p>
@@ -2060,7 +2060,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                       type="checkbox"
                       checked={isConfirmed}
                       onChange={e => setIsConfirmed(e.target.checked)}
-                      className="w-4 h-4 text-[#0C3B99] accent-[#0C3B99] rounded mt-0.5 cursor-pointer shrink-0"
+                      className="w-4 h-4 text-[#2563eb] accent-[#2563eb] rounded mt-0.5 cursor-pointer shrink-0"
                     />
                     <span className="text-xs font-extrabold text-slate-800 leading-snug">
                       I confirm that all information provided is true, complete, and accurate to the best of my knowledge.
@@ -2070,64 +2070,85 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
               </div>
             )}
 
-            {/* ── FOOTER NAVIGATION CONTROLS ── */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-4">
-              {subStep > 1 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleBackSubStep}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back
-                </Button>
-              ) : <div />}
-
-              {subStep < 11 ? (
-                <Button
-                  type="button"
-                  onClick={handleNextSubStep}
-                  className="px-5 py-2 bg-[#0C3B99] hover:bg-blue-900 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  Next <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              ) : subStep === 11 ? (
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setDirection(1);
-                    setSubStep(12);
-                  }}
-                  className="px-5 py-2 bg-[#0C3B99] hover:bg-blue-900 text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  Continue <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={handleSubmitRegistration}
-                  disabled={isSubmitting || !isConfirmed}
-                  className="px-6 py-2.5 bg-[#0C3B99] hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-xs transition-all text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Submit Registration
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </Card>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* No local file preview modal needed — all previews handled by Document Center */}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
+
+    {/* ── FOOTER NAVIGATION CONTROLS ── */}
+    <footer className="h-24 bg-white border-t border-slate-100 px-8 flex items-start pt-5 shrink-0">
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-between gap-4">
+        {subStep > 1 ? (
+          <button
+            type="button"
+            onClick={handleBackSubStep}
+            disabled={isSubmitting}
+            className="px-0 py-2 bg-transparent text-slate-400 hover:text-slate-655 font-extrabold uppercase tracking-widest text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 border-0 outline-none"
+          >
+            &lt; Previous
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="px-0 py-2 bg-transparent text-slate-200 font-extrabold uppercase tracking-widest text-xs flex items-center gap-1.5 border-0 outline-none cursor-not-allowed"
+          >
+            &lt; Previous
+          </button>
+        )}
+
+        <div className="flex items-center gap-6">
+          <button
+            type="button"
+            onClick={() => {
+              setSuccessMsg("Registration draft saved successfully!");
+              setTimeout(() => setSuccessMsg(null), 3000);
+            }}
+            className="text-slate-500 hover:text-slate-700 font-extrabold uppercase tracking-widest text-xs cursor-pointer transition-colors border-0 bg-transparent outline-none"
+          >
+            Save as Draft
+          </button>
+
+          {subStep === 11 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDirection(1);
+                setSubStep(12);
+              }}
+              className="px-6 py-3 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl font-extrabold shadow-md shadow-blue-500/10 transition-all text-xs flex items-center gap-1.5 cursor-pointer border-0 outline-none"
+            >
+              Continue &gt;
+            </button>
+          ) : subStep === 12 ? (
+            <button
+              type="button"
+              onClick={handleSubmitRegistration}
+              disabled={isSubmitting || !isConfirmed}
+              className="px-6 py-3 bg-[#2563eb] hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-extrabold shadow-md shadow-blue-500/10 transition-all text-xs flex items-center gap-1.5 cursor-pointer border-0 outline-none"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Submit Registration
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleNextSubStep}
+              className="px-6 py-3 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl font-extrabold shadow-md shadow-blue-500/10 transition-all text-xs flex items-center gap-1.5 cursor-pointer border-0 outline-none"
+            >
+              Next Step &gt;
+            </button>
+          )}
+        </div>
+      </div>
+    </footer>
+  </div>
   );
 }

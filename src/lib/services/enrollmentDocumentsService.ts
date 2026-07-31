@@ -114,8 +114,9 @@ export function subscribeParentEnrollmentDocuments(
   onData: (docs: EnrollmentDocument[]) => void,
   onError?: (error: Error) => void
 ) {
-  // Use simple where() without orderBy to avoid needing a composite Firestore index.
-  // We sort client-side instead.
+  console.log("Collection:", ENROLLMENT_DOCUMENTS_COLLECTION);
+  console.log("Doc ID:", "N/A");
+  console.log("Query params:", { parentId });
   const q = query(
     collection(db, ENROLLMENT_DOCUMENTS_COLLECTION),
     where('parentId', '==', parentId)
@@ -145,12 +146,24 @@ export function subscribeAllEnrollmentDocuments(
   onData: (docs: EnrollmentDocument[]) => void
 ) {
   const q = query(
-    collection(db, ENROLLMENT_DOCUMENTS_COLLECTION),
-    orderBy('uploadedAt', 'desc')
+    collection(db, ENROLLMENT_DOCUMENTS_COLLECTION)
   );
-  return onSnapshot(q, (snap) => {
-    onData(snap.docs.map((d) => ({ id: d.id, ...d.data() } as EnrollmentDocument)));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EnrollmentDocument));
+      docs.sort((a, b) => {
+        const aTime = (a.uploadedAt as { seconds?: number })?.seconds ?? 0;
+        const bTime = (b.uploadedAt as { seconds?: number })?.seconds ?? 0;
+        return bTime - aTime;
+      });
+      onData(docs);
+    },
+    (err) => {
+      console.warn('[enrollmentDocumentsService] subscribeAllEnrollmentDocuments warning:', err);
+      onData([]);
+    }
+  );
 }
 
 export function subscribeEnrollmentDocumentsByGradeLevel(
@@ -226,55 +239,24 @@ export async function deleteRequirementDocument(params: {
   const { enrollmentId, documentType, docRecordId } = params;
   const reqKey = documentTypeToRequirementKey(documentType);
 
-  let deletedAny = false;
-
-  // 1. Delete specific document record from enrollment_documents collection if valid ID exists
+  // 1. Delete specific document record from enrollment_documents collection if docRecordId is valid
   if (docRecordId && docRecordId.trim()) {
     try {
       await deleteDoc(doc(db, ENROLLMENT_DOCUMENTS_COLLECTION, docRecordId));
-      deletedAny = true;
     } catch (err) {
       console.warn('[enrollmentDocumentsService] Error deleting document by ID:', err);
     }
   }
 
-  // 2. Query and delete ALL matching document records in enrollment_documents collection
+  // 2. Remove ONLY the specific requirementUploads key on the enrollment document in Firestore
   if (enrollmentId) {
     try {
-      const q = query(
-        collection(db, ENROLLMENT_DOCUMENTS_COLLECTION),
-        where('enrollmentId', '==', enrollmentId)
-      );
-      const snap = await getDocs(q);
-      const matchingDocs = snap.docs.filter((d) => {
-        const data = d.data();
-        return data.documentType === documentType || data.documentType === reqKey;
-      });
-
-      for (const d of matchingDocs) {
-        await deleteDoc(d.ref);
-        deletedAny = true;
-      }
-    } catch (err) {
-      console.warn('[enrollmentDocumentsService] Error querying enrollment_documents collection:', err);
-    }
-
-    // 3. Clear requirementUploads reference from enrollments document in Firestore
-    try {
       await updateDoc(doc(db, 'enrollments', enrollmentId), {
-        [`requirementUploads.${reqKey}`]: deleteField(),
-        [`requirementUploads.${documentType}`]: deleteField(),
-        [`requirementUploads.${documentType.toLowerCase()}`]: deleteField()
+        [`requirementUploads.${reqKey}`]: deleteField()
       });
-      deletedAny = true;
     } catch (err) {
-      console.error('[enrollmentDocumentsService] Error updating requirementUploads on enrollment:', err);
-      throw new Error('Failed to update student enrollment document in Firestore.');
+      console.warn('[enrollmentDocumentsService] Error removing requirementUploads key:', err);
     }
-  }
-
-  if (!deletedAny) {
-    console.warn('[enrollmentDocumentsService] No matching document records found to delete.');
   }
 }
 
