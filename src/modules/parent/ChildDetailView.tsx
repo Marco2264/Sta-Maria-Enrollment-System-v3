@@ -54,11 +54,11 @@ import { logActivity } from '../../lib/services/activityLogService';
 export function ChildDetailView({
   childId,
   onBack
-}: {childId: string;onBack: () => void;}) {
+}: { childId: string; onBack: () => void; }) {
   const { user } = useAuth();
   const { children, updateChild } = useParentData();
   const child = children.find((c) => c.id === childId);
-  
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<any>(null);
@@ -426,15 +426,8 @@ export function ChildDetailView({
           </span>
         </div>
 
-        {/* Right: Search & Edit Profile Button */}
+        {/* Right: Actions / Lock Status */}
         <div className="flex items-center gap-3">
-          <div className="relative hidden sm:block">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Search students, courses..."
-              className="pl-9 pr-4 py-1.5 w-64 bg-slate-50 border-slate-200/80 rounded-full text-xs font-medium focus:bg-white transition-all"
-            />
-          </div>
 
           <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative cursor-pointer">
             <Bell className="w-4 h-4" />
@@ -490,10 +483,10 @@ export function ChildDetailView({
 
           <Tabs defaultValue="personal" className="w-full">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
+
               {/* ── LEFT COLUMN: PROFILE CARD & STUDENT SUMMARY ── */}
               <div className="lg:col-span-1 space-y-6">
-                
+
                 {/* 1. Student Profile Card */}
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 text-center space-y-4 animate-fade-up">
                   {/* Circular Avatar Container */}
@@ -680,7 +673,7 @@ export function ChildDetailView({
                 {/* 2. Student Summary Card (Replaces Account Meta) */}
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 space-y-4 animate-fade-up">
                   <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">STUDENT SUMMARY</h3>
-                  
+
                   <div className="space-y-3.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 font-medium">Enrollment Status</span>
@@ -719,7 +712,7 @@ export function ChildDetailView({
 
               {/* ── RIGHT COLUMN: TABS & CONTENT PANELS ── */}
               <div className="lg:col-span-2 space-y-6">
-                
+
                 {/* Tab Navigation Pill Selector (Apple Segmented Control) */}
                 <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 inline-flex items-center gap-1 w-full overflow-x-auto shadow-2xs">
                   <TabsList className="bg-transparent border-none p-0 h-auto gap-1 w-full justify-start">
@@ -755,10 +748,10 @@ export function ChildDetailView({
                 </div>
 
                 {/* Tab Panels */}
-                
+
                 {/* 1. PERSONAL INFO TAB PANEL */}
                 <TabsContent value="personal" className="mt-0 outline-none space-y-6">
-                  
+
                   {/* Card 1: Personal Information */}
                   <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
@@ -905,7 +898,7 @@ export function ChildDetailView({
                       </h3>
                       <p className="text-xs text-slate-400 mt-1">Double session tracking records</p>
                     </div>
-                    
+
                     {child.status !== 'Enrolled' ? (
                       <div className="p-16 text-center">
                         <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1094,7 +1087,7 @@ export function ChildDetailView({
           <DialogHeader>
             <DialogTitle>Edit Student Information</DialogTitle>
           </DialogHeader>
-          
+
           {editData && (
             <div className="space-y-8 pt-4">
               {/* Basic Info */}
@@ -1103,23 +1096,23 @@ export function ChildDetailView({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>First Name</Label>
-                    <Input value={editData.firstName} onChange={e => setEditData({...editData, firstName: e.target.value})} />
+                    <Input value={editData.firstName} onChange={e => setEditData({ ...editData, firstName: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Last Name</Label>
-                    <Input value={editData.lastName} onChange={e => setEditData({...editData, lastName: e.target.value})} />
+                    <Input value={editData.lastName} onChange={e => setEditData({ ...editData, lastName: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Middle Name</Label>
-                    <Input value={editData.middleName} onChange={e => setEditData({...editData, middleName: e.target.value})} />
+                    <Input value={editData.middleName} onChange={e => setEditData({ ...editData, middleName: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Birth Date</Label>
-                    <Input type="date" value={editData.birthDate} onChange={e => setEditData({...editData, birthDate: e.target.value})} />
+                    <Input type="date" value={editData.birthDate} onChange={e => setEditData({ ...editData, birthDate: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Gender</Label>
-                    <Select value={editData.gender} onValueChange={v => setEditData({...editData, gender: v})}>
+                    <Select value={editData.gender} onValueChange={v => setEditData({ ...editData, gender: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Male">Male</SelectItem>
@@ -1129,7 +1122,7 @@ export function ChildDetailView({
                   </div>
                   <div className="space-y-2">
                     <Label>LRN</Label>
-                    <Input value={editData.lrn} onChange={e => setEditData({...editData, lrn: e.target.value})} />
+                    <Input value={editData.lrn} onChange={e => setEditData({ ...editData, lrn: e.target.value })} />
                   </div>
                 </div>
               </div>
@@ -1140,23 +1133,23 @@ export function ChildDetailView({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2 space-y-2">
                     <Label>Street</Label>
-                    <Input value={editData.address.street} onChange={e => setEditData({...editData, address: {...editData.address, street: e.target.value}})} />
+                    <Input value={editData.address.street} onChange={e => setEditData({ ...editData, address: { ...editData.address, street: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Barangay</Label>
-                    <Input value={editData.address.barangay} onChange={e => setEditData({...editData, address: {...editData.address, barangay: e.target.value}})} />
+                    <Input value={editData.address.barangay} onChange={e => setEditData({ ...editData, address: { ...editData.address, barangay: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>City/Municipality</Label>
-                    <Input value={editData.address.city} onChange={e => setEditData({...editData, address: {...editData.address, city: e.target.value}})} />
+                    <Input value={editData.address.city} onChange={e => setEditData({ ...editData, address: { ...editData.address, city: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Province</Label>
-                    <Input value={editData.address.province} onChange={e => setEditData({...editData, address: {...editData.address, province: e.target.value}})} />
+                    <Input value={editData.address.province} onChange={e => setEditData({ ...editData, address: { ...editData.address, province: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Zip Code</Label>
-                    <Input value={editData.address.zipCode} onChange={e => setEditData({...editData, address: {...editData.address, zipCode: e.target.value}})} />
+                    <Input value={editData.address.zipCode} onChange={e => setEditData({ ...editData, address: { ...editData.address, zipCode: e.target.value } })} />
                   </div>
                 </div>
               </div>
@@ -1167,15 +1160,15 @@ export function ChildDetailView({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Height (cm)</Label>
-                    <Input value={editData.medical.height} onChange={e => setEditData({...editData, medical: {...editData.medical, height: e.target.value}})} />
+                    <Input value={editData.medical.height} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, height: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Weight (kg)</Label>
-                    <Input value={editData.medical.weight} onChange={e => setEditData({...editData, medical: {...editData.medical, weight: e.target.value}})} />
+                    <Input value={editData.medical.weight} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, weight: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Blood Type</Label>
-                    <Select value={editData.medical.bloodType} onValueChange={v => setEditData({...editData, medical: {...editData.medical, bloodType: v}})}>
+                    <Select value={editData.medical.bloodType} onValueChange={v => setEditData({ ...editData, medical: { ...editData.medical, bloodType: v } })}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="A+">A+</SelectItem><SelectItem value="A-">A-</SelectItem>
@@ -1188,15 +1181,15 @@ export function ChildDetailView({
                   </div>
                   <div className="space-y-2">
                     <Label>Allergies</Label>
-                    <Input value={editData.medical.allergies} onChange={e => setEditData({...editData, medical: {...editData.medical, allergies: e.target.value}})} />
+                    <Input value={editData.medical.allergies} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, allergies: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Emergency Contact</Label>
-                    <Input value={editData.medical.emergencyContact} onChange={e => setEditData({...editData, medical: {...editData.medical, emergencyContact: e.target.value}})} />
+                    <Input value={editData.medical.emergencyContact} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, emergencyContact: e.target.value } })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Emergency Phone</Label>
-                    <Input value={editData.medical.emergencyPhone} onChange={e => setEditData({...editData, medical: {...editData.medical, emergencyPhone: e.target.value}})} />
+                    <Input value={editData.medical.emergencyPhone} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, emergencyPhone: e.target.value } })} />
                   </div>
                 </div>
               </div>

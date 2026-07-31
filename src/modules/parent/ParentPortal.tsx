@@ -11,6 +11,8 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   FolderOpen,
   Menu,
   LogOut,
@@ -74,156 +76,257 @@ function ParentPortalContent() {
 
   const uData = userData as Record<string, string> | null;
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white font-sans border-r border-slate-100 z-50">
-      {/* Brand Header */}
-      <div className="h-16 lg:h-28 flex items-center gap-3 px-6 sm:px-8 border-b border-slate-100 shrink-0 cursor-pointer" onClick={() => navigate('/')}>
-        <div className="w-10 h-10 bg-[#2563eb] rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
-          <GraduationCap className="w-6 h-6 text-white" />
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('parent_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('parent_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
+  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => {
+    const collapsed = isMobile ? false : sidebarCollapsed;
+    return (
+      <div className="flex flex-col h-full bg-white font-sans border-r border-slate-100 z-50 overflow-x-hidden">
+        {/* Brand Header */}
+        <div className={`h-16 lg:h-28 flex items-center ${collapsed ? 'justify-center px-2' : 'gap-3 px-6'} border-b border-slate-100 shrink-0 cursor-pointer overflow-hidden`} onClick={() => handleNavigate('dashboard')}>
+          <div className="p-1.5 bg-blue-50/80 rounded-xl border border-blue-100/80 shadow-xs shrink-0">
+            <img src="/pasted-image.jpg" alt="Sta. Maria Logo" className="w-8 h-8 rounded-lg object-cover" />
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col text-left">
+              <span className="text-xl font-bold tracking-tight text-slate-900 leading-none">Sta. Maria</span>
+              <span className="text-[10px] font-extrabold text-[#2563eb] uppercase tracking-widest leading-none mt-1">Parent Portal</span>
+            </div>
+          )}
         </div>
-        <div className="flex flex-col text-left">
-          <span className="text-xl font-bold tracking-tight text-slate-900 leading-none">Sta. Maria</span>
-          <span className="text-[10px] font-extrabold text-[#2563eb] uppercase tracking-widest leading-none mt-1">Parent Portal</span>
-        </div>
-      </div>
 
-      {/* Nav Menu Items */}
-      <div className="flex-1 overflow-y-auto py-6 px-4 space-y-6">
-        {/* Category: Main Menu */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Main Menu</div>
-          <div className="space-y-1">
-            <button
-              onClick={() => handleNavigate('dashboard')}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer ${
-                activeView === 'dashboard'
-                  ? 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
-              }`}
-            >
-              <LayoutDashboard className={`w-5 h-5 shrink-0 ${activeView === 'dashboard' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-              <span className="flex-1 text-left truncate">Dashboard</span>
-            </button>
+        {/* Nav Menu Items */}
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden no-scrollbar ${collapsed ? 'py-4 px-2 space-y-4' : 'py-5 px-4 space-y-5'}`}>
+          {/* Toggle Button row above Main Menu */}
+          {!isMobile && (
+            <div className={`flex items-center ${collapsed ? 'justify-center mb-2' : 'justify-between px-4 mb-2'}`}>
+              {!collapsed && (
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Collapse</span>
+              )}
+              <button
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-[#2563eb] hover:bg-blue-50 transition-all cursor-pointer shrink-0 relative group"
+                title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+              >
+                {collapsed ? <PanelLeftOpen className="w-4.5 h-4.5 text-slate-500" /> : <PanelLeftClose className="w-4.5 h-4.5" />}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
+                    Expand Sidebar
+                  </div>
+                )}
+              </button>
+            </div>
+          )}
 
-            <button
-              onClick={() => handleNavigate('children')}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer ${
-                activeView === 'children' || activeView === 'child-detail'
-                  ? 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
-              }`}
-            >
-              <Users className={`w-5 h-5 shrink-0 ${activeView === 'children' || activeView === 'child-detail' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-              <span className="flex-1 text-left truncate">My Students</span>
-            </button>
+          {/* Category: Main Menu */}
+          <div className="space-y-2">
+            {!collapsed ? (
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Main Menu</div>
+            ) : (
+              <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider text-center mb-1 select-none">MENU</div>
+            )}
+            <div className="space-y-1">
+              <button
+                onClick={() => handleNavigate('dashboard')}
+                className={`w-full flex items-center ${collapsed ? 'justify-center p-3' : 'gap-3.5 px-4 py-3'} text-sm font-medium transition-all duration-200 cursor-pointer relative group ${
+                  activeView === 'dashboard'
+                    ? collapsed 
+                      ? 'bg-blue-50 text-[#2563eb] font-bold rounded-xl shadow-xs' 
+                      : 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
+                }`}
+              >
+                <LayoutDashboard className={`w-5 h-5 shrink-0 ${activeView === 'dashboard' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+                {!collapsed && <span className="flex-1 text-left truncate">Dashboard</span>}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
+                    Dashboard
+                  </div>
+                )}
+              </button>
 
-            <button
-              onClick={() => handleNavigate('announcements')}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer ${
-                activeView === 'announcements'
-                  ? 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
-              }`}
-            >
-              <Bell className={`w-5 h-5 shrink-0 ${activeView === 'announcements' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-              <span className="flex-1 text-left truncate">Announcements</span>
-            </button>
+              <button
+                onClick={() => handleNavigate('children')}
+                className={`w-full flex items-center ${collapsed ? 'justify-center p-3' : 'gap-3.5 px-4 py-3'} text-sm font-medium transition-all duration-200 cursor-pointer relative group ${
+                  activeView === 'children' || activeView === 'child-detail'
+                    ? collapsed 
+                      ? 'bg-blue-50 text-[#2563eb] font-bold rounded-xl shadow-xs' 
+                      : 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
+                }`}
+              >
+                <Users className={`w-5 h-5 shrink-0 ${activeView === 'children' || activeView === 'child-detail' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+                {!collapsed && <span className="flex-1 text-left truncate">My Students</span>}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
+                    My Students
+                  </div>
+                )}
+              </button>
+
+              <button
+                onClick={() => handleNavigate('announcements')}
+                className={`w-full flex items-center ${collapsed ? 'justify-center p-3' : 'gap-3.5 px-4 py-3'} text-sm font-medium transition-all duration-200 cursor-pointer relative group ${
+                  activeView === 'announcements'
+                    ? collapsed 
+                      ? 'bg-blue-50 text-[#2563eb] font-bold rounded-xl shadow-xs' 
+                      : 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
+                }`}
+              >
+                <Bell className={`w-5 h-5 shrink-0 ${activeView === 'announcements' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+                {!collapsed && <span className="flex-1 text-left truncate">Announcements</span>}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
+                    Announcements
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Category: Registration */}
+          <div className="space-y-2">
+            {!collapsed ? (
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Registration</div>
+            ) : (
+              <div className="w-full flex justify-center my-2">
+                <div className="w-4 h-[2px] bg-slate-200 rounded-full" />
+              </div>
+            )}
+            <div className="space-y-1">
+              <button
+                onClick={() => handleNavigate('enrollment')}
+                className={`w-full flex items-center ${collapsed ? 'justify-center p-3' : 'gap-3.5 px-4 py-3'} text-sm font-medium transition-all duration-200 cursor-pointer relative group ${
+                  activeView === 'enrollment'
+                    ? collapsed 
+                      ? 'bg-blue-50 text-[#2563eb] font-bold rounded-xl shadow-xs' 
+                      : 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
+                }`}
+              >
+                <UserPlus className={`w-5 h-5 shrink-0 ${activeView === 'enrollment' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+                {!collapsed && <span className="flex-1 text-left truncate">Student Registration</span>}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
+                    Student Registration
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Category: Documents */}
+          <div className="space-y-2">
+            {!collapsed ? (
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Documents</div>
+            ) : (
+              <div className="w-full flex justify-center my-2">
+                <div className="w-4 h-[2px] bg-slate-200 rounded-full" />
+              </div>
+            )}
+            <div className="space-y-1">
+              <button
+                onClick={() => handleNavigate('requirements')}
+                className={`w-full flex items-center ${collapsed ? 'justify-center p-3' : 'gap-3.5 px-4 py-3'} text-sm font-medium transition-all duration-200 cursor-pointer relative group ${
+                  activeView === 'requirements'
+                    ? collapsed 
+                      ? 'bg-blue-50 text-[#2563eb] font-bold rounded-xl shadow-xs' 
+                      : 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
+                }`}
+              >
+                <FolderOpen className={`w-5 h-5 shrink-0 ${activeView === 'requirements' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+                {!collapsed && <span className="flex-1 text-left truncate">Document Center</span>}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
+                    Document Center
+                  </div>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Category: Registration */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Registration</div>
-          <div className="space-y-1">
-            <button
-              onClick={() => handleNavigate('enrollment')}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer ${
-                activeView === 'enrollment'
-                  ? 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
-              }`}
-            >
-              <UserPlus className={`w-5 h-5 shrink-0 ${activeView === 'enrollment' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-              <span className="flex-1 text-left truncate">Student Registration</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Category: Documents */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-3">Documents</div>
-          <div className="space-y-1">
-            <button
-              onClick={() => handleNavigate('requirements')}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer ${
-                activeView === 'requirements'
-                  ? 'bg-blue-50/80 text-[#2563eb] font-bold border-l-4 border-[#2563eb] rounded-r-lg shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg'
-              }`}
-            >
-              <FolderOpen className={`w-5 h-5 shrink-0 ${activeView === 'requirements' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-              <span className="flex-1 text-left truncate">Document Center</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="h-20 border-t border-slate-100 p-3 shrink-0 flex items-center">
-        <div className="w-full">
+        {/* User settings & Profile bar at bottom */}
+        <div className={`h-24 border-t border-slate-100 ${collapsed ? 'p-2' : 'px-4'} flex items-center shrink-0 relative bg-white`}>
           {showUserMenu && (
-            <div className="mb-2 space-y-1 animate-in slide-in-from-bottom-2 duration-200">
+            <div className={`absolute ${collapsed ? 'left-full ml-3 bottom-2 w-48' : 'bottom-20 left-4 right-4'} bg-white border border-slate-200/60 p-2 rounded-2xl shadow-xl space-y-1 animate-in fade-in-50 duration-200 z-50 backdrop-blur-md`}>
               <button
                 onClick={() => {
                   handleNavigate('settings');
                   setShowUserMenu(false);
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${activeView === 'settings' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+                  activeView === 'settings'
+                    ? 'bg-primary/5 text-primary border border-primary/10'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                }`}
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 text-slate-400" />
                 Settings
               </button>
-              <button
+              <button 
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 text-rose-500" />
                 Sign Out
               </button>
             </div>
           )}
-          <div
-            className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
+          <div 
+            className={`w-full flex items-center ${collapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-2'} hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl cursor-pointer transition-all active:scale-98 relative group overflow-hidden`}
             onClick={() => setShowUserMenu(!showUserMenu)}
           >
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase overflow-hidden">
-              {uData?.photoURL ? (
-                <img src={uData.photoURL} alt="Profile" className="w-full h-full object-cover" />
+            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-inner overflow-hidden">
+              {typeof (userData as any)?.photoURL === 'string' && (userData as any).photoURL ? (
+                <img src={(userData as any).photoURL} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <>{uData?.firstName?.charAt(0) || 'P'}{uData?.lastName?.charAt(0) || 'U'}</>
               )}
             </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold truncate text-slate-900">
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0 overflow-hidden text-left">
+                  <p className="text-xs font-black truncate text-slate-800 leading-tight" title={`${uData?.firstName || ''} ${uData?.lastName || ''}`}>
+                    {uData?.firstName} {uData?.lastName}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate font-bold uppercase tracking-wider mt-0.5">
+                    {uData?.relationship || 'Parent'}
+                  </p>
+                </div>
+                {showUserMenu ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </>
+            )}
+            {collapsed && (
+              <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
                 {uData?.firstName} {uData?.lastName}
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-wider">
-                {uData?.relationship || 'Parent'} | {uData?.email}
-              </p>
-            </div>
-            {showUserMenu ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
             )}
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="flex h-screen w-full bg-muted/30 overflow-hidden font-sans">
-      <aside className="hidden lg:flex w-64 border-r border-border bg-card flex-col shrink-0">
+      <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} border-r border-border bg-card flex-col shrink-0 transition-all duration-300 ease-in-out`}>
         <SidebarContent />
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -235,10 +338,10 @@ function ParentPortalContent() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0 flex flex-col">
-              <SidebarContent />
+              <SidebarContent isMobile={true} />
             </SheetContent>
           </Sheet>
-          <div className="flex items-center gap-2 font-semibold text-sm">
+          <div className="flex items-center gap-2 font-semibold text-sm cursor-pointer" onClick={() => handleNavigate('dashboard')}>
             <img src="/pasted-image.jpg" alt="Logo" className="w-6 h-6 rounded-md object-cover" />
             Parent Portal
           </div>
@@ -254,10 +357,10 @@ function ParentPortalContent() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeView + (selectedChildId || '')}
-              initial={{ opacity: 0 }}
+              initial={{ opacity: 0.4 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              exit={{ opacity: 0.4 }}
+              transition={{ duration: 0.1, ease: 'easeOut' }}
               className="flex-1 flex flex-col h-full"
             >
               {renderActiveView()}

@@ -556,10 +556,10 @@ export function LandingPage() {
                         </div>
                       </div>
 
-                      {/* Bottom row — EST. 1954 badge only, full width */}
+                      {/* Bottom row — EST. 1920 badge only, full width */}
                       <div className="px-3 pt-3 pb-2">
                         <div className="bg-[#004ac6] text-white rounded-xl shadow-lg w-full" style={{ padding: '0.85rem 1.25rem' }}>
-                          <p style={{ fontSize: '1.6rem', fontWeight: 900, lineHeight: 1, margin: 0 }}>EST. 1954</p>
+                          <p style={{ fontSize: '1.6rem', fontWeight: 900, lineHeight: 1, margin: 0 }}>EST. 1920</p>
                           <p style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#fbbf24', marginTop: '4px' }}>Serving Generations of Learners</p>
                         </div>
                       </div>

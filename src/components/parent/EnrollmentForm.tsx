@@ -661,28 +661,21 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     <div className="flex flex-col h-full bg-white font-sans text-slate-900 w-full overflow-hidden text-left">
       
       {/* ── HEADER CARD WITH PROGRESS BAR ── */}
-      <header className="px-8 bg-white border-b border-slate-100 lg:h-28 flex flex-col justify-between pt-7 pb-5 shrink-0">
-        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3.5">
-              <div className="w-9 h-9 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-[#2563eb] font-black text-sm shrink-0">
-                {mainStep}
-              </div>
-              <div className="text-left">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">Student Registration Form</h1>
-                <p className="text-xs text-slate-400 font-medium mt-1 leading-none">Sta. Maria Elementary School Learner Portal</p>
-              </div>
-            </div>
-            <span className="px-3 py-1 bg-white border border-slate-200 text-slate-655 rounded-lg text-[10px] font-extrabold uppercase tracking-widest shrink-0">
-              STEP {mainStep} OF 6
-            </span>
+      <header className="px-6 sm:px-8 bg-white border-b border-slate-100 lg:h-28 flex items-center shrink-0">
+        <div className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Title & Subtitle */}
+          <div className="text-left">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">Student Registration Form</h1>
+            <p className="text-xs text-slate-400 font-medium mt-0.5 leading-none">Sta. Maria Elementary School Learner Portal</p>
           </div>
 
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-[10px] font-extrabold tracking-wider uppercase">
-              <span className="text-[#2563eb]">PROGRESS: {Math.round((mainStep / 6) * 100)}%</span>
-              <span className="text-slate-450">{[
+          {/* Progress & Step Info on the Right Side */}
+          <div className="flex flex-col sm:items-end gap-1.5 min-w-[280px]">
+            <div className="flex items-center justify-between sm:justify-end gap-2.5 text-[10px] font-extrabold tracking-wider uppercase">
+              <span className="px-2.5 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shrink-0">
+                STEP {mainStep} OF 6
+              </span>
+              <span className="text-slate-400 hidden lg:inline">{[
                 'STUDENT INFORMATION',
                 'ADDRESS INFORMATION',
                 'MEDICAL INFORMATION',
@@ -690,10 +683,13 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 'SUPPORTING DOCUMENTS',
                 'REVIEW & SUBMISSION'
               ][mainStep - 1]}</span>
+              <span className="text-[#2563eb] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100 font-black shrink-0">
+                {Math.round((mainStep / 6) * 100)}%
+              </span>
             </div>
-            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full sm:w-64 h-2 bg-slate-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#2563eb] rounded-full transition-all duration-500"
+                className="h-full bg-[#2563eb] rounded-full transition-all duration-500 shadow-xs"
                 style={{ width: `${(mainStep / 6) * 100}%` }}
               />
             </div>
@@ -2076,7 +2072,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     </div>
 
     {/* ── FOOTER NAVIGATION CONTROLS ── */}
-    <footer className="h-24 bg-white border-t border-slate-100 px-8 flex items-start pt-5 shrink-0">
+    <footer className="h-24 bg-white border-t border-slate-100 px-8 flex items-center shrink-0">
       <div className="w-full max-w-4xl mx-auto flex items-center justify-between gap-4">
         {subStep > 1 ? (
           <button

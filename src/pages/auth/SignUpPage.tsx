@@ -360,9 +360,9 @@ export function SignUpPage() {
 
       {/* Floating Centered Split-Card */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        initial={{ opacity: 0.5, scale: 0.98, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
         className="relative z-10 w-full max-w-5xl overflow-hidden flex flex-col md:flex-row my-6"
         style={{ borderRadius: '28px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}
       >

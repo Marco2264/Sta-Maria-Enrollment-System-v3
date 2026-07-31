@@ -145,7 +145,7 @@ export function MyChildrenView({
       </header>
 
       {/* ── MAIN SLEEK TABLE CONTENT ── */}
-      <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="w-full space-y-6">
           {filteredChildren.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-12 text-center space-y-3">
@@ -161,8 +161,8 @@ export function MyChildrenView({
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full min-w-[650px] text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                       <th className="py-4 px-6 w-12 text-center">#</th>

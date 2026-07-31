@@ -1206,22 +1206,6 @@ export function ParentSettingsView() {
               <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate">Portal credentials, security role, and account status.</p>
             </div>
           </div>
-
-          <div className="shrink-0">
-            <button
-              type="button"
-              disabled={isSendingPasswordReset}
-              onClick={handleChangePassword}
-              className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSendingPasswordReset ? (
-                <Loader2 className="w-3.5 h-3.5 text-slate-500 animate-spin" />
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-slate-500" />
-              )}
-              <span>Change Password</span>
-            </button>
-          </div>
         </div>
 
         <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">

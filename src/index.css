@@ -177,6 +177,17 @@
   scrollbar-color: #cbd5e1 transparent;
 }
 
+/* No Scrollbar Utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Glass Morphism & Fade-Up Animation Utilities */
 .glass-effect {
   background: rgba(255, 255, 255, 0.7);
