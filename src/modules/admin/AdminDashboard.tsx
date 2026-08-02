@@ -15,7 +15,8 @@ import {
   GraduationCap,
   LogOut,
   CalendarDays,
-  Database
+  Database,
+  Megaphone
 } from
   'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
@@ -30,6 +31,7 @@ import { HealthDashboardView } from '../../components/admin/HealthDashboardView'
 import { StudentsView } from '../../components/admin/StudentsView';
 import { AttendanceView } from '../../components/admin/AttendanceView';
 import { SchedulesView } from '../../components/admin/SchedulesView';
+import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -85,6 +87,7 @@ function AdminDashboardContent() {
     { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
     { id: 'schedules', label: 'Faculty Teaching Load', icon: CalendarDays, category: 'Management' },
     { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Management' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
   ];
 
@@ -98,6 +101,7 @@ function AdminDashboardContent() {
       case 'attendance': return <AttendanceView />;
       case 'schedules': return <SchedulesView />;
       case 'health': return <HealthDashboardView />;
+      case 'announcements': return <ManageAnnouncementsView />;
       case 'reports': return <ReportsView />;
       default: return <DashboardView />;
     }

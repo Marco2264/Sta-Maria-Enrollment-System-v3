@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../../lib/AuthContext';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { useParentData } from '../../lib/parentData';
 
 export interface AnnouncementItem {
   id: string;
@@ -37,6 +38,9 @@ export interface AnnouncementItem {
   date: string;
   time: string;
   content: string;
+  targetType?: 'all' | 'section' | 'student';
+  targetSectionId?: string;
+  targetStudentId?: string;
   attachmentName?: string;
   attachmentUrl?: string;
   isNew?: boolean;
@@ -122,6 +126,9 @@ const INITIAL_ANNOUNCEMENTS: AnnouncementItem[] = [
 
 export function AnnouncementsView() {
   const { userData } = useAuth();
+  const { children } = useParentData();
+  const myStudentIds = useMemo(() => children.map(c => c.id), [children]);
+  const mySectionIds = useMemo(() => children.map(c => c.sectionId), [children]);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(INITIAL_ANNOUNCEMENTS);
   const [activeTab, setActiveTab] = useState<'school' | 'subject' | 'adviser'>('school');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -159,6 +166,9 @@ export function AnnouncementsView() {
               date: data.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
               time: data.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
               content: data.content || '',
+              targetType: data.targetType || 'all',
+              targetSectionId: data.targetSectionId,
+              targetStudentId: data.targetStudentId,
               attachmentName: data.attachmentName || undefined,
               targetGrade: data.targetGrade || undefined,
               isNew: !readIds.includes(docSnap.id),
@@ -183,12 +193,19 @@ export function AnnouncementsView() {
   const categories = ['All', 'Emergency', 'Class Suspension', 'General', 'Academic', 'Events'];
 
   const updatedAnnouncements = useMemo(() => {
-    return announcements.map(a => ({
-      ...a,
-      isRead: readIds.includes(a.id),
-      isNew: !readIds.includes(a.id)
-    }));
-  }, [announcements, readIds]);
+    return announcements
+      .filter(a => {
+        if (!a.targetType || a.targetType === 'all') return true;
+        if (a.targetType === 'student' && a.targetStudentId) return myStudentIds.includes(a.targetStudentId);
+        if (a.targetType === 'section' && a.targetSectionId) return mySectionIds.includes(a.targetSectionId);
+        return true;
+      })
+      .map(a => ({
+        ...a,
+        isRead: readIds.includes(a.id),
+        isNew: !readIds.includes(a.id)
+      }));
+  }, [announcements, readIds, myStudentIds, mySectionIds]);
 
   const badgeCounts = useMemo(() => {
     return {

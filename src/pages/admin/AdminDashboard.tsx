@@ -16,7 +16,9 @@ import {
   Menu,
   GraduationCap,
   LogOut,
+  Megaphone,
   CalendarDays } from 'lucide-react';
+import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { AdminDataProvider, useAdminData } from '../../lib/adminData';
 import { DashboardView } from '../../components/admin/DashboardView';
@@ -76,6 +78,7 @@ function AdminDashboardContent() {
     { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
     { id: 'schedules', label: 'Teachers Load', icon: CalendarDays, category: 'Management' },
     { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Management' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
   ];
 
@@ -89,6 +92,7 @@ function AdminDashboardContent() {
       case 'attendance': return <AttendanceView />;
       case 'schedules': return <SchedulesView />;
       case 'health': return <HealthDashboardView />;
+      case 'announcements': return <ManageAnnouncementsView />;
       case 'reports': return <ReportsView />;
       default: return <DashboardView />;
     }

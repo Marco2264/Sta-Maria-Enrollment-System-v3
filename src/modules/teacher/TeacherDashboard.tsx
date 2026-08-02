@@ -13,7 +13,8 @@ import {
   ChevronDown,
   ChevronRight,
   Menu,
-  LogOut
+  LogOut,
+  Megaphone
 } from
   'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
@@ -26,6 +27,7 @@ import { GradesView } from '../../components/teacher/GradesView';
 import { TeacherReportsView } from '../../components/teacher/TeacherReportsView';
 import { ObservedValuesView } from '../../components/teacher/ObservedValuesView';
 import { MyScheduleView } from '../../components/teacher/MyScheduleView';
+import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -62,6 +64,7 @@ function TeacherDashboardContent() {
     { id: 'schedule', label: 'My Schedule', icon: Calendar, category: 'Classroom' },
     { id: 'grades', label: 'Grades', icon: ClipboardList, category: 'Classroom' },
     { id: 'observed-values', label: 'Observed Values', icon: Heart, category: 'Classroom' },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Classroom' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF5, SF8, SF9)', icon: FileText, category: 'Documents' }
   ];
 
@@ -74,6 +77,7 @@ function TeacherDashboardContent() {
       case 'schedule': return <MyScheduleView />;
       case 'grades': return <GradesView />;
       case 'observed-values': return <ObservedValuesView />;
+      case 'announcements': return <ManageAnnouncementsView sections={assignedSections} students={students} />;
       case 'reports': return <TeacherReportsView />;
       default: return <TeacherDashboardView />;
     }

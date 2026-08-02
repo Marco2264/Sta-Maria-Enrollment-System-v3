@@ -15,7 +15,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
+  Megaphone,
   LogOut } from 'lucide-react';
+import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { TeacherDataProvider, useTeacherData } from '../../lib/teacherData';
 import { TeacherDashboardView } from '../../components/teacher/TeacherDashboardView';
@@ -33,7 +35,7 @@ import { Heart } from 'lucide-react';
 
 function TeacherDashboardContent() {
   const navigate = useNavigate();
-  const { students } = useTeacherData();
+  const { students, assignedSections } = useTeacherData();
   const { userData } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -73,6 +75,7 @@ function TeacherDashboardContent() {
     { id: 'schedule', label: 'My Schedule', icon: Calendar, category: 'Classroom' },
     { id: 'grades', label: 'Grades', icon: ClipboardList, category: 'Classroom' },
     { id: 'observed-values', label: 'Observed Values', icon: Heart, category: 'Classroom' },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Classroom' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF5...)', icon: FileText, category: 'Documents' }
   ];
 
@@ -85,6 +88,7 @@ function TeacherDashboardContent() {
       case 'schedule': return <MyScheduleView />;
       case 'grades': return <GradesView />;
       case 'observed-values': return <ObservedValuesView />;
+      case 'announcements': return <ManageAnnouncementsView sections={assignedSections} students={students} />;
       case 'reports': return <TeacherReportsView />;
       default: return <TeacherDashboardView />;
     }

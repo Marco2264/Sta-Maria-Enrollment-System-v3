@@ -113,10 +113,10 @@ service cloud.firestore {
     }
     
     // Announcements
-    // Admins can manage announcements. Any authenticated user can read them.
+    // Admins and teachers can manage announcements. Any authenticated user can read them.
     match /announcements/{doc} {
       allow read: if isAuthed();
-      allow write: if hasAdminAccess();
+      allow write: if hasAdminAccess() || isTeacher();
     }
     
     // Audit Logs (Phase 9 Addition)
