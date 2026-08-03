@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Megaphone, Plus, Search, Calendar, Clock, AlertTriangle, User, Trash2 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { db } from '../../lib/firebase';
-import { collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp, getDocs, writeBatch } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 interface AnnouncementItem {
@@ -20,18 +20,22 @@ interface AnnouncementItem {
   date: string;
   time: string;
   content: string;
-  targetType?: 'all' | 'section' | 'student';
+  targetType?: 'all' | 'section' | 'student' | 'all_teachers' | 'specific_teacher';
   targetSectionId?: string;
   targetStudentId?: string;
+  targetStudentIds?: string[];
+  targetTeacherIds?: string[];
   createdAt?: any;
 }
 
-export function ManageAnnouncementsView({ sections = [], students = [] }: { sections?: any[], students?: any[] }) {
-  const { userData } = useAuth();
+export function ManageAnnouncementsView({ sections = [], students = [], teachers = [] }: { sections?: any[], students?: any[], teachers?: any[] }) {
+  const { userData, user } = useAuth();
   const uData = userData as any;
   const isTeacher = uData?.role?.toLowerCase() === 'teacher';
   
-  const authorName = uData ? `${uData.firstName} ${uData.lastName}` : 'Admin User';
+  const authorName = (uData?.firstName || uData?.lastName) 
+    ? `${uData.firstName || ''} ${uData.lastName || ''}`.trim() 
+    : 'School Admin';
   const authorRole = isTeacher ? 'Faculty' : 'School Admin';
 
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
@@ -46,23 +50,29 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
   const [formContent, setFormContent] = useState('');
   
   // Targeting State
-  const [targetType, setTargetType] = useState<'all' | 'section' | 'student'>('all');
+  const [targetType, setTargetType] = useState<'all' | 'section' | 'student' | 'all_teachers' | 'specific_teacher'>(isTeacher ? 'section' : 'all');
   const [targetSectionId, setTargetSectionId] = useState('');
-  const [targetStudentId, setTargetStudentId] = useState('');
+  const [targetStudentIds, setTargetStudentIds] = useState<string[]>([]);
+  const [targetTeacherIds, setTargetTeacherIds] = useState<string[]>([]);
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [studentSearch, setStudentSearch] = useState('');
 
-  // Reset target IDs if type changes
-  useEffect(() => {
-    if (targetType === 'all') {
-      setTargetSectionId('');
-      setTargetStudentId('');
-    } else if (targetType === 'section' && sections.length > 0) {
+  const handleTargetTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value as any;
+    setTargetType(newType);
+    setTargetStudentIds([]);
+    setTargetTeacherIds([]);
+    if (newType === 'section' && sections && sections.length > 0) {
       setTargetSectionId(sections[0].sectionId);
-      setTargetStudentId('');
-    } else if (targetType === 'student' && students.length > 0) {
-      setTargetStudentId(students[0].id);
+    } else {
       setTargetSectionId('');
     }
-  }, [targetType, sections, students]);
+  };
+
+  const getStudentSectionName = (sectionId: string) => {
+    const section = sections?.find(s => s.sectionId === sectionId || s.id === sectionId);
+    return section ? `${section.gradeLevel} - ${section.name}` : 'No Section';
+  };
 
   useEffect(() => {
     const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
@@ -83,6 +93,8 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
           targetType: data.targetType || 'all',
           targetSectionId: data.targetSectionId,
           targetStudentId: data.targetStudentId,
+          targetStudentIds: data.targetStudentIds,
+          targetTeacherIds: data.targetTeacherIds,
           createdAt: data.createdAt
         });
       });
@@ -95,7 +107,19 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
   }, []);
 
   const myAnnouncements = announcements.filter(a => {
-    if (isTeacher) return a.author === authorName;
+    if (isTeacher) {
+      if (a.author === authorName) return true;
+      if (a.tab === 'school') {
+        if (!a.targetType || a.targetType === 'all') return true;
+        if (a.targetType === 'all_teachers') return true;
+        if (a.targetType === 'specific_teacher' && a.targetTeacherIds?.includes(user?.uid || uData?.id)) return true;
+        return false;
+      }
+      if (a.targetType === 'section' && a.targetSectionId) {
+        if (sections.some(s => s.sectionId === a.targetSectionId)) return true;
+      }
+      return false;
+    }
     return true; // Admins see all
   }).filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.content.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -111,8 +135,13 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
       return;
     }
     
-    if (targetType === 'student' && !targetStudentId) {
-      toast.error('Please select a student to target.');
+    if (targetType === 'student' && targetStudentIds.length === 0) {
+      toast.error('Please select at least one student to target.');
+      return;
+    }
+    
+    if (targetType === 'specific_teacher' && targetTeacherIds.length === 0) {
+      toast.error('Please select at least one teacher to target.');
       return;
     }
 
@@ -130,7 +159,8 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
         time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         targetType,
         targetSectionId,
-        targetStudentId,
+        targetStudentIds,
+        targetTeacherIds,
         createdAt: serverTimestamp()
       });
       
@@ -139,7 +169,11 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
       setFormTitle('');
       setFormContent('');
       setFormCategory('General');
-      setTargetType('all');
+      setTargetType(isTeacher ? 'section' : 'all');
+      setTargetStudentIds([]);
+      setTargetTeacherIds([]);
+      setTeacherSearch('');
+      setStudentSearch('');
     } catch (error) {
       console.error('Error adding announcement:', error);
       toast.error('Failed to publish announcement');
@@ -160,11 +194,40 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (window.confirm('WARNING: Are you sure you want to delete ALL announcements across all portals? This cannot be undone.')) {
+      try {
+        setIsSubmitting(true);
+        const q = query(collection(db, 'announcements'));
+        const snap = await getDocs(q);
+        const batch = writeBatch(db);
+        snap.forEach(document => {
+          batch.delete(document.ref);
+        });
+        await batch.commit();
+        toast.success('All announcements cleared successfully');
+      } catch (error) {
+        console.error('Error clearing announcements:', error);
+        toast.error('Failed to clear announcements');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
   const getTargetLabel = (item: AnnouncementItem) => {
     if (item.targetType === 'section') {
+       if (item.targetSectionId && sections) {
+         const section = sections.find(s => s.sectionId === item.targetSectionId || s.id === item.targetSectionId);
+         if (section) return `Section: ${section.gradeLevel} - ${section.name}`;
+       }
        return `Section Only`;
     } else if (item.targetType === 'student') {
-       return `Student Only`;
+       return `Student(s) Only`;
+    } else if (item.targetType === 'all_teachers') {
+       return `All Teachers`;
+    } else if (item.targetType === 'specific_teacher') {
+       return `Specific Teacher(s)`;
     }
     return 'Broadcast All';
   };
@@ -181,9 +244,16 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
             Create and manage targeted announcements for parents and students.
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="gap-2 bg-[#2563eb] hover:bg-blue-700 text-white cursor-pointer shadow-md">
-          <Plus className="w-4 h-4" /> New Announcement
-        </Button>
+        <div className="flex items-center gap-3">
+          {!isTeacher && (
+            <Button onClick={handleDeleteAll} disabled={isSubmitting} className="gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer shadow-sm border border-rose-100">
+              <Trash2 className="w-4 h-4" /> Clear All
+            </Button>
+          )}
+          <Button onClick={() => setIsDialogOpen(true)} className="gap-2 bg-[#2563eb] hover:bg-blue-700 text-white cursor-pointer shadow-md">
+            <Plus className="w-4 h-4" /> New Announcement
+          </Button>
+        </div>
       </div>
 
       <Card className="p-4 rounded-2xl border border-slate-200/60 shadow-sm">
@@ -229,14 +299,16 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
                       <div className="flex items-center gap-1"><User className="w-3.5 h-3.5" /> {item.author}</div>
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleDelete(item.id)}
-                    className="text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {(!isTeacher || item.author === authorName) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleDelete(item.id)}
+                      className="text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               );
             })
@@ -291,9 +363,9 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
                     <select 
                       className="w-full text-sm border-slate-200 rounded-md bg-white focus:border-[#2563eb] focus:ring-[#2563eb] h-10 px-3 border outline-none cursor-pointer"
                       value={targetType}
-                      onChange={(e: any) => setTargetType(e.target.value)}
+                      onChange={handleTargetTypeChange}
                     >
-                      <option value="all">Broadcast to All (Public)</option>
+                      {!isTeacher && <option value="all">Broadcast to All (Public)</option>}
                       <option value="section">Specific Section</option>
                       <option value="student">Specific Student</option>
                     </select>
@@ -320,20 +392,116 @@ export function ManageAnnouncementsView({ sections = [], students = [] }: { sect
 
                   {targetType === 'student' && (
                     <div className="space-y-1.5 animate-in slide-in-from-top-2">
-                      <Label className="text-xs font-semibold text-slate-600 uppercase">Select Student</Label>
-                      <select 
-                        className="w-full text-sm border-slate-200 rounded-md bg-white focus:border-[#2563eb] focus:ring-[#2563eb] h-10 px-3 border outline-none cursor-pointer"
-                        value={targetStudentId}
-                        onChange={(e: any) => setTargetStudentId(e.target.value)}
-                      >
-                        <option value="" disabled>Select a student</option>
-                        {students.length === 0 && <option disabled>No students enrolled</option>}
-                        {students.map(s => (
-                          <option key={s.id} value={s.id}>
-                            {s.lastName}, {s.firstName}
-                          </option>
-                        ))}
-                      </select>
+                      <Label className="text-xs font-semibold text-slate-600 uppercase">Select Students</Label>
+                      <div className="border border-slate-200 rounded-md bg-white overflow-hidden shadow-sm">
+                        <div className="p-2 border-b border-slate-100 bg-slate-50/80">
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                            <Input 
+                              placeholder="Search students..." 
+                              value={studentSearch}
+                              onChange={e => setStudentSearch(e.target.value)}
+                              className="pl-8 h-8 text-xs bg-white border-slate-200"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-[160px] overflow-y-auto p-1">
+                          {students.length === 0 && <div className="text-sm text-slate-500 p-3 text-center">No students enrolled</div>}
+                          {students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearch.toLowerCase())).length === 0 && students.length > 0 && (
+                            <div className="text-sm text-slate-500 p-3 text-center">No students found</div>
+                          )}
+                          {students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearch.toLowerCase())).slice(0, 50).map(s => (
+                            <label key={s.id} className="flex items-center gap-3 text-sm cursor-pointer hover:bg-slate-50 p-2 rounded-md transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={targetStudentIds.includes(s.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setTargetStudentIds([...targetStudentIds, s.id]);
+                                  } else {
+                                    setTargetStudentIds(targetStudentIds.filter(id => id !== s.id));
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-[#2563eb] focus:ring-[#2563eb] w-4 h-4"
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-slate-700">{s.lastName}, {s.firstName}</span>
+                                <span className="text-[10px] text-slate-400 font-semibold uppercase">{getStudentSectionName(s.sectionId)}</span>
+                              </div>
+                            </label>
+                          ))}
+                          {students.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearch.toLowerCase())).length > 50 && (
+                            <div className="text-[10px] text-slate-400 p-2 text-center font-medium uppercase tracking-wider">
+                              Showing top 50 results. Use search to find more.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Targeting Options for Admin */}
+              {!isTeacher && (
+                <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-600 uppercase">Target Audience</Label>
+                    <select 
+                      className="w-full text-sm border-slate-200 rounded-md bg-white focus:border-[#2563eb] focus:ring-[#2563eb] h-10 px-3 border outline-none cursor-pointer"
+                      value={targetType}
+                      onChange={handleTargetTypeChange}
+                    >
+                      <option value="all">Broadcast to All (Public)</option>
+                      <option value="all_teachers">All Teachers</option>
+                      <option value="specific_teacher">Specific Teacher(s)</option>
+                    </select>
+                  </div>
+
+                  {targetType === 'specific_teacher' && (
+                    <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                      <Label className="text-xs font-semibold text-slate-600 uppercase">Select Teachers</Label>
+                      <div className="border border-slate-200 rounded-md bg-white overflow-hidden shadow-sm">
+                        <div className="p-2 border-b border-slate-100 bg-slate-50/80">
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                            <Input 
+                              placeholder="Search teachers..." 
+                              value={teacherSearch}
+                              onChange={e => setTeacherSearch(e.target.value)}
+                              className="pl-8 h-8 text-xs bg-white border-slate-200"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-[160px] overflow-y-auto p-1">
+                          {teachers?.length === 0 && <div className="text-sm text-slate-500 p-3 text-center">No teachers found</div>}
+                          {teachers?.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(teacherSearch.toLowerCase())).length === 0 && teachers?.length > 0 && (
+                            <div className="text-sm text-slate-500 p-3 text-center">No teachers match search</div>
+                          )}
+                          {teachers?.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(teacherSearch.toLowerCase())).slice(0, 50).map(t => (
+                            <label key={t.id} className="flex items-center gap-3 text-sm cursor-pointer hover:bg-slate-50 p-2 rounded-md transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={targetTeacherIds.includes(t.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setTargetTeacherIds([...targetTeacherIds, t.id]);
+                                  } else {
+                                    setTargetTeacherIds(targetTeacherIds.filter(id => id !== t.id));
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-[#2563eb] focus:ring-[#2563eb] w-4 h-4"
+                              />
+                              <span className="font-medium text-slate-700">{t.firstName} {t.lastName}</span>
+                            </label>
+                          ))}
+                          {teachers?.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(teacherSearch.toLowerCase())).length > 50 && (
+                            <div className="text-[10px] text-slate-400 p-2 text-center font-medium uppercase tracking-wider">
+                              Showing top 50 results. Use search to find more.
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

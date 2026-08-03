@@ -229,20 +229,22 @@ export function DashboardView() {
 
         <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-7">
           <Card className="lg:col-span-4 bg-white border-slate-200/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">System Overview</h3>
                 <p className="text-sm text-slate-500 mt-1">Historical enrollment trends</p>
               </div>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="Select Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2026-2027">AY 2026-2027 vs 2025-2026</SelectItem>
-                  <SelectItem value="2025-2026">AY 2025-2026 vs 2024-2025</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="shrink-0 w-full sm:w-auto">
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-full sm:w-[180px] h-9 bg-white">
+                    <SelectValue placeholder="Select Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2026-2027">AY 2026-2027</SelectItem>
+                    <SelectItem value="2025-2026">AY 2025-2026</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="h-[300px] w-full relative flex-1">
               <EnrollmentTrendChart data={enrollmentTrends} />

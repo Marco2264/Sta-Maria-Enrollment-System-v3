@@ -52,7 +52,7 @@ const CALENDAR_HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 7 to 19
 const PIXELS_PER_MINUTE = 80 / 60; // 80px per hour
 
 export function SchedulesView() {
-  const { users, subjects, sections, schedules, addSchedule, updateSchedule, deleteSchedule, schoolYear, batchAddSchedules, clearSchedulesForYear } = useAdminData();
+  const { users, subjects, sections, classrooms, schedules, addSchedule, updateSchedule, deleteSchedule, schoolYear, batchAddSchedules, clearSchedulesForYear } = useAdminData();
   const syName = schoolYear?.name ?? getCurrentSchoolYear();
 
   const [teacherSearch, setTeacherSearch] = useState('');
@@ -1191,7 +1191,13 @@ export function SchedulesView() {
                           {(() => {
                             const q = sectionDropdownSearch.toLowerCase();
                             const groupedSectionsForView = sections
-                              .filter(s => (s.name || '').toLowerCase().includes(q) || (s.gradeLevel || '').toLowerCase().includes(q))
+                              .filter(s => {
+                                const c = classrooms.find(c => c.id === s.classroomId);
+                                const matchName = (s.name || '').toLowerCase().includes(q);
+                                const matchGrade = (s.gradeLevel || '').toLowerCase().includes(q);
+                                const matchRoom = c && (c.roomName || '').toLowerCase().includes(q);
+                                return matchName || matchGrade || matchRoom;
+                              })
                               .reduce((acc, section) => {
                                 const gl = formatGradeLevel(section.gradeLevel);
                                 if (!acc[gl]) acc[gl] = [];
@@ -1213,9 +1219,14 @@ export function SchedulesView() {
                             return sortedGrades.map(grade => (
                               <SelectGroup key={grade}>
                                 <SelectLabel className="font-bold text-primary border-b border-slate-100 py-1">{grade}</SelectLabel>
-                                {groupedSectionsForView[grade].map(s => (
-                                  <SelectItem key={s.id} value={s.id} className="pl-6">{s.name}</SelectItem>
-                                ))}
+                                {groupedSectionsForView[grade].map(s => {
+                                  const c = classrooms.find(c => c.id === s.classroomId);
+                                  return (
+                                    <SelectItem key={s.id} value={s.id} className="pl-6">
+                                      {s.name} {c ? `(${c.roomName})` : ''}
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectGroup>
                             ));
                           })()}

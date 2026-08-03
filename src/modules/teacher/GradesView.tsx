@@ -28,7 +28,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Send
+  Send,
+  Printer
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTeacherData } from '../../lib/teacherData';
@@ -461,7 +462,7 @@ export function GradesView() {
           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Current Section</div>
           <h2 className="text-lg font-bold text-slate-900 leading-tight">{currentGradeLevel} — {currentSectionName}</h2>
           {isAdvisorForCurrentSection && (
-            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 mt-2 shadow-sm rounded-md text-xs font-semibold px-2 py-0.5">
+            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 mt-2 shadow-sm rounded-md text-xs font-semibold px-2 py-0.5 w-fit">
               <Star className="w-3 h-3 mr-1" /> Adviser
             </Badge>
           )}
@@ -542,39 +543,184 @@ export function GradesView() {
             </div>
           )}
 
+          {/* Segmented Control */}
+          {isAdvisorForCurrentSection && (
+            <div className="flex justify-center mb-8">
+              <div className="bg-slate-100/80 p-1.5 rounded-xl inline-flex shadow-inner border border-slate-200/60">
+                <button 
+                  onClick={() => {
+                    if (selectedSubjectCode === 'MASTER_SHEET') {
+                      setSelectedSubjectCode(advisedSubjects[0] || taughtSubjects[0] || '');
+                    }
+                  }}
+                  className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                    selectedSubjectCode !== 'MASTER_SHEET' 
+                    ? 'bg-white text-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.1)]' 
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <BookOpen className={`w-4 h-4 ${selectedSubjectCode !== 'MASTER_SHEET' ? 'text-blue-500' : 'text-slate-400'}`} />
+                  Subject Gradebook
+                </button>
+                <button 
+                  onClick={() => setSelectedSubjectCode('MASTER_SHEET')}
+                  className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                    selectedSubjectCode === 'MASTER_SHEET' 
+                    ? 'bg-white text-indigo-700 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.1)]' 
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <Star className={`w-4 h-4 ${selectedSubjectCode === 'MASTER_SHEET' ? 'text-indigo-500' : 'text-slate-400'}`} />
+                  Master Overview
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="flex items-end justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{selectedSubjectCode || 'No Subject Selected'}</h1>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{selectedSubjectCode === 'MASTER_SHEET' ? 'Master Gradebook Report' : selectedSubjectCode || 'No Subject Selected'}</h1>
               <p className="text-sm text-slate-500 mt-1">{currentGradeLevel} — {currentSectionName}</p>
             </div>
             
-            <div className="text-sm font-medium text-slate-500 bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm">
-              Term Weight: <span className={currentTotalWeight === 100 ? "text-emerald-600 font-bold" : currentTotalWeight > 100 ? "text-rose-600 font-bold" : "text-amber-600 font-bold"}>{currentTotalWeight}%</span> / 100%
+            <div className="flex items-center gap-3">
+              {selectedSubjectCode === 'MASTER_SHEET' && (
+                <Button variant="outline" onClick={() => window.print()} className="gap-2 bg-white border-slate-200 shadow-sm hidden sm:flex">
+                  <Printer className="w-4 h-4 text-slate-500" />
+                  Print Report
+                </Button>
+              )}
+              {selectedSubjectCode !== 'MASTER_SHEET' && (
+                <div className="text-sm font-medium text-slate-500 bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm">
+                  Term Weight: <span className={currentTotalWeight === 100 ? "text-emerald-600 font-bold" : currentTotalWeight > 100 ? "text-rose-600 font-bold" : "text-amber-600 font-bold"}>{currentTotalWeight}%</span> / 100%
+                </div>
+              )}
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 mb-6">
-            {terms.map(term => (
-              <button
-                key={term}
-                onClick={() => setSelectedTerm(term)}
-                className={`px-6 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${
-                  selectedTerm === term 
-                  ? 'bg-white border-blue-600 text-blue-700 shadow-[0_-2px_10px_-4px_rgba(0,0,0,0.1)]' 
-                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
-                }`}
-              >
-                {term}
-              </button>
-            ))}
-          </div>
+          {selectedSubjectCode !== 'MASTER_SHEET' && (
+            <div className="flex items-center gap-1 border-b border-slate-200 mb-6">
+              {terms.map(term => (
+                <button
+                  key={term}
+                  onClick={() => setSelectedTerm(term)}
+                  className={`px-6 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${
+                    selectedTerm === term 
+                    ? 'bg-white border-blue-600 text-blue-700 shadow-[0_-2px_10px_-4px_rgba(0,0,0,0.1)]' 
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                  }`}
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Table Area */}
-          <Card className="bg-white border shadow-sm rounded-xl overflow-hidden flex flex-col">
-            {/* Table Toolbar */}
-            <div className={`px-4 py-3 border-b flex items-center justify-between ${isAuthorized ? 'bg-blue-50/50 border-blue-100' : 'bg-slate-50 border-slate-200'}`}>
+          {selectedSubjectCode === 'MASTER_SHEET' ? (
+            <Card className="bg-white border shadow-sm rounded-xl overflow-hidden flex flex-col">
+              <div className="px-4 py-4 border-b bg-indigo-50/50 border-indigo-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Star className="w-5 h-5 text-indigo-600" />
+                  <span className="font-semibold text-indigo-900">Master Sheet (General Weighted Average)</span>
+                </div>
+                <div className="text-sm text-indigo-700 font-medium">
+                  {paginatedEnrolled.length} Students
+                </div>
+              </div>
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider py-3 pl-6 min-w-[200px] sticky left-0 bg-slate-50 z-20 shadow-[1px_0_0_0_#e2e8f0]">Student Name</TableHead>
+                    {Array.from(new Set([...taughtSubjects, ...advisedSubjects])).map(code => (
+                      <TableHead key={code} className="font-semibold text-slate-600 text-[10px] uppercase tracking-wider py-3 text-center min-w-[70px] w-auto" title={code}>
+                        <div className="truncate px-1">{code}</div>
+                      </TableHead>
+                    ))}
+                    <TableHead className="font-bold text-indigo-900 text-xs uppercase tracking-wider py-3 text-center pr-6 min-w-[80px] w-[100px] border-l border-slate-200 sticky right-0 bg-slate-50 z-20 shadow-[-1px_0_0_0_#e2e8f0]">GWA</TableHead>
+                  </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedEnrolled.map(s => {
+                      const gradeKey = currentGradeLevel ? currentGradeLevel.replace(/Grade /i, 'Grade ') : 'Grade 6';
+                      let validSubjects = 0;
+                      let totalGWA = 0;
+                      
+                      const subjGrades = Array.from(new Set([...taughtSubjects, ...advisedSubjects])).map(code => {
+                        const subjectData = (s.grades as Record<string, any>)?.[gradeKey]?.[code] || {};
+                        const finalOverride = subjectData.finalGradeOverride;
+
+                        let subjectFinal: number | null = null;
+                        
+                        if (finalOverride !== undefined && finalOverride !== null) {
+                           subjectFinal = Number(finalOverride);
+                        } else {
+                          const termGrades = terms.map(term => {
+                             const cols = gradeConfigurations.filter(c => c.subjectCode === code && c.term === term && c.type !== 'submission');
+                             if (cols.length === 0) return null;
+                             let termTotal = 0;
+                             let hasGrade = false;
+                             const termData = subjectData[term] || {};
+                             cols.forEach(col => {
+                               const val = termData[col.id];
+                               if (val !== undefined && val !== '') {
+                                 termTotal += (parseFloat(val) * (col.weight / 100));
+                                 hasGrade = true;
+                               }
+                             });
+                             return hasGrade ? termTotal : null;
+                          }).filter(v => v !== null) as number[];
+
+                          if (termGrades.length > 0) {
+                             subjectFinal = termGrades.reduce((a, b) => a + b, 0) / termGrades.length;
+                          }
+                        }
+
+                        if (subjectFinal !== null) {
+                           totalGWA += subjectFinal;
+                           validSubjects++;
+                        }
+                        
+                        return { code, value: subjectFinal, isOverride: finalOverride !== undefined && finalOverride !== null };
+                      });
+
+                      const gwa = validSubjects > 0 ? (totalGWA / validSubjects).toFixed(2) : '—';
+                      const isFailing = validSubjects > 0 && (totalGWA / validSubjects) < 75;
+
+                      return (
+                        <TableRow key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-200 ${isFailing ? 'bg-red-50/30' : 'bg-white'}`}>
+                          <TableCell className={`pl-6 py-2.5 sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] ${isFailing ? 'bg-red-50/90' : 'bg-white'}`}>
+                            <span className={`font-semibold text-[13px] ${isFailing ? 'text-red-700' : 'text-slate-800'} whitespace-nowrap`}>
+                              {formatStudentName(s.firstName, s.lastName)}
+                            </span>
+                          </TableCell>
+                          {subjGrades.map(sg => (
+                            <TableCell key={sg.code} className={`text-center py-2.5 px-1 font-mono text-xs ${sg.isOverride ? 'text-amber-700 bg-amber-50/50 font-bold' : (sg.value !== null && Number(sg.value) < 75 ? 'text-red-600 font-bold bg-red-50/50' : 'text-slate-600')}`}>
+                              {sg.value !== null ? Number(sg.value).toFixed(1) : '—'}
+                            </TableCell>
+                          ))}
+                          <TableCell className={`text-center pr-6 py-2.5 font-mono font-bold text-[13px] border-l border-slate-200 sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] ${isFailing ? 'text-red-700 bg-red-50/90' : 'text-indigo-900 bg-indigo-50/90'}`}>
+                            {gwa}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {enrolled.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={Array.from(new Set([...taughtSubjects, ...advisedSubjects])).length + 2} className="text-center py-12 text-slate-500">
+                          No students enrolled.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+            </Card>
+          ) : (
+            <Card className="bg-white border shadow-sm rounded-xl overflow-hidden flex flex-col">
+              {/* Table Toolbar */}
+              <div className={`px-4 py-3 border-b flex items-center justify-between ${isAuthorized ? 'bg-blue-50/50 border-blue-100' : 'bg-slate-50 border-slate-200'}`}>
               <div className="flex items-center gap-2">
                 {isAuthorized ? (
                   <>
@@ -810,6 +956,7 @@ export function GradesView() {
               </Table>
             </div>
           </Card>
+          )}
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-6 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">

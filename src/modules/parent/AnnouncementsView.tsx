@@ -38,9 +38,11 @@ export interface AnnouncementItem {
   date: string;
   time: string;
   content: string;
-  targetType?: 'all' | 'section' | 'student';
+  targetType?: 'all' | 'section' | 'student' | 'all_teachers' | 'specific_teacher';
   targetSectionId?: string;
   targetStudentId?: string;
+  targetStudentIds?: string[];
+  targetTeacherIds?: string[];
   attachmentName?: string;
   attachmentUrl?: string;
   isNew?: boolean;
@@ -49,87 +51,12 @@ export interface AnnouncementItem {
   createdAt?: any;
 }
 
-const INITIAL_ANNOUNCEMENTS: AnnouncementItem[] = [
-  {
-    id: 'ann-1',
-    tab: 'school',
-    category: 'Class Suspension',
-    title: 'Suspension of Classes: Tropical Cyclone Weather Advisory',
-    author: 'Dr. Roberto Santos',
-    authorRole: 'School Principal',
-    date: 'July 28, 2026',
-    time: '06:30 AM',
-    content: 'Face-to-face classes for Grade 1–6 are suspended today due to heavy rainfall. Learners are advised to stay home and engage in self-paced modular activities.',
-    attachmentName: 'Weather_Advisory_Jul.pdf',
-    isNew: true,
-    isRead: false
-  },
-  {
-    id: 'ann-2',
-    tab: 'school',
-    category: 'General',
-    title: 'First Quarter General Parents-Teachers Association (PTA) Meeting',
-    author: 'Admin Office',
-    authorRole: 'School Admin',
-    date: 'July 25, 2026',
-    time: '02:00 PM',
-    content: 'All guardians are invited to the 1st Quarter PTA Assembly on Aug 5, 2026. Agenda includes election of new PTA officers and school development plans.',
-    attachmentName: 'PTA_Invitation.pdf',
-    isNew: true,
-    isRead: false
-  },
-  {
-    id: 'ann-3',
-    tab: 'adviser',
-    category: 'Academic',
-    title: 'Grade 4 - St. Francis Class Orientation & Adviser Notice',
-    author: 'Mrs. Elena Mendoza',
-    authorRole: 'Class Adviser (Grade 4 - St. Francis)',
-    date: 'July 24, 2026',
-    time: '09:15 AM',
-    content: 'Good day parents! Please remind your learners to bring their complete set of notebooks and basic school supplies starting tomorrow. Kindly ensure all verification documents are submitted.',
-    attachmentName: 'Class_Schedule_G4.pdf',
-    isNew: true,
-    isRead: false,
-    targetGrade: 'Grade 4'
-  },
-  {
-    id: 'ann-4',
-    tab: 'subject',
-    category: 'Academic',
-    title: 'Mathematics 4: First Diagnostic Activity Submission',
-    author: 'Mr. Ramon Gonzales',
-    authorRole: 'Subject Teacher - Mathematics',
-    date: 'July 22, 2026',
-    time: '11:00 AM',
-    content: 'Greetings parents! The diagnostic worksheet for Multiplication and Division has been uploaded. Kindly assist your child in completing Worksheet #1 by next Monday.',
-    attachmentName: 'Math4_Worksheet_1.pdf',
-    isNew: false,
-    isRead: true,
-    targetGrade: 'Grade 4'
-  },
-  {
-    id: 'ann-5',
-    tab: 'school',
-    category: 'Events',
-    title: 'National Nutrition Month Culminating Activity & Cooking Contest',
-    author: 'Health & Nutrition Unit',
-    authorRole: 'School Health Unit',
-    date: 'July 18, 2026',
-    time: '04:00 PM',
-    content: 'Sta. Maria Elementary School will celebrate the annual Nutrition Month culmination on July 31, 2026. Activities include Healthy Snack Making and Poster-Making Contest.',
-    attachmentName: 'Nutrition_Program.pdf',
-    isNew: false,
-    isRead: true
-  }
-];
-
 export function AnnouncementsView() {
   const { userData } = useAuth();
   const { children } = useParentData();
   const myStudentIds = useMemo(() => children.map(c => c.id), [children]);
   const mySectionIds = useMemo(() => children.map(c => c.sectionId), [children]);
-  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(INITIAL_ANNOUNCEMENTS);
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [activeTab, setActiveTab] = useState<'school' | 'subject' | 'adviser'>('school');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -169,14 +96,16 @@ export function AnnouncementsView() {
               targetType: data.targetType || 'all',
               targetSectionId: data.targetSectionId,
               targetStudentId: data.targetStudentId,
+              targetStudentIds: data.targetStudentIds,
               attachmentName: data.attachmentName || undefined,
               targetGrade: data.targetGrade || undefined,
               isNew: !readIds.includes(docSnap.id),
               isRead: readIds.includes(docSnap.id)
             };
           });
-
-          setAnnouncements([...firestoreItems, ...INITIAL_ANNOUNCEMENTS]);
+          setAnnouncements(firestoreItems);
+        } else {
+          setAnnouncements([]);
         }
       }, (error) => {
         console.warn('Firestore announcements subscription note:', error);
@@ -196,9 +125,16 @@ export function AnnouncementsView() {
     return announcements
       .filter(a => {
         if (!a.targetType || a.targetType === 'all') return true;
-        if (a.targetType === 'student' && a.targetStudentId) return myStudentIds.includes(a.targetStudentId);
+        if (a.targetType === 'student') {
+          if (a.targetStudentIds && a.targetStudentIds.length > 0) {
+            return a.targetStudentIds.some(id => myStudentIds.includes(id));
+          } else if (a.targetStudentId) {
+            return myStudentIds.includes(a.targetStudentId);
+          }
+          return false;
+        }
         if (a.targetType === 'section' && a.targetSectionId) return mySectionIds.includes(a.targetSectionId);
-        return true;
+        return false;
       })
       .map(a => ({
         ...a,

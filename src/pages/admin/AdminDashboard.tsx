@@ -17,7 +17,9 @@ import {
   GraduationCap,
   LogOut,
   Megaphone,
-  CalendarDays } from 'lucide-react';
+  CalendarDays,
+  ClipboardList,
+  Clock } from 'lucide-react';
 import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { AdminDataProvider, useAdminData } from '../../lib/adminData';
@@ -31,13 +33,14 @@ import { HealthDashboardView } from '../../components/admin/HealthDashboardView'
 import { StudentsView } from '../../components/admin/StudentsView';
 import { AttendanceView } from '../../components/admin/AttendanceView';
 import { SchedulesView } from '../../components/admin/SchedulesView';
+import { AdminGradesView } from '../../components/admin/AdminGradesView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
 
 function AdminDashboardContent() {
   const navigate = useNavigate();
-  const { setupComplete } = useAdminData();
+  const { setupComplete, users, sections } = useAdminData();
   const { role, user, userData } = useAuth();
   const uData = userData as { firstName?: string; lastName?: string; [key: string]: any } | null;
   const [activeView, setActiveView] = useState('dashboard');
@@ -76,7 +79,8 @@ function AdminDashboardContent() {
     { id: 'classrooms', label: 'Classrooms', icon: Home, category: 'Management' },
     { id: 'subjects', label: 'Subjects', icon: BookOpen, category: 'Management' },
     { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
-    { id: 'schedules', label: 'Teachers Load', icon: CalendarDays, category: 'Management' },
+    { id: 'academic', label: 'Master Sheet', icon: ClipboardList, category: 'Management' },
+    { id: 'schedules', label: 'Teachers Load', icon: Clock, category: 'Management' },
     { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Management' },
     { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
@@ -90,9 +94,10 @@ function AdminDashboardContent() {
       case 'classrooms': return <ClassroomsView />;
       case 'subjects': return <SubjectsView />;
       case 'attendance': return <AttendanceView />;
+      case 'academic': return <AdminGradesView />;
       case 'schedules': return <SchedulesView />;
       case 'health': return <HealthDashboardView />;
-      case 'announcements': return <ManageAnnouncementsView />;
+      case 'announcements': return <ManageAnnouncementsView teachers={users.filter(u => u.role?.toLowerCase() === 'teacher')} sections={sections} />;
       case 'reports': return <ReportsView />;
       default: return <DashboardView />;
     }
