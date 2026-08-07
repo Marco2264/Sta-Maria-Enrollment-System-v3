@@ -45,12 +45,12 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = React.m
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+              <stop offset="5%" stopColor="#D8232A" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#D8232A" stopOpacity={0}/>
             </linearGradient>
             <linearGradient id={gradientIdAbsent} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+              <stop offset="5%" stopColor="#F0555B" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#F0555B" stopOpacity={0}/>
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -75,21 +75,21 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = React.m
             type="monotone" 
             dataKey="present" 
             name="Present"
-            stroke="#10b981" 
+            stroke="#D8232A" 
             strokeWidth={3}
             fillOpacity={1} 
             fill={`url(#${gradientId})`} 
-            activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 6, fill: '#D8232A', stroke: '#fff', strokeWidth: 2 }}
           />
           <Area 
             type="monotone" 
             dataKey="absent" 
             name="Absent"
-            stroke="#f43f5e" 
+            stroke="#F0555B" 
             strokeWidth={3}
             fillOpacity={1} 
             fill={`url(#${gradientIdAbsent})`} 
-            activeDot={{ r: 6, fill: '#f43f5e', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 6, fill: '#F0555B', stroke: '#fff', strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>

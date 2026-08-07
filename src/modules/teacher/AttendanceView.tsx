@@ -35,7 +35,21 @@ export function AttendanceView() {
   });
 
   const todayDate = React.useMemo(() => new Date().toISOString().split('T')[0], []);
-  const [selectedDate, setSelectedDate] = useState(todayDate);
+  const getInitialDate = () => {
+    const today = new Date();
+    const day = today.getDay();
+    if (day === 0) { // Sunday -> get Friday
+      const friday = new Date(today);
+      friday.setDate(today.getDate() - 2);
+      return friday.toISOString().split('T')[0];
+    } else if (day === 6) { // Saturday -> get Friday
+      const friday = new Date(today);
+      friday.setDate(today.getDate() - 1);
+      return friday.toISOString().split('T')[0];
+    }
+    return today.toISOString().split('T')[0];
+  };
+  const [selectedDate, setSelectedDate] = useState(getInitialDate());
   const enrolled = React.useMemo(() => {
     return students
       .filter((s) => s.status === 'Enrolled' && (!s.enrollmentDate || selectedDate >= s.enrollmentDate))
@@ -70,8 +84,8 @@ export function AttendanceView() {
   const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isAutoSavingRef = useRef(false);
-  const amAutoAbsentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pmAutoAbsentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const amAutoAbsentTimerRef = useRef<any>(undefined);
+  const pmAutoAbsentTimerRef = useRef<any>(undefined);
 
   const localAttendanceRef = useRef(localAttendance);
   const confirmedRef = useRef(confirmed);
@@ -94,18 +108,9 @@ export function AttendanceView() {
       };
     });
     // Default logic based on date
-    const targetDate = new Date(selectedDate);
-    const isAutoDate = targetDate >= new Date('2026-06-08');
-    const dayOfWeek = targetDate.getDay();
-    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-
     enrolled.forEach((s) => {
       if (!map[s.id]) {
-        // Today defaults to Unmarked (so it displays as buttons). Past dates default to Present/Absent.
-        const def = (selectedDate === todayDate)
-          ? 'Unmarked'
-          : ((isAutoDate && isWeekday) ? 'Present' : 'Absent');
-        map[s.id] = { am: def as 'Present' | 'Absent' | 'Late' | 'Unmarked', pm: def as 'Present' | 'Absent' | 'Late' | 'Unmarked' };
+        map[s.id] = { am: 'Unmarked', pm: 'Unmarked' };
       }
     });
     setLocalAttendance(map);
@@ -125,31 +130,20 @@ export function AttendanceView() {
     } else {
       setConfirmed({});
     }
-
-    // Auto-record logic: only for PAST dates, not today.
-    // Today uses the button-first UI so the teacher must manually mark attendance.
-    if (selectedDate !== todayDate && existing.length === 0 && isAutoDate && isWeekday && enrolled.length > 0 && !isAutoSavingRef.current) {
-      isAutoSavingRef.current = true;
-      const promises = enrolled.map(s => updateAttendance(s.id, selectedDate, map[s.id].am, map[s.id].pm));
-      Promise.all(promises).then(() => {
-        isAutoSavingRef.current = false;
-      }).catch(err => {
-        console.error("Auto-save failed", err);
-        isAutoSavingRef.current = false;
-      });
-    }
   }, [selectedDate, enrolled, attendance, updateAttendance]);
 
   // Auto-mark unconfirmed students as Absent for today's date (AM after 12:00 PM, PM after 4:30 PM)
   useEffect(() => {
+    // Disabled: Do not automatically mark students as Absent
+    return;
     // Clear any existing timers first
     if (amAutoAbsentTimerRef.current) {
       clearTimeout(amAutoAbsentTimerRef.current);
-      amAutoAbsentTimerRef.current = null;
+      amAutoAbsentTimerRef.current = undefined;
     }
     if (pmAutoAbsentTimerRef.current) {
       clearTimeout(pmAutoAbsentTimerRef.current);
-      pmAutoAbsentTimerRef.current = null;
+      pmAutoAbsentTimerRef.current = undefined;
     }
 
     // Only apply to today's date
@@ -555,6 +549,11 @@ export function AttendanceView() {
                   value={selectedDate}
                   onChange={(e) => {
                     const val = e.target.value;
+                    const selectedDay = new Date(val).getDay();
+                    if (selectedDay === 0 || selectedDay === 6) {
+                      alert('Attendance can only be recorded from Monday to Friday.');
+                      return;
+                    }
                     if (val > todayDate) {
                       setSelectedDate(todayDate);
                     } else {

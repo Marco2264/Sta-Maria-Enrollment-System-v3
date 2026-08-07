@@ -28,6 +28,7 @@ import { UsersView } from '../../components/admin/UsersView';
 import { ClassroomsView } from '../../components/admin/ClassroomsView';
 import { SubjectsView } from '../../components/admin/SubjectsView';
 import { ReportsView } from '../../components/admin/ReportsView';
+import { SF10Module } from '../../modules/admin/SF10Module';
 import { SetupWizard } from '../../components/admin/SetupWizard';
 import { HealthDashboardView } from '../../components/admin/HealthDashboardView';
 import { StudentsView } from '../../components/admin/StudentsView';
@@ -73,17 +74,25 @@ function AdminDashboardContent() {
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, category: 'System' },
-    ...(role?.toLowerCase() !== 'subadmin' ? [{ id: 'users', label: 'Users', icon: Users, category: 'Management' }] : []),
-    { id: 'students', label: 'Students', icon: GraduationCap, category: 'Management' },
-    { id: 'classrooms', label: 'Classrooms', icon: Home, category: 'Management' },
-    { id: 'subjects', label: 'Subjects', icon: BookOpen, category: 'Management' },
-    { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
-    { id: 'academic', label: 'Master Sheet', icon: ClipboardList, category: 'Management' },
-    { id: 'schedules', label: 'Teachers Load', icon: Clock, category: 'Management' },
-    { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Management' },
-    { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
+    // Home
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, category: 'Home' },
+    { id: 'announcements', label: 'Announcement', icon: Megaphone, category: 'Home' },
+
+    // General Management
+    ...(role?.toLowerCase() !== 'subadmin' ? [{ id: 'users', label: 'Users', icon: Users, category: 'General Management' }] : []),
+    { id: 'schedules', label: 'Teachers Load', icon: Clock, category: 'General Management' },
+    { id: 'classrooms', label: 'Classroom', icon: Home, category: 'General Management' },
+    { id: 'subjects', label: 'Subject', icon: BookOpen, category: 'General Management' },
+
+    // Student Management
+    { id: 'students', label: 'Students', icon: GraduationCap, category: 'Student Management' },
+    { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Student Management' },
+    { id: 'academic', label: 'Master Sheet', icon: ClipboardList, category: 'Student Management' },
+    { id: 'health', label: 'Health & nutrition', icon: Heart, category: 'Student Management' },
+
+    // Documents
+    { id: 'reports', label: 'School Forms', icon: FileText, category: 'Documents' },
+    { id: 'sf10', label: 'Permanent Record (SF10)', icon: FileText, category: 'Documents' }
   ];
 
   const renderActiveView = () => {
@@ -99,6 +108,7 @@ function AdminDashboardContent() {
       case 'health': return <HealthDashboardView />;
       case 'announcements': return <ManageAnnouncementsView teachers={users.filter(u => u.role?.toLowerCase() === 'teacher')} sections={sections} />;
       case 'reports': return <ReportsView />;
+      case 'sf10': return <SF10Module isAdmin={true} />;
       default: return <DashboardView />;
     }
   };
@@ -112,48 +122,38 @@ function AdminDashboardContent() {
     return (
       <div className="flex flex-col h-full bg-white font-sans overflow-x-hidden">
         {/* Brand Header */}
-        <div className={`h-16 lg:h-28 flex items-center ${collapsed ? 'justify-center px-2' : 'gap-3 px-6'} border-b border-slate-100 shrink-0 cursor-pointer overflow-hidden`} onClick={() => setActiveView('dashboard')}>
-          <div className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm shrink-0">
+        <div className="h-20 flex items-center px-4 shrink-0 overflow-hidden relative">
+          <div
+            className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm shrink-0 cursor-pointer hover:scale-105 hover:bg-primary/10 transition-all duration-200"
+            onClick={collapsed ? toggleSidebar : () => setActiveView('dashboard')}
+            title={collapsed ? 'Expand Sidebar' : 'Dashboard'}
+          >
             <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
           </div>
-          {!collapsed && (
-            <div className="flex flex-col text-left">
-              <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none">Sta. Maria</span>
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none mt-1">Admin Portal</span>
-            </div>
+
+          <div className={`ml-3 flex flex-col text-left overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-36 opacity-100'}`}>
+            <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none">Sta. Maria</span>
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none mt-1 truncate">Admin Portal</span>
+          </div>
+
+          {!isMobile && !collapsed && (
+            <button
+              onClick={toggleSidebar}
+              className="ml-auto p-1.5 rounded-xl text-slate-400 hover:text-primary hover:bg-primary/5 transition-all duration-200 cursor-pointer shrink-0 relative group"
+              title="Collapse Sidebar"
+            >
+              <PanelLeftClose className="w-4.5 h-4.5" />
+            </button>
           )}
         </div>
 
         {/* Nav Menu Items */}
-        <div className={`flex-1 overflow-y-auto overflow-x-hidden no-scrollbar ${collapsed ? 'py-4 px-2 space-y-4' : 'py-5 px-4 space-y-5'}`}>
-          {/* Toggle Button row above category */}
-          {!isMobile && (
-            <div className={`flex items-center ${collapsed ? 'justify-center mb-2' : 'justify-between px-4 mb-2'}`}>
-              {!collapsed && (
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Collapse</span>
-              )}
-              <button
-                onClick={toggleSidebar}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-primary hover:bg-primary/5 transition-all cursor-pointer shrink-0 relative group"
-                title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-              >
-                {collapsed ? <PanelLeftOpen className="w-4.5 h-4.5 text-slate-500" /> : <PanelLeftClose className="w-4.5 h-4.5" />}
-                {collapsed && (
-                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
-                    Expand Sidebar
-                  </div>
-                )}
-              </button>
-            </div>
-          )}
-
-          {['System', 'Management', 'Documents'].map((category) => (
+        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar py-5 px-3 space-y-5">
+          {['Home', 'General Management', 'Student Management', 'Documents'].map((category) => (
             <div key={category} className="space-y-2">
-              {!collapsed ? (
-                <p className="px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">{category}</p>
-              ) : (
-                <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider text-center mb-1 select-none">{category.substring(0, 4)}</div>
-              )}
+              <div className={`px-2 text-[10px] font-extrabold uppercase tracking-widest leading-none mb-1 overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out text-[#D32F2F] ${collapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}`}>
+                {category}
+              </div>
               <div className="space-y-1">
                 {navItems.filter(item => item.category === category).map(item => {
                   const isActive = activeView === item.id;
@@ -161,16 +161,18 @@ function AdminDashboardContent() {
                     <button
                       key={item.id}
                       onClick={() => { setActiveView(item.id); setMobileOpen(false); }}
-                      className={`w-full flex items-center ${collapsed ? 'justify-center p-3' : 'gap-3.5 px-4 py-2.5'} text-sm transition-all duration-200 cursor-pointer relative group ${
+                      className={`w-full flex items-center px-3 py-2 text-sm transition-all duration-200 cursor-pointer relative group rounded-xl border ${
                         isActive 
-                          ? collapsed 
-                            ? 'bg-primary/10 text-primary font-bold rounded-xl shadow-xs' 
-                            : 'bg-primary/5 text-primary border border-primary/10 font-bold shadow-sm rounded-xl'
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium rounded-xl'
+                          ? 'bg-[#D32F2F]/10 text-[#D32F2F] border-[#D32F2F] font-bold shadow-xs' 
+                          : 'border-transparent text-slate-600 hover:bg-[#D32F2F]/5 hover:text-[#D32F2F] hover:border-[#D32F2F]/40 font-medium'
                       }`}
                     >
-                      <item.icon className={`w-4.5 h-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                      {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
+                      <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <item.icon className={`w-4.5 h-4.5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-[#D32F2F]' : 'text-slate-400 group-hover:text-[#D32F2F]'}`} />
+                      </div>
+                      <div className={`ml-3.5 flex-1 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                        <span className="truncate">{item.label}</span>
+                      </div>
                       {collapsed && (
                         <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
                           {item.label}
@@ -185,9 +187,9 @@ function AdminDashboardContent() {
         </div>
 
         {/* User settings & Profile bar at bottom */}
-        <div className={`h-24 border-t border-slate-100 ${collapsed ? 'p-2' : 'px-4'} flex items-center shrink-0 relative bg-white`}>
+        <div className="h-20 border-t border-slate-100 px-3 flex items-center shrink-0 relative bg-white">
           {showUserMenu && (
-            <div className={`absolute ${collapsed ? 'left-full ml-3 bottom-2 w-48' : 'bottom-20 left-4 right-4'} bg-white border border-slate-200/60 p-2 rounded-2xl shadow-xl space-y-1 animate-in fade-in-50 duration-200 z-50 backdrop-blur-md`}>
+            <div className={`absolute ${collapsed ? 'left-full ml-3 bottom-2 w-48' : 'bottom-20 left-3 right-3'} bg-white border border-slate-200/60 p-2 rounded-2xl shadow-xl space-y-1 animate-in fade-in-50 duration-200 z-50 backdrop-blur-md`}>
               <button className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-xl transition-all">
                 <Settings className="w-4 h-4 text-slate-400" />
                 Settings
@@ -202,23 +204,21 @@ function AdminDashboardContent() {
             </div>
           )}
           <div 
-            className={`w-full flex items-center ${collapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-2'} hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl cursor-pointer transition-all active:scale-98 relative group overflow-hidden`}
+            className="w-full flex items-center px-2.5 py-2 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl cursor-pointer transition-all active:scale-98 relative group overflow-hidden"
             onClick={() => setShowUserMenu(!showUserMenu)}
           >
             <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-inner">{initials}</div>
-            {!collapsed && (
-              <>
-                <div className="flex-1 min-w-0 overflow-hidden text-left">
-                  <p className="text-xs font-black truncate text-slate-800 leading-tight" title={fullName}>{fullName}</p>
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 truncate mt-0.5">{displayRole}</p>
-                </div>
-                {showUserMenu ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                )}
-              </>
-            )}
+            <div className={`ml-2.5 flex-1 min-w-0 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+              <div className="flex flex-col text-left overflow-hidden min-w-0">
+                <p className="text-xs font-black truncate text-slate-800 leading-tight" title={fullName}>{fullName}</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 truncate mt-0.5">{displayRole}</p>
+              </div>
+              {showUserMenu ? (
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+              )}
+            </div>
             {collapsed && (
               <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
                 {fullName}
@@ -232,11 +232,11 @@ function AdminDashboardContent() {
 
   return (
     <div className="flex h-screen w-full bg-slate-50/50 overflow-hidden font-sans">
-      <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} border-r border-slate-200/60 bg-white flex-col shrink-0 transition-all duration-300 ease-in-out`}>
+      <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} border-r border-slate-200/60 bg-white flex-col shrink-0 transition-[width] duration-300 ease-in-out`}>
         <SidebarContent />
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="lg:hidden h-16 border-b border-slate-150 bg-white px-4 flex items-center justify-between shrink-0 shadow-sm">
+        <header className="lg:hidden h-20 border-b border-slate-150 bg-white px-5 flex items-center justify-between shrink-0 shadow-sm">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="-ml-2 hover:bg-slate-100 rounded-xl">

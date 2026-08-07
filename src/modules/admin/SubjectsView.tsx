@@ -32,6 +32,38 @@ import { useAdminData, Subject } from '../../lib/adminData';
 import { getCurrentSchoolYear } from '../../lib/utils';
 import { cn } from '../../components/ui/utils';
 
+const subjectRowMap: Record<string, string> = {
+  'filipino': 'FILIPINO',
+  'english': 'ENGLISH',
+  'mathematics': 'MATH',
+  'math': 'MATH',
+  'science': 'SCIENCE',
+  'araling panlipunan': 'AP',
+  'ap': 'AP',
+  'good manners and right conduct (gmrc)': 'ESP',
+  'gmrc': 'ESP',
+  'edukasyon sa pagpapakatao': 'ESP',
+  'esp': 'ESP',
+  'epp': 'EPP_TLE',
+  'tle': 'EPP_TLE',
+  'epp/tle': 'EPP_TLE',
+  'epp/tle (epp)': 'EPP_TLE',
+  'epp/tle (tle)': 'EPP_TLE',
+  'music & arts': 'MAPEH',
+  'music and arts': 'MAPEH',
+  'music': 'MUSIC',
+  'arts': 'ARTS',
+  'pe & health': 'PE_HEALTH',
+  'pe and health': 'PE_HEALTH',
+  'physical education': 'PE',
+  'health': 'HEALTH',
+  'mapeh': 'MAPEH',
+  'language': 'LANGUAGE',
+  'reading': 'READING',
+  'literacy': 'LITERACY',
+  'makabansa': 'MAKABANSA'
+};
+
 export function SubjectsView() {
   const { 
     subjects, 
@@ -82,7 +114,12 @@ export function SubjectsView() {
     if (isSaving) return;
     setIsSaving(true);
     try {
-      await addSubject(newSubject);
+      const cleanName = newSubject.name.toLowerCase().trim();
+      const code = subjectRowMap[cleanName] || newSubject.name.toUpperCase().replace(/\s+/g, '_');
+      await addSubject({
+        ...newSubject,
+        code
+      });
       setIsOpen(false);
       setNewSubject({
         name: '',
@@ -119,29 +156,98 @@ export function SubjectsView() {
     setIsSaving(true);
     try {
       const defaultYear = getCurrentSchoolYear();
-      const grade1and2 = ['Language', 'Reading and Literacy', 'Mathematics', 'Makabansa', 'Good Manners and Right Conduct (GMRC)'];
-      const grade3 = ['English', 'Filipino', 'Mathematics', 'Science', 'Makabansa', 'Good Manners and Right Conduct (GMRC)'];
-      const grades4to6 = ['English', 'Filipino', 'Mathematics', 'Science', 'Araling Panlipunan (Social Studies)', 'MAPEH: Music, Arts, Physical Education, and Health', 'EPP / TLE (Edukasyong Pantahanan at Pangkabuhayan / Technology and Livelihood Education)', 'Good Manners and Right Conduct (GMRC) / Values Education'];
+      const grade1 = [
+        'Language',
+        'Reading and Literacy',
+        'Mathematics',
+        'Makabansa',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade2 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Makabansa',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade3 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Science',
+        'Makabansa',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade4and5 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Science',
+        'Araling Panlipunan (AP)',
+        'MAPEH',
+        'Music',
+        'Arts',
+        'Physical Education',
+        'Health',
+        'Edukasyong Pantahanan at Pangkabuhayan (EPP)',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade6 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Science',
+        'Araling Panlipunan',
+        'MAPEH',
+        'Music',
+        'Arts',
+        'Physical Education',
+        'Health',
+        'Technology and Livelihood Education (TLE)',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+
+      let addedCount = 0;
+      let skippedCount = 0;
 
       const addForGrade = async (grade: string, subjectsList: string[]) => {
         for (const name of subjectsList) {
+          const exists = subjects.some(s => 
+            (s.name || '').trim().toLowerCase() === name.trim().toLowerCase() && 
+            s.gradeLevel === grade && 
+            s.academicYear === defaultYear
+          );
+
+          if (exists) {
+            skippedCount++;
+            continue;
+          }
+
+          const cleanName = name.toLowerCase().trim();
+          const code = subjectRowMap[cleanName] || name.toUpperCase().replace(/\s+/g, '_');
           await addSubject({
             name,
+            code,
             gradeLevel: grade,
             status: 'Active',
             academicYear: defaultYear
           });
+          addedCount++;
         }
       };
 
-      await addForGrade('Grade 1', grade1and2);
-      await addForGrade('Grade 2', grade1and2);
+      await addForGrade('Grade 1', grade1);
+      await addForGrade('Grade 2', grade2);
       await addForGrade('Grade 3', grade3);
-      await addForGrade('Grade 4', grades4to6);
-      await addForGrade('Grade 5', grades4to6);
-      await addForGrade('Grade 6', grades4to6);
+      await addForGrade('Grade 4', grade4and5);
+      await addForGrade('Grade 5', grade4and5);
+      await addForGrade('Grade 6', grade6);
 
-      alert("Subjects auto-seeded successfully!");
+      if (addedCount === 0) {
+        alert("All default subjects for this academic year have already been seeded!");
+      } else {
+        alert(`Subjects auto-seeded successfully! Added ${addedCount} new subjects, skipped ${skippedCount} existing.`);
+      }
     } catch (error) {
       console.error("Error seeding subjects:", error);
       alert("Error auto-seeding subjects.");
@@ -169,7 +275,7 @@ export function SubjectsView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-8 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
+      <header className="h-20 px-6 border-b border-slate-200 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent flex items-center shrink-0">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-primary">

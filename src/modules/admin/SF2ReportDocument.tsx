@@ -330,7 +330,7 @@ export function SF2ReportDocument({ onClose, data }: SF2ReportDocumentProps) {
           <div className="flex flex-col">
             <span className="font-semibold text-slate-600 text-[8px] mb-2">Certified Correct:</span>
             <div className="border-b border-black text-center pb-1 font-bold uppercase tracking-wide text-[11px] leading-none min-h-[16px]">
-              {anyData.schoolHead || anyData.principalName || anyData.schoolHeadName || '\u00A0'}
+              {anyData.schoolHead || anyData.principalName || anyData.schoolHeadName || 'MRS. LEPIDAPTERA VILLANUEVA'}
             </div>
             <div className="text-[7px] text-slate-500 text-center mt-1 uppercase">
               (Signature of School Head over Printed Name)

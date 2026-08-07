@@ -25,7 +25,21 @@ export function AttendanceView() {
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   
   const todayDate = new Date().toISOString().split('T')[0];
-  const [selectedDate, setSelectedDate] = useState(todayDate);
+  const getInitialDate = () => {
+    const today = new Date();
+    const day = today.getDay();
+    if (day === 0) { // Sunday -> get Friday
+      const friday = new Date(today);
+      friday.setDate(today.getDate() - 2);
+      return friday.toISOString().split('T')[0];
+    } else if (day === 6) { // Saturday -> get Friday
+      const friday = new Date(today);
+      friday.setDate(today.getDate() - 1);
+      return friday.toISOString().split('T')[0];
+    }
+    return today.toISOString().split('T')[0];
+  };
+  const [selectedDate, setSelectedDate] = useState(getInitialDate());
   const [selectedGrade, setSelectedGrade] = useState<string>('All');
   const [selectedSection, setSelectedSection] = useState<string>('All');
   const [openGrade, setOpenGrade] = useState(false);
@@ -89,12 +103,14 @@ export function AttendanceView() {
     
     // Auto-present logic for Admin View
     const targetDate = new Date(selectedDate);
-    const isAutoDate = targetDate >= new Date('2026-06-08');
     const dayOfWeek = targetDate.getDay();
     const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
 
-    const def = (isAutoDate && isWeekday) ? 'Present' : 'Absent';
-    return { am: def, pm: def };
+    if (!isWeekday) {
+      return { am: '—', pm: '—' };
+    }
+
+    return { am: 'Unmarked', pm: 'Unmarked' };
   };
 
   const filteredSections = useMemo(() => {
@@ -121,7 +137,8 @@ export function AttendanceView() {
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
         ${status === 'Present' ? 'bg-emerald-100 text-emerald-800' :
           status === 'Absent' ? 'bg-rose-100 text-rose-800' :
-            'bg-amber-100 text-amber-800'
+            status === 'Late' ? 'bg-amber-100 text-amber-800' :
+              'bg-slate-100 text-slate-600'
         }`}>
         {status}
       </span>
@@ -162,6 +179,11 @@ export function AttendanceView() {
               value={selectedDate}
               onChange={(e) => {
                 const val = e.target.value;
+                const selectedDay = new Date(val).getDay();
+                if (selectedDay === 0 || selectedDay === 6) {
+                  alert('Attendance can only be viewed from Monday to Friday.');
+                  return;
+                }
                 if (val > todayDate) {
                   setSelectedDate(todayDate);
                 } else {

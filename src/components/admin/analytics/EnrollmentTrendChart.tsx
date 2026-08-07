@@ -65,7 +65,7 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = React.m
           <Bar 
             dataKey="currentYear" 
             name="Current Year" 
-            fill="#0ea5e9" 
+            fill="#D8232A" 
             radius={[4, 4, 0, 0]}
             maxBarSize={40}
           />

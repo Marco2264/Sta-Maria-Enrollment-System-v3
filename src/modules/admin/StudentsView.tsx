@@ -105,7 +105,7 @@ export function StudentsView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-6 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
+      <header className="h-20 px-6 border-b border-slate-200 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent flex items-center shrink-0">
         <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-primary">

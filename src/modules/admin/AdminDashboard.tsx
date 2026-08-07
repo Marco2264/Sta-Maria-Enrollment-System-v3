@@ -16,7 +16,9 @@ import {
   LogOut,
   CalendarDays,
   Database,
-  Megaphone
+  Megaphone,
+  Clock,
+  ClipboardList
 } from
   'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
@@ -79,16 +81,25 @@ function AdminDashboardContent() {
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, category: 'System' },
-    ...(role?.toLowerCase() !== 'subadmin' ? [{ id: 'users', label: 'Users', icon: Users, category: 'Management' }] : []),
-    { id: 'students', label: 'Students', icon: GraduationCap, category: 'Management' },
-    { id: 'classrooms', label: 'Classrooms', icon: Home, category: 'Management' },
-    { id: 'subjects', label: 'Subjects', icon: BookOpen, category: 'Management' },
-    { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Management' },
-    { id: 'schedules', label: 'Faculty Teaching Load', icon: CalendarDays, category: 'Management' },
-    { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Management' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Management' },
-    { id: 'reports', label: 'Reports (SF1, SF2, SF4, SF8)', icon: FileText, category: 'Documents' }
+    // Home
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, category: 'Home' },
+    { id: 'announcements', label: 'Announcement', icon: Megaphone, category: 'Home' },
+
+    // General Management
+    ...(role?.toLowerCase() !== 'subadmin' ? [{ id: 'users', label: 'Users', icon: Users, category: 'General Management' }] : []),
+    { id: 'schedules', label: 'Teachers Load', icon: Clock, category: 'General Management' },
+    { id: 'classrooms', label: 'Classroom', icon: Home, category: 'General Management' },
+    { id: 'subjects', label: 'Subject', icon: BookOpen, category: 'General Management' },
+
+    // Student Management
+    { id: 'students', label: 'Students', icon: GraduationCap, category: 'Student Management' },
+    { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Student Management' },
+    { id: 'academic', label: 'Master Sheet', icon: ClipboardList, category: 'Student Management' },
+    { id: 'health', label: 'Health & nutrition', icon: Heart, category: 'Student Management' },
+
+    // Documents
+    { id: 'reports', label: 'School Forms', icon: FileText, category: 'Documents' },
+    { id: 'sf10', label: 'Permanent Record (SF10)', icon: FileText, category: 'Documents' }
   ];
 
   const renderActiveView = () => {
@@ -109,7 +120,7 @@ function AdminDashboardContent() {
 
   const SidebarContent = () => (
     <>
-      <div className="h-16 flex items-center justify-between px-6 border-b border-border shrink-0">
+      <div className="h-16 flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
           <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-md object-cover" />
           <div className="flex flex-col">
@@ -121,7 +132,7 @@ function AdminDashboardContent() {
       </div>
 
       <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
-        {['System', 'Management', 'Documents'].map((category) => (
+        {['Home', 'General Management', 'Student Management', 'Documents'].map((category) => (
           <div key={category}>
             <p className="px-3 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">{category}</p>
             <div className="space-y-1">

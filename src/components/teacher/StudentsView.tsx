@@ -30,7 +30,7 @@ export function StudentsView() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-[#D8232A]/20 border-t-[#D8232A] rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -46,7 +46,8 @@ export function StudentsView() {
   const enrolled = React.useMemo(() => {
     return students
       .filter((s) => {
-        if (s.status !== 'Enrolled') return false;
+        if (s.status !== 'Enrolled' && s.status !== 'enrolled' && s.status !== 'PROMOTED' && s.status !== 'RETAINED' && s.status !== 'IRREGULAR') return false;
+        if ((s as any).isManualHistory === true) return false;
         
         // Search filter
         const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
@@ -105,14 +106,17 @@ export function StudentsView() {
   return (
     <div className="flex flex-col h-full bg-slate-50/50 relative overflow-hidden">
       {/* Soft Ambient Background Glows */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-[#D8232A]/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#D8232A]/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
-      <header className="relative px-8 py-10 border-b border-slate-200 bg-white/70 backdrop-blur-md shrink-0 shadow-sm">
+      <header className="relative px-8 py-10 bg-white/70 backdrop-blur-md shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
           <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Classroom</span>
+            </div>
             <div className="flex items-center gap-3 text-slate-800">
-              <div className="p-2.5 bg-slate-100 rounded-2xl text-primary shadow-sm border border-slate-200">
+              <div className="p-2.5 bg-[#D8232A]/10 text-[#D8232A] border border-[#D8232A]/20 rounded-2xl shadow-sm">
                 <Users className="w-6 h-6" />
               </div>
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Student Profiles</h1>
@@ -122,10 +126,10 @@ export function StudentsView() {
             </p>
           </div>
           
-          <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm md:self-center">
+          <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-slate-200 hover:border-[#D8232A]/30 shadow-sm transition-all md:self-center">
             <Activity className="w-4 h-4 text-emerald-500 shrink-0" />
             <div className="text-left">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Health Coverage</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Health Coverage</p>
               <p className="text-sm font-bold text-slate-700 leading-tight mt-0.5">
                 {enrolled.filter(s => s.medical?.height && s.medical?.weight).length} / {enrolled.length} Records
               </p>
@@ -142,7 +146,7 @@ export function StudentsView() {
                 <h3 className="font-bold text-xl text-slate-900">Enrolled Students</h3>
                 <p className="text-xs text-slate-400 font-medium">Manage records and health metrics for this classroom section.</p>
               </div>
-              <span className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider border border-primary/20">
+              <span className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-[#D8232A]/10 text-[#D8232A] uppercase tracking-wider border border-[#D8232A]/20">
                 {enrolled.length} {enrolled.length === 1 ? 'Record' : 'Records'}
               </span>
             </div>
@@ -153,7 +157,7 @@ export function StudentsView() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   placeholder="Search student name or LRN..."
-                  className="pl-10 h-11 rounded-xl border-slate-200 bg-white shadow-sm hover:border-slate-300 focus:border-primary transition-all text-sm"
+                  className="pl-10 h-11 rounded-xl border-slate-200 bg-white shadow-sm hover:border-slate-300 focus:border-[#D8232A] focus:ring-2 focus:ring-[#D8232A]/15 transition-all text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -161,7 +165,7 @@ export function StudentsView() {
 
               <div className="w-full sm:w-[170px]">
                 <Select value={genderFilter} onValueChange={setGenderFilter}>
-                  <SelectTrigger className="w-full h-11 rounded-xl border-slate-200 bg-white shadow-sm hover:border-slate-300 transition-all font-medium text-sm text-slate-700">
+                  <SelectTrigger className="w-full h-11 rounded-xl border-slate-200 bg-white shadow-sm hover:border-slate-300 focus:ring-2 focus:ring-[#D8232A]/15 focus:border-[#D8232A] transition-all font-medium text-sm text-slate-700">
                     <div className="flex items-center">
                       <Filter className="w-3.5 h-3.5 mr-2 text-slate-400 shrink-0" />
                       <SelectValue placeholder="Gender" />
@@ -283,7 +287,7 @@ export function StudentsView() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-9 px-3.5 text-primary hover:bg-primary/10 hover:text-primary transition-colors rounded-xl font-bold text-xs inline-flex items-center gap-1.5 active:scale-95 duration-100"
+                          className="h-9 px-3.5 text-[#D8232A] hover:bg-[#D8232A]/10 hover:text-[#D8232A] transition-colors rounded-xl font-bold text-xs inline-flex items-center gap-1.5 active:scale-95 duration-100"
                           onClick={() => openProfile(s.id)}
                         >
                           <FileEdit className="w-3.5 h-3.5" />

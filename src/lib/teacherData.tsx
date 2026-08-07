@@ -343,10 +343,12 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         const qEnrolled = query(
           collection(db, 'enrollments'),
           where('sectionId', '==', currentSection),
-          where('status', 'in', ['Enrolled', 'Dropped', 'Transferred'])
+          where('status', 'in', ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR', 'Dropped', 'Transferred'])
         );
         unsubEnrolled = onSnapshot(qEnrolled, (sSnap) => {
-          enrolledStudents = sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Student));
+          enrolledStudents = sSnap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Student))
+            .filter((s: any) => s.isManualHistory !== true);
           setStudents([...pendingStudents, ...enrolledStudents]);
         });
 

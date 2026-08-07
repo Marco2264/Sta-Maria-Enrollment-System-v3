@@ -108,38 +108,44 @@ export function SF8ReportDocument({ onClose, data }: SF8ReportDocumentProps) {
         <table className="w-full border-collapse border border-black text-[10px] text-center">
           <thead>
             <tr>
-              <th className="border border-black p-2 align-middle bg-gray-50" rowSpan={2}>LRN</th>
-              <th className="border border-black p-2 align-middle bg-gray-50" rowSpan={2}>NAME OF LEARNER</th>
-              <th className="border border-black p-2 align-middle bg-gray-50" rowSpan={2}>AGE</th>
-              <th className="border border-black p-2 align-middle bg-gray-50" rowSpan={2}>GENDER</th>
-              <th className="border border-black p-2 align-middle bg-gray-50" colSpan={3}>NUTRITIONAL STATUS</th>
-              <th className="border border-black p-2 align-middle bg-gray-50" rowSpan={2}>REMARKS</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" rowSpan={2}>LRN</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" rowSpan={2}>NAME OF LEARNER</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" rowSpan={2}>BIRTHDAY</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" rowSpan={2}>AGE</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" rowSpan={2}>SEX</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" colSpan={5}>NUTRITIONAL STATUS</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" rowSpan={2}>HEIGHT FOR AGE (HFA)</th>
+              <th className="border border-black p-1 align-middle bg-gray-50" rowSpan={2}>REMARKS</th>
             </tr>
             <tr>
-              <th className="border border-black p-2 align-middle bg-gray-50 font-medium">WEIGHT (kg)</th>
-              <th className="border border-black p-2 align-middle bg-gray-50 font-medium">HEIGHT (m)</th>
-              <th className="border border-black p-2 align-middle bg-gray-50 font-medium">BMI / CATEGORY</th>
+              <th className="border border-black p-1 align-middle bg-gray-50 font-medium">WEIGHT (kg)</th>
+              <th className="border border-black p-1 align-middle bg-gray-50 font-medium">HEIGHT (m)</th>
+              <th className="border border-black p-1 align-middle bg-gray-50 font-medium">HEIGHT² (m²)</th>
+              <th className="border border-black p-1 align-middle bg-gray-50 font-medium">BMI</th>
+              <th className="border border-black p-1 align-middle bg-gray-50 font-medium">NUTRITIONAL STATUS</th>
             </tr>
           </thead>
           <tbody>
             {learners.length > 0 ? (
               learners.map((l, i) => (
                 <tr key={l.id || i}>
-                  <td className="border border-black p-2">{l.lrn}</td>
-                  <td className="border border-black p-2 text-left">{l.name}</td>
-                  <td className="border border-black p-2">{l.age}</td>
-                  <td className="border border-black p-2">{l.gender}</td>
-                  <td className="border border-black p-2">{l.weight}</td>
-                  <td className="border border-black p-2">{l.height}</td>
-                  <td className="border border-black p-2">
-                    {l.bmi.toFixed(2)} - <span className="font-semibold">{l.nutritionalStatus}</span>
-                  </td>
-                  <td className="border border-black p-2"></td>
+                  <td className="border border-black p-1">{l.lrn}</td>
+                  <td className="border border-black p-1 text-left font-medium">{l.name}</td>
+                  <td className="border border-black p-1">{l.birthDate || ''}</td>
+                  <td className="border border-black p-1">{l.age || ''}</td>
+                  <td className="border border-black p-1">{l.gender ? (l.gender.toLowerCase().startsWith('f') ? 'F' : 'M') : ''}</td>
+                  <td className="border border-black p-1">{l.weight > 0 ? l.weight : ''}</td>
+                  <td className="border border-black p-1">{l.height > 0 ? l.height : ''}</td>
+                  <td className="border border-black p-1">{l.height > 0 ? (l.height * l.height).toFixed(4) : ''}</td>
+                  <td className="border border-black p-1">{l.bmi > 0 ? l.bmi.toFixed(1) : ''}</td>
+                  <td className="border border-black p-1 font-semibold">{l.nutritionalStatus || ''}</td>
+                  <td className="border border-black p-1 font-semibold">{l.heightForAge || ''}</td>
+                  <td className="border border-black p-1"></td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="border border-black p-4 font-medium italic text-center text-slate-500" colSpan={8}>
+                <td className="border border-black p-4 font-medium italic text-center text-slate-500" colSpan={12}>
                   No health and nutrition data found for this section.
                 </td>
               </tr>

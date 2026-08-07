@@ -15,11 +15,10 @@ export function ReportLayout({ title, onClose, children, landscape = true }: Rep
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white overflow-y-auto print:p-0 print:m-0">
+    <div className="print-container fixed inset-0 z-[100] bg-white overflow-y-auto print:p-0 print:m-0 print:static print:bg-white print:overflow-visible">
       <div className="sticky top-0 left-0 right-0 bg-slate-800 text-white p-4 flex justify-between items-center print:hidden shadow-md z-10">
         <div className="flex items-center gap-4">
-          <h2 className="font-bold text-lg">Print Preview: {title}</h2>
-          <span className="text-sm text-slate-300">Set destination to "Save as PDF" to download.</span>
+          <h2 className="font-bold text-lg">{title}</h2>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="secondary" onClick={handlePrint} className="bg-white text-slate-900 hover:bg-slate-100 h-9">
@@ -33,14 +32,29 @@ export function ReportLayout({ title, onClose, children, landscape = true }: Rep
         </div>
       </div>
 
-      <div className="p-8 max-w-[1500px] mx-auto print:p-0 print:max-w-none bg-white text-black print:text-black">
+      <div className="p-8 max-w-[1500px] mx-auto print:p-0 print:m-0 print:max-w-none bg-white text-black print:text-black print:bg-white">
         {children}
       </div>
 
-      {/* Required style to hide the rest of the app when printing and set layout */}
+      {/* Required style to hide background UI when printing and set layout */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          body > #root > *:not(div[class*="fixed inset-0 z-[100]"]) {
+          body * {
+            visibility: hidden;
+          }
+          .print-container, .print-container * {
+            visibility: visible;
+          }
+          .print-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+          }
+          .print\\:hidden {
             display: none !important;
           }
           @page {

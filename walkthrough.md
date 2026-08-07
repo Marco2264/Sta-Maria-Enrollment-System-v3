@@ -48,3 +48,17 @@ We have redesigned the **Document Center** and **Student Registration Form** to 
 ## Verification & Type Safety
 - **Type Check**: Ran `npx tsc --noEmit` and confirmed zero compile errors.
 - **Interactions**: Tested navigation, inputs, draft saving toast, and submit triggers. All functions work perfectly.
+
+---
+
+## SF10 Active Student Enrollment Auto-Fill
+We have updated the **Learner's Permanent Record (SF10)** module to automatically populate metadata and active grades for students currently enrolled in the system:
+
+### 1. Dynamic Display Cards
+- **Dynamic School, Section, Adviser, and Division Name resolution**: The dashboard timeline cards for any active student record (not manually encoded) now fall back to the student's active enrollment details (`studentSectionName`, computed adviser name from section assignments, `"Sta. Maria CS SPED Center"`, and `"Zamboanga City"`).
+- **Automated Promotion Status**: If the active enrollment status is `'Enrolled'`, the card dynamically computes the student's promotion status (`PROMOTED` / `IRREGULAR` / `RETAINED`) based on the number of failed subjects in their teacher-entered grades.
+- **Automatic School Year Lookup**: Looks up the active school year dynamically from the `school_years` collection or active section.
+
+### 2. Auto-Prefilled Encoding Forms
+- Clicking **Edit Record** or **Encode History** on a block that has active enrollment grades automatically pre-fills all form fields (School Name, School ID, Division, School Year, Section, Adviser, Action Taken, and Grades table) directly from the live database. Non-developers and admins no longer have to manually type or add subject rows for currently enrolled students.
+

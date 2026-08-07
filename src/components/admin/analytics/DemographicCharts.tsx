@@ -10,7 +10,7 @@ interface DemographicData {
   totalStudents: number;
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b'];
+const COLORS = ['#D8232A', '#F0555B', '#F8A1A5', '#FBD5D6', '#94A3B8'];
 
 export function DemographicCharts({ data }: { data: DemographicData }) {
   const { ipGroups, totalIp, total4ps, motherTongues, religions, totalStudents } = data;
@@ -72,8 +72,8 @@ export function DemographicCharts({ data }: { data: DemographicData }) {
                 paddingAngle={2}
                 dataKey="value"
               >
-                <Cell fill="#10b981" />
-                <Cell fill="#cbd5e1" />
+                <Cell fill="#D8232A" />
+                <Cell fill="#FBD5D6" />
                 <Label value={totalStudents.toString()} position="centerBottom" className="text-3xl font-bold fill-slate-800" dy={-5} />
                 <Label value="TOTAL" position="centerTop" className="text-[10px] fill-slate-500 font-bold uppercase tracking-widest" dy={18} />
               </Pie>

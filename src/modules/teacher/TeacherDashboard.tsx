@@ -14,7 +14,9 @@ import {
   ChevronRight,
   Menu,
   LogOut,
-  Megaphone
+  Megaphone,
+  Home,
+  CalendarDays
 } from
   'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
@@ -25,6 +27,7 @@ import { StudentsView } from '../../components/teacher/StudentsView';
 import { AttendanceView } from '../../components/teacher/AttendanceView';
 import { GradesView } from '../../components/teacher/GradesView';
 import { TeacherReportsView } from '../../components/teacher/TeacherReportsView';
+import { SF10Module } from '../admin/SF10Module';
 import { ObservedValuesView } from '../../components/teacher/ObservedValuesView';
 import { MyScheduleView } from '../../components/teacher/MyScheduleView';
 import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
@@ -57,15 +60,21 @@ function TeacherDashboardContent() {
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, category: 'Home' },
-    { id: 'enrollments', label: 'Enrollments', icon: UserCheck, category: 'Classroom', badge: pendingCount > 0 ? pendingCount : undefined },
+    // Main
+    { id: 'dashboard', label: 'Home', icon: Home, category: 'Main' },
+    { id: 'schedule', label: 'My Schedule', icon: Calendar, category: 'Main' },
+    { id: 'attendance', label: 'Attendance', icon: CalendarDays, category: 'Main' },
+    { id: 'announcements', label: 'Announcement', icon: Megaphone, category: 'Main' },
+    ...(pendingCount > 0 ? [{ id: 'enrollments', label: 'Enrollments', icon: UserCheck, category: 'Main', badge: pendingCount }] : []),
+
+    // Classroom
     { id: 'students', label: 'Students', icon: Users, category: 'Classroom' },
-    { id: 'attendance', label: 'Attendance', icon: Calendar, category: 'Classroom' },
-    { id: 'schedule', label: 'My Schedule', icon: Calendar, category: 'Classroom' },
     { id: 'grades', label: 'Grades', icon: ClipboardList, category: 'Classroom' },
     { id: 'observed-values', label: 'Observed Values', icon: Heart, category: 'Classroom' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, category: 'Classroom' },
-    { id: 'reports', label: 'Reports (SF1, SF2, SF5, SF8, SF9)', icon: FileText, category: 'Documents' }
+
+    // Documents
+    { id: 'reports', label: 'School Forms', icon: FileText, category: 'Documents' },
+    { id: 'sf10', label: 'Permanent Records', icon: FileText, category: 'Documents' }
   ];
 
   const renderActiveView = () => {
@@ -79,13 +88,14 @@ function TeacherDashboardContent() {
       case 'observed-values': return <ObservedValuesView />;
       case 'announcements': return <ManageAnnouncementsView sections={assignedSections} students={students} />;
       case 'reports': return <TeacherReportsView />;
+      case 'sf10': return <SF10Module students={students} sections={assignedSections} isAdmin={false} />;
       default: return <TeacherDashboardView />;
     }
   };
 
   const SidebarContent = () => (
     <>
-      <div className="h-16 flex items-center justify-between px-6 border-b border-border shrink-0">
+      <div className="h-16 flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
           <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-md object-cover" />
           <div className="flex flex-col">
@@ -119,7 +129,7 @@ function TeacherDashboardContent() {
       )}
 
       <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
-        {['Home', 'Classroom', 'Documents'].map((category) => (
+        {['Main', 'Classroom', 'Documents'].map((category) => (
           <div key={category}>
             <p className="px-3 text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">{category}</p>
             <div className="space-y-1">

@@ -10,7 +10,7 @@ export interface HealthData {
   height: number; // in meters
   weight: number; // in kg
   bmi: number;
-  nutritionalStatus: 'Severely Wasted' | 'Wasted' | 'Normal' | 'Overweight' | 'Obese';
+  nutritionalStatus: 'Severely Wasted' | 'Wasted' | 'Normal' | 'Overweight' | 'Obese' | '';
   gradeLevel: string;
   sectionId?: string;
   lrn: string;
@@ -166,26 +166,39 @@ export class HealthAnalyticsService {
 
       snapshot.forEach(doc => {
         const d = doc.data();
-        let height = 0;
+        const rawH = d.medical?.height ?? d.height ?? d.medicalRecord?.height ?? d.healthRecord?.height ?? 0;
+        const rawW = d.medical?.weight ?? d.weight ?? d.medicalRecord?.weight ?? d.healthRecord?.weight ?? 0;
+
+        let parsedH = parseFloat(String(rawH).replace(/[^0-9.]/g, ''));
+        let parsedW = parseFloat(String(rawW).replace(/[^0-9.]/g, ''));
+        if (isNaN(parsedH) || parsedH <= 0) parsedH = 0;
+        if (isNaN(parsedW) || parsedW <= 0) parsedW = 0;
+
+        let heightCm = 0;
+        let heightM = 0;
         let weight = 0;
         let bmi = 0;
-        let status: HealthData['nutritionalStatus'] = 'Normal';
+        let status: HealthData['nutritionalStatus'] = '';
+        let hfaStatus = '';
 
-        let hfaStatus = d.medical?.heightForAge || 'Normal';
+        if (parsedH > 0 && parsedW > 0) {
+          weight = parsedW;
+          if (parsedH < 3.0) {
+            heightM = parsedH;
+            heightCm = parsedH * 100;
+          } else {
+            heightCm = parsedH;
+            heightM = parsedH / 100;
+          }
 
-        if (d.medical && d.medical.height && d.medical.weight) {
-          const h = parseFloat(d.medical.height);
-          const w = parseFloat(d.medical.weight);
-          if (!isNaN(h) && !isNaN(w)) {
-            height = h;
-            weight = w;
-            bmi = parseFloat(this.calculateBMI(h, w).toFixed(2));
-            status = this.getNutritionalStatus(bmi);
+          bmi = parseFloat(this.calculateBMI(heightCm, weight).toFixed(2));
+          status = this.getNutritionalStatus(bmi);
 
-            if (d.birthDate) {
-              const ageMonths = this.calculateAgeInMonths(d.birthDate);
-              hfaStatus = this.getHfaStatus(h, d.gender ?? 'Male', ageMonths);
-            }
+          if (d.birthDate) {
+            const ageMonths = this.calculateAgeInMonths(d.birthDate);
+            hfaStatus = this.getHfaStatus(heightCm, d.gender ?? 'Male', ageMonths);
+          } else if (d.medical?.heightForAge || d.heightForAge) {
+            hfaStatus = d.medical?.heightForAge || d.heightForAge;
           }
         }
 
@@ -194,7 +207,7 @@ export class HealthAnalyticsService {
           name: `${d.lastName || ''}, ${d.firstName || ''} ${d.middleName?.[0] ? d.middleName[0] + '.' : ''}`.trim(),
           gender: d.gender ?? '',
           age: this.calculateAge(d.birthDate),
-          height: height > 0 ? height / 100 : 0, 
+          height: heightM, 
           weight: weight,
           bmi: bmi,
           nutritionalStatus: status,

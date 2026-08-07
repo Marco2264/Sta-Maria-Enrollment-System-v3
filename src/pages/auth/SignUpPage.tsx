@@ -177,7 +177,7 @@ export function SignUpPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    
+
     if (id === 'contactNumber') {
       const cleaned = value.replace(/\D/g, '').slice(0, 11);
       setFormData(prev => ({ ...prev, [id]: cleaned }));
@@ -351,7 +351,7 @@ export function SignUpPage() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center"
       style={{ backgroundImage: "url('/images/sta_maria_bulding.png')" }}
     >
@@ -367,7 +367,7 @@ export function SignUpPage() {
         style={{ borderRadius: '28px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}
       >
         {/* ── LEFT PANEL (EXACTLY PRESERVED BRANDING) ── */}
-        <div 
+        <div
           className="hidden md:flex md:w-[38%] flex-col justify-between p-10 text-white relative overflow-hidden shrink-0"
           style={{ background: 'linear-gradient(145deg, #0a192f 0%, #003078 50%, #004ac6 100%)' }}
         >
@@ -375,7 +375,7 @@ export function SignUpPage() {
           <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
-          
+
           {/* TOP: Both logos + school name */}
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-5">
@@ -422,7 +422,7 @@ export function SignUpPage() {
         {/* ── RIGHT PANEL: GUIDED ONBOARDING MULTI-STEP CONTENT SECTION ── */}
         <div className="w-full md:w-[62%] bg-white flex flex-col justify-between p-8 sm:p-12 min-h-[520px] overflow-y-auto">
           <div className="w-full max-w-md mx-auto space-y-6 text-left my-auto">
-            
+
             {/* Mobile logo header (shown only on small screens) */}
             <div className="md:hidden flex items-center gap-2 mb-2">
               <img src="/images/sta_maria_school_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
@@ -455,7 +455,7 @@ export function SignUpPage() {
             {/* ── STEP CONTENT WITH ANIMATION ── */}
             <form onSubmit={(e) => e.preventDefault()} className="space-y-6 pt-2">
               <AnimatePresence mode="wait">
-                
+
                 {/* STEP 1 OF 8 */}
                 {step === 1 && (
                   <motion.div
@@ -846,7 +846,7 @@ export function SignUpPage() {
 
                     {/* Summary Card */}
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4 text-xs">
-                      
+
                       {/* Personal Info */}
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
@@ -908,7 +908,7 @@ export function SignUpPage() {
 
               {/* Error Banner */}
               {error && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   className="text-xs font-semibold text-rose-600 text-center bg-rose-50 border border-rose-100 p-3 rounded-xl"
@@ -921,11 +921,11 @@ export function SignUpPage() {
               <div className="pt-4 border-t border-slate-100 space-y-3">
                 <div className="flex gap-3">
                   {step > 1 && (
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       onClick={handleBack}
                       variant="outline"
-                      className="w-1/3 h-12 text-sm font-bold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5" 
+                      className="w-1/3 h-12 text-sm font-bold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       <span>Back</span>
@@ -933,8 +933,8 @@ export function SignUpPage() {
                   )}
 
                   {step < 8 ? (
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       onClick={handleNext}
                       className={`${step === 1 ? 'w-full' : 'w-2/3'} h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none`}
                       style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
@@ -943,10 +943,10 @@ export function SignUpPage() {
                       <ArrowRight className="w-4 h-4" />
                     </Button>
                   ) : (
-                    <Button 
+                    <Button
                       type="button"
                       onClick={handleSubmit}
-                      className="w-2/3 h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none" 
+                      className="w-2/3 h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none"
                       style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
                       disabled={isRegistering}
                     >
@@ -964,7 +964,7 @@ export function SignUpPage() {
                     </Button>
                   )}
                 </div>
-                
+
                 <Button
                   variant="outline"
                   type="button"

@@ -119,29 +119,95 @@ export function SubjectsView() {
     setIsSaving(true);
     try {
       const defaultYear = getCurrentSchoolYear();
-      const grade1and2 = ['Language', 'Reading and Literacy', 'Mathematics', 'Makabansa', 'Good Manners and Right Conduct (GMRC)'];
-      const grade3 = ['English', 'Filipino', 'Mathematics', 'Science', 'Makabansa', 'Good Manners and Right Conduct (GMRC)'];
-      const grades4to6 = ['English', 'Filipino', 'Mathematics', 'Science', 'Araling Panlipunan (Social Studies)', 'MAPEH: Music, Arts, Physical Education, and Health', 'EPP / TLE (Edukasyong Pantahanan at Pangkabuhayan / Technology and Livelihood Education)', 'Good Manners and Right Conduct (GMRC) / Values Education'];
+      const grade1 = [
+        'Language',
+        'Reading and Literacy',
+        'Mathematics',
+        'Makabansa',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade2 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Makabansa',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade3 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Science',
+        'Makabansa',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade4and5 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Science',
+        'Araling Panlipunan (AP)',
+        'MAPEH',
+        'Music',
+        'Arts',
+        'Physical Education',
+        'Health',
+        'Edukasyong Pantahanan at Pangkabuhayan (EPP)',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+      const grade6 = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Science',
+        'Araling Panlipunan',
+        'MAPEH',
+        'Music',
+        'Arts',
+        'Physical Education',
+        'Health',
+        'Technology and Livelihood Education (TLE)',
+        'Good Manners and Right Conduct (GMRC)'
+      ];
+
+      let addedCount = 0;
+      let skippedCount = 0;
 
       const addForGrade = async (grade: string, subjectsList: string[]) => {
         for (const name of subjectsList) {
+          const exists = subjects.some(s => 
+            (s.name || '').trim().toLowerCase() === name.trim().toLowerCase() && 
+            s.gradeLevel === grade && 
+            s.academicYear === defaultYear
+          );
+
+          if (exists) {
+            skippedCount++;
+            continue;
+          }
+
           await addSubject({
             name,
             gradeLevel: grade,
             status: 'Active',
             academicYear: defaultYear
           });
+          addedCount++;
         }
       };
 
-      await addForGrade('Grade 1', grade1and2);
-      await addForGrade('Grade 2', grade1and2);
+      await addForGrade('Grade 1', grade1);
+      await addForGrade('Grade 2', grade2);
       await addForGrade('Grade 3', grade3);
-      await addForGrade('Grade 4', grades4to6);
-      await addForGrade('Grade 5', grades4to6);
-      await addForGrade('Grade 6', grades4to6);
+      await addForGrade('Grade 4', grade4and5);
+      await addForGrade('Grade 5', grade4and5);
+      await addForGrade('Grade 6', grade6);
 
-      alert("Subjects auto-seeded successfully!");
+      if (addedCount === 0) {
+        alert("All default subjects for this academic year have already been seeded!");
+      } else {
+        alert(`Subjects auto-seeded successfully! Added ${addedCount} new subjects, skipped ${skippedCount} existing.`);
+      }
     } catch (error) {
       console.error("Error seeding subjects:", error);
       alert("Error auto-seeding subjects.");

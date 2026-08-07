@@ -1,18 +1,19 @@
 import React from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { Users, CheckCircle, XCircle, BarChart, GraduationCap, TrendingUp, Bell, Clock } from 'lucide-react';
+import { cn } from '../../components/ui/utils';
+import { Users, CheckCircle, XCircle, BarChart, GraduationCap, TrendingUp, Bell, Clock, ArrowUpRight } from 'lucide-react';
 import { useTeacherData } from '../../lib/teacherData';
 import { AttendanceTrendChart } from './AttendanceTrendChart';
 
 export function TeacherDashboardView() {
-  const { students, attendance, loading } = useTeacherData();
+  const { students, attendance, loading, currentGradeLevel } = useTeacherData();
   const todayDate = new Date().toISOString().split('T')[0];
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+      <div className="flex-1 flex items-center justify-center p-12">
+        <div className="w-8 h-8 border-4 border-[#D8232A]/20 border-t-[#D8232A] rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -37,7 +38,21 @@ export function TeacherDashboardView() {
     (a) => getDayStatus(a) === 'Absent'
   ).length;
   
-  const allGrades = enrolled.flatMap((s) => Object.values(s.grades || {}));
+  const allGrades = enrolled.flatMap((s) => {
+    const gradeKey = currentGradeLevel || 'Grade 6';
+    const gradeLevelData = s.grades?.[gradeKey];
+    
+    if (gradeLevelData && typeof gradeLevelData === 'object') {
+      return Object.values(gradeLevelData).flatMap((subj: any) => {
+        if (typeof subj === 'object' && subj !== null) {
+          return Object.values(subj).map((v: any) => parseFloat(v)).filter(v => !isNaN(v));
+        }
+        return [];
+      });
+    }
+    
+    return Object.values(s.grades || {}).map((v: any) => parseFloat(v)).filter(v => !isNaN(v));
+  });
   const avgGrade = allGrades.length > 0 
     ? (allGrades.reduce((a, b) => a + b, 0) / allGrades.length).toFixed(1) 
     : '0';
@@ -48,36 +63,29 @@ export function TeacherDashboardView() {
       value: enrolled.length.toString(),
       change: pending.length > 0 ? `${pending.length} pending approval` : 'All enrolled',
       icon: Users,
-      positive: true,
-      color: 'blue'
+      hero: true
     },
     {
       label: 'Present Today',
       value: todayAttendance.length > 0 ? presentToday.toString() : '--',
       change: todayAttendance.length > 0 ? 'Attendance recorded' : 'Not taken yet',
-      icon: CheckCircle,
-      positive: todayAttendance.length > 0,
-      color: 'emerald'
+      icon: CheckCircle
     },
     {
       label: 'Absent Today',
       value: todayAttendance.length > 0 ? absentToday.toString() : '--',
       change: absentToday > 0 ? 'Follow up required' : 'All present',
-      icon: XCircle,
-      positive: absentToday === 0,
-      color: 'rose'
+      icon: XCircle
     },
     {
       label: 'Average Grade',
       value: `${avgGrade}%`,
       change: 'Steady performance',
-      icon: BarChart,
-      positive: true,
-      color: 'indigo'
+      icon: BarChart
     }
   ];
 
-  const recentActivity: { id: string; initials: string; name: string; detail: string; value: string; color: string; }[] = [];
+  const recentActivity: { id: string; initials: string; name: string; detail: string; value: string; color: string; gender: string; }[] = [];
   
   pending.forEach(s => {
     recentActivity.push({
@@ -86,7 +94,8 @@ export function TeacherDashboardView() {
       name: `${s.firstName} ${s.lastName}`,
       detail: 'Enrollment pending approval',
       value: 'Pending',
-      color: 'bg-amber-100 text-amber-700 border-amber-200'
+      color: 'bg-amber-50 text-amber-700 border-amber-200/60',
+      gender: s.gender || 'Male'
     });
   });
 
@@ -100,9 +109,10 @@ export function TeacherDashboardView() {
         name: `${s.firstName} ${s.lastName}`,
         detail: `Attendance recorded - ${dayStatus}`,
         value: 'Today',
-        color: dayStatus === 'Present' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
-               dayStatus === 'Late' ? 'bg-amber-100 text-amber-700 border-amber-200' : 
-               'bg-rose-100 text-rose-700 border-rose-200'
+        color: dayStatus === 'Present' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : 
+               dayStatus === 'Late' ? 'bg-amber-50 text-amber-700 border-amber-200/60' : 
+               'bg-rose-50 text-rose-700 border-rose-200/60',
+        gender: s.gender || 'Male'
       });
     }
   });
@@ -139,23 +149,26 @@ export function TeacherDashboardView() {
   });
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-8 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-primary">
-              <GraduationCap className="w-6 h-6" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Teacher Dashboard</h1>
+    <div className="flex flex-col h-full bg-slate-50/50 relative overflow-hidden">
+      <header className="min-h-[96px] py-6 px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center shrink-0 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Teacher Portal</span>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed">
-              Welcome back. Here's what's happening with your students today.
+            <div className="flex items-center gap-2 text-slate-900">
+              <GraduationCap className="w-5 h-5 text-[#D8232A]" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Teacher Dashboard</h1>
+            </div>
+            <p className="text-sm text-slate-500 max-w-md leading-relaxed hidden sm:block">
+              Welcome back. Monitor live metrics, attendance tracking, and grading analytics for your classroom.
             </p>
           </div>
           
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-3 md:self-center">
             {pending.length > 0 && (
-              <Badge className="bg-amber-100 hover:bg-amber-200 text-amber-700 border-none px-3 py-1.5 shadow-sm rounded-full cursor-pointer flex items-center gap-2">
-                <Bell className="w-4 h-4 animate-bounce" />
+              <Badge className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-4 py-2 shadow-sm rounded-2xl cursor-pointer flex items-center gap-2 transition-all font-semibold text-xs active:scale-95 duration-100">
+                <Bell className="w-4 h-4 text-amber-500 animate-bounce shrink-0" />
                 {pending.length} Pending Approvals
               </Badge>
             )}
@@ -163,85 +176,93 @@ export function TeacherDashboardView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full relative">
+        {/* Stat Cards */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, i) => {
-            const colorClasses = ({
-              blue: 'from-blue-50 to-blue-100/50 border-blue-200/50 text-blue-600 bg-blue-200/50',
-              emerald: 'from-emerald-50 to-emerald-100/50 border-emerald-200/50 text-emerald-600 bg-emerald-200/50',
-              rose: 'from-rose-50 to-rose-100/50 border-rose-200/50 text-rose-600 bg-rose-200/50',
-              indigo: 'from-indigo-50 to-indigo-100/50 border-indigo-200/50 text-indigo-600 bg-indigo-200/50'
-            } as Record<string, string>)[stat.color || 'blue'] || 'from-blue-50 to-blue-100/50 border-blue-200/50 text-blue-600 bg-blue-200/50';
-
-            return (
-              <Card key={i} className={`bg-gradient-to-br ${colorClasses.split(' text-')[0]} p-6 rounded-2xl shadow-sm relative overflow-hidden transition-all hover:shadow-md`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${colorClasses.split(' bg-')[1]} text-${stat.color}-600`}>
-                    <stat.icon className="w-6 h-6" />
-                  </div>
+          {stats.map((stat, i) => (
+            <Card key={i} className={cn(
+              'p-6 rounded-2xl shadow-sm relative overflow-hidden transition-all hover:shadow-md',
+              stat.hero
+                ? 'bg-gradient-to-br from-[#D8232A] to-[#9E171D] border-[#D8232A]'
+                : 'bg-white border-slate-200/70 hover:border-[#D8232A]/30'
+            )}>
+              <div className="mb-4">
+                <div className={cn('w-12 h-12 rounded-full flex items-center justify-center shadow-inner',
+                  stat.hero ? 'bg-white/15 text-white' : 'bg-[#D8232A]/10 text-[#D8232A]')}>
+                  <stat.icon className="w-6 h-6" />
                 </div>
-                <div className="space-y-1">
-                  <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
-                  <p className="text-sm font-semibold uppercase tracking-wider text-slate-600">
-                    {stat.label}
-                  </p>
-                  <div className="flex items-center gap-1.5 pt-2">
-                    {stat.positive ? (
-                      <TrendingUp className="w-4 h-4 text-emerald-500" />
-                    ) : (
-                      <Clock className="w-4 h-4 text-amber-500" />
-                    )}
-                    <span className={`text-xs font-medium ${stat.positive ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {stat.change}
-                    </span>
-                  </div>
+              </div>
+              <div className="space-y-1">
+                <p className={cn('text-3xl font-bold', stat.hero ? 'text-white' : 'text-slate-900')}>{stat.value}</p>
+                <p className={cn('text-sm font-semibold uppercase tracking-wider', stat.hero ? 'text-red-100' : 'text-slate-500')}>{stat.label}</p>
+                <div className="flex items-center gap-1.5 pt-2">
+                  <TrendingUp className={cn('w-4 h-4', stat.hero ? 'text-red-100' : 'text-[#D8232A]')} />
+                  <span className={cn('text-xs font-medium', stat.hero ? 'text-red-100/90' : 'text-slate-500')}>{stat.change}</span>
                 </div>
-              </Card>
-            );
-          })}
+              </div>
+            </Card>
+          ))}
         </div>
 
+        {/* Charts & Activities Grid */}
         <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-7">
+          {/* Attendance Chart */}
           <Card className="lg:col-span-4 bg-white border-slate-200/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">Attendance Trends</h3>
-              <p className="text-sm text-slate-500 mt-1">Class attendance over the last 30 days</p>
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 rounded-full bg-[#D8232A]" />
+                  <h3 className="text-lg font-bold text-slate-800">Attendance Trends</h3>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-1 pl-3">Daily attendance history tracking for the last 30 active days.</p>
+              </div>
+              <ArrowUpRight className="w-5 h-5 text-slate-300" />
             </div>
-            <div className="h-[300px] w-full relative flex-1 bg-slate-50/50 p-2">
+            <div className="h-[320px] w-full relative flex-1 bg-slate-50/30 p-4">
               <AttendanceTrendChart data={trendData} />
             </div>
           </Card>
 
+          {/* Recent Activity List */}
           <Card className="lg:col-span-3 bg-white border-slate-200/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="text-lg font-bold text-slate-800">Recent Activity</h3>
-              <p className="text-sm text-slate-500 mt-1">Latest classroom updates.</p>
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 rounded-full bg-[#D8232A]" />
+                  <h3 className="text-lg font-bold text-slate-800">Recent Activity</h3>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-1 pl-3">Recent student movements and enrollment listings.</p>
+              </div>
+              <Clock className="w-4 h-4 text-slate-400 shrink-0" />
             </div>
-            <div className="p-2 flex-1">
+            <div className="p-3 flex-1 overflow-y-auto max-h-[320px]">
               {displayActivities.length > 0 ? (
-                <div className="divide-y divide-slate-100">
+                <div className="space-y-1.5">
                   {displayActivities.map((item, i) => (
-                    <div key={item.id || i} className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors rounded-xl">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shrink-0 shadow-inner">
+                    <div 
+                      key={item.id || i} 
+                      className="flex items-center gap-3.5 p-3.5 hover:bg-red-50/60 transition-all rounded-2xl border border-transparent hover:border-slate-100"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#D8232A]/10 text-[#D8232A] border border-[#D8232A]/20 flex items-center justify-center font-bold text-xs shrink-0 shadow-inner">
                         {item.initials}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{item.name}</p>
                         <p className="text-xs text-slate-500 truncate mt-0.5">{item.detail}</p>
                       </div>
-                      <Badge variant="outline" className={`${item.color} px-2.5 py-0.5 rounded-md font-semibold text-[10px] shrink-0 shadow-sm`}>
+                      <Badge variant="outline" className={`${item.color} px-2.5 py-1 rounded-xl font-bold text-[9px] uppercase tracking-wider shrink-0 shadow-inner border`}>
                         {item.value}
                       </Badge>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full py-12 px-4 text-center">
-                  <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                    <Clock className="w-8 h-8 text-slate-300" />
+                <div className="flex flex-col items-center justify-center h-full py-16 px-4 text-center">
+                  <div className="w-16 h-16 rounded-full bg-red-50 text-[#D8232A] flex items-center justify-center mb-4">
+                    <Clock className="w-8 h-8 text-[#D8232A]" />
                   </div>
-                  <h4 className="text-slate-700 font-bold mb-1">No Recent Activity</h4>
-                  <p className="text-sm text-slate-500">Classroom events and attendance will appear here.</p>
+                  <h4 className="text-slate-800 font-bold mb-1">No Recent Activity</h4>
+                  <p className="text-xs text-slate-400 font-medium">Recorded updates and notifications will list here.</p>
                 </div>
               )}
             </div>

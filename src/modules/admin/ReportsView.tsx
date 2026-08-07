@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '../../components/ui/Select';
-import { FileText, Download, CheckCircle2, AlertCircle, IdCard, Calendar, TrendingUp, Award } from 'lucide-react';
+import { FileText, Download, CheckCircle2, AlertCircle, IdCard, Calendar, TrendingUp, Award, Users, BarChart3, Activity } from 'lucide-react';
 import { useAdminData } from '../../lib/adminData';
 import { ReportDataService } from '../../lib/services/reportDataService';
 import { HealthAnalyticsService, HealthData } from '../../lib/services/healthAnalyticsService';
@@ -20,15 +20,17 @@ import { normalizeRole } from '../../lib/roles';
 import { generateAdminSF1, generateAdminSF4, generateAdminSF8, generateSF2, generateSF5, generateSF9 } from '../../lib/excelGenerator';
 import { SF9ReportDocument } from './SF9ReportDocument';
 import type { SF1Data, SF4Data } from '../../lib/services/reportDataService';
+import { fetchAdviserForSection } from '../../lib/services/reportDataService';
 import { getCurrentSchoolYear } from '../../lib/utils';
 import { StudentIdCardDocument } from './StudentIdCardDocument';
 import { SF1ReportDocument } from './SF1ReportDocument';
 import { SF2ReportDocument } from './SF2ReportDocument';
 import { SF4ReportDocument } from './SF4ReportDocument';
 import { SF8ReportDocument } from './SF8ReportDocument';
+import { SF5ReportDocument } from './SF5ReportDocument';
 
 export function ReportsView() {
-  const { schoolYear, classrooms, sections } = useAdminData();
+  const { schoolYear, classrooms, sections, assignments, users } = useAdminData();
 
   const sortedSections = React.useMemo(() => {
     return [...sections].sort((a, b) => {
@@ -76,6 +78,7 @@ export function ReportsView() {
   const [viewingSF4, setViewingSF4] = useState<SF4Data | null>(null);
   const [viewingSF8, setViewingSF8] = useState<any | null>(null);
   const [viewingSF9, setViewingSF9] = useState<any | null>(null);
+  const [viewingSF5, setViewingSF5] = useState<any | null>(null);
   const [viewingReportId, setViewingReportId] = useState<string | null>(null);
 
   const syName = schoolYear?.name ?? getCurrentSchoolYear();
@@ -124,7 +127,10 @@ export function ReportsView() {
         const studentsData = studentDocs.map(d => ({ id: d.id, ...d.data() } as any));
         const secName = selectedSection ? `${selectedSection.gradeLevel} - ${selectedSection.name}` : 'Section';
         
-        await generateSF5(studentsData, secName, syName);
+        const assignment = assignments.find(a => a.sectionId === sf5SectionId);
+        const teacher = users.find(u => u.id === assignment?.teacherId);
+        const adviserName = teacher ? `${teacher.firstName} ${teacher.lastName}`.trim() : undefined;
+        await generateSF5(studentsData, secName, syName, adviserName);
       } else if (reportId === 'sf4') {
         const effectiveGradeLevel = assignedGrade || (sf4GradeLevel === 'all' ? undefined : sf4GradeLevel);
         const data = await ReportDataService.getSF4Data(
@@ -143,11 +149,13 @@ export function ReportsView() {
           
         const effectiveGradeLevel = selectedSection?.gradeLevel || assignedGrade || 'All';
           
+        const advName = (selectedSection as any)?.adviserName || (selectedSection as any)?.teacherName || (await fetchAdviserForSection(sf8SectionId));
         await generateAdminSF8({
           schoolYear: syName,
           gradeLevel: effectiveGradeLevel,
           section: selectedSection?.name || 'All Sections',
-          learners: filteredLearners
+          learners: filteredLearners,
+          adviserName: advName
         });
       } else if (reportId === 'sf9') {
         if (sf9SectionId === 'all') {
@@ -229,11 +237,13 @@ export function ReportsView() {
           : learners.filter(l => l.sectionId === sf8SectionId);
         const effectiveGradeLevel = selectedSection?.gradeLevel || assignedGrade || 'All';
           
+        const advName = (selectedSection as any)?.adviserName || (selectedSection as any)?.teacherName || (await fetchAdviserForSection(sf8SectionId));
         setViewingSF8({
           schoolYear: syName,
           gradeLevel: effectiveGradeLevel,
           section: selectedSection?.name || 'All Sections',
-          learners: filteredLearners
+          learners: filteredLearners,
+          adviserName: advName
         });
       } else if (reportId === 'sf9') {
         if (sf9SectionId === 'all') {
@@ -242,6 +252,17 @@ export function ReportsView() {
           return;
         }
         const selectedSection = sections.find(s => s.id === sf9SectionId);
+        
+        // Find assignment for this section
+        const assignment = assignments.find(a => a.sectionId === sf9SectionId);
+        let sectionAdviserName = 'Assigned Adviser';
+        if (assignment) {
+          const teacher = users.find(u => u.id === assignment.teacherId);
+          if (teacher) {
+            sectionAdviserName = `${teacher.firstName} ${teacher.lastName}`.trim();
+          }
+        }
+
         const enrollRef = collection(db, 'enrollments');
         const q = query(enrollRef, where('status', 'in', ['Enrolled', 'enrolled']));
         const snap = await getDocs(q);
@@ -265,7 +286,43 @@ export function ReportsView() {
           section: secName,
           students: studentsData,
           attendance: attendanceData,
-          subjects: subjectsData
+          subjects: subjectsData,
+          adviserName: sectionAdviserName
+        });
+      } else if (reportId === 'sf5') {
+        if (sf5SectionId === 'all') {
+          alert('Please select a specific section to view School Form 5 (SF5).');
+          setViewingReportId(null);
+          return;
+        }
+        const selectedSection = sections.find(s => s.id === sf5SectionId);
+        
+        // Find assignment for this section
+        const assignment = assignments.find(a => a.sectionId === sf5SectionId);
+        let sectionAdviserName = 'Assigned Adviser';
+        if (assignment) {
+          const teacher = users.find(u => u.id === assignment.teacherId);
+          if (teacher) {
+            sectionAdviserName = `${teacher.firstName} ${teacher.lastName}`.trim();
+          }
+        }
+
+        const enrollRef = collection(db, 'enrollments');
+        const q = query(enrollRef, where('status', 'in', ['Enrolled', 'enrolled']));
+        const snap = await getDocs(q);
+        let studentDocs = snap.docs;
+        studentDocs = studentDocs.filter(d => d.data().sectionId === sf5SectionId);
+        
+        const studentsData = studentDocs.map(d => ({ id: d.id, ...d.data() } as any));
+        const secName = selectedSection ? `${selectedSection.gradeLevel} - ${selectedSection.name}` : 'Section';
+        const effGradeLevel = selectedSection?.gradeLevel || 'Grade 6';
+
+        setViewingSF5({
+          schoolYear: syName,
+          gradeLevel: effGradeLevel,
+          section: secName,
+          students: studentsData,
+          adviserName: sectionAdviserName
         });
       }
     } catch (err) {
@@ -280,12 +337,15 @@ export function ReportsView() {
     {
       id: 'sf1',
       title: 'School Form 1 (SF1)',
+      subtitle: 'School Register',
       desc: 'School Register containing learner information, birth details, and parents/guardians.',
-      iconClass: 'bg-blue-100 text-blue-600'
+      iconClass: 'bg-blue-100 text-blue-600',
+      icon: Users
     },
     {
       id: 'sf2',
       title: 'School Form 2 (SF2)',
+      subtitle: 'Daily Attendance Report',
       desc: 'Daily Attendance Report of Learners for the selected month.',
       iconClass: 'bg-teal-100 text-teal-600',
       icon: Calendar
@@ -293,12 +353,15 @@ export function ReportsView() {
     {
       id: 'sf4',
       title: 'School Form 4 (SF4)',
+      subtitle: 'Monthly Learner Movement',
       desc: 'Monthly Learner Movement and Attendance summary for the entire school.',
-      iconClass: 'bg-indigo-100 text-indigo-600'
+      iconClass: 'bg-indigo-100 text-indigo-600',
+      icon: BarChart3
     },
     {
       id: 'sf5',
       title: 'School Form 5 (SF5)',
+      subtitle: 'Report on Promotion',
       desc: 'Report on Promotion and Level of Progress & Achievement at the end of the school year.',
       iconClass: 'bg-amber-100 text-amber-600',
       icon: TrendingUp
@@ -306,12 +369,15 @@ export function ReportsView() {
     {
       id: 'sf8',
       title: 'School Form 8 (SF8)',
+      subtitle: 'Learner Health & Nutrition Report',
       desc: "Learner's Basic Health and Nutrition Report containing BMI and nutritional status.",
-      iconClass: 'bg-emerald-100 text-emerald-600'
+      iconClass: 'bg-emerald-100 text-emerald-600',
+      icon: Activity
     },
     {
       id: 'sf9',
       title: 'School Form 9 (SF9)',
+      subtitle: 'Learner Progress Report Card',
       desc: "Learner's Progress Report Card containing quarterly/term grades and monthly attendance.",
       iconClass: 'bg-rose-100 text-rose-600',
       icon: Award
@@ -320,21 +386,21 @@ export function ReportsView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
+      <header className="px-6 py-8 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
+          <div className="space-y-2">
             <div className="flex items-center gap-2 text-primary">
-              <FileText className="w-5 h-5" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Official Reports</h1>
+              <FileText className="w-6 h-6" />
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">School Forms</h1>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
+            <p className="text-sm text-slate-600 max-w-md leading-relaxed">
               Generate and download official DepEd school forms based on live enrollment and attendance data.
             </p>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-10">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {error && (
           <div className="mb-6 flex items-center gap-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl px-4 py-3">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -342,13 +408,7 @@ export function ReportsView() {
           </div>
         )}
 
-        {/* ── Official DepEd Forms ─────────────────────────── */}
-        <section>
-          <div className="mb-5">
-            <h2 className="text-lg font-bold text-slate-800">Official DepEd Forms</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Generate and print DepEd-standard school forms from live data.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {reports.map((report) => {
             const isGenerating = generating === report.id;
 
@@ -357,15 +417,17 @@ export function ReportsView() {
                 key={report.id}
                 className="bg-white border-slate-200/60 p-6 sm:p-8 shadow-sm rounded-3xl flex flex-col hover:shadow-md transition-all duration-300"
               >
-                <div className="flex items-start gap-4 mb-6">
+                <div className="flex items-start gap-4 mb-5">
                   <div className={`w-14 h-14 rounded-2xl ${report.iconClass} flex items-center justify-center shrink-0 shadow-inner`}>
                     {report.icon ? <report.icon className="w-7 h-7" /> : <FileText className="w-7 h-7" />}
                   </div>
                   <div className="flex-1 min-w-0 pt-1">
-                    <h3 className="font-bold text-xl text-slate-900">{report.title}</h3>
-                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">{report.desc}</p>
+                    <h3 className="font-bold text-lg text-slate-900 leading-tight">{report.title}</h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-0.5 uppercase tracking-wide">{report.subtitle}</p>
                   </div>
                 </div>
+
+                <p className="text-sm text-slate-500 leading-relaxed mb-6 flex-1">{report.desc}</p>
 
                 <div className="space-y-4 mb-8 flex-1">
                   <div className="space-y-4">
@@ -535,7 +597,7 @@ export function ReportsView() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                  {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf4' || report.id === 'sf8' || report.id === 'sf9') && (
+                  {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf4' || report.id === 'sf5' || report.id === 'sf8' || report.id === 'sf9') && (
                     <Button
                       variant="outline"
                       className="flex-1 rounded-xl h-11 font-semibold transition-all bg-white border-slate-200 shadow-sm"
@@ -545,7 +607,7 @@ export function ReportsView() {
                       {viewingReportId === report.id ? (
                         <><div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin mr-2" />Loading...</>
                       ) : (
-                        <><FileText className="w-4 h-4 mr-2" />View & Print</>
+                        <><FileText className="w-4 h-4 mr-2" />Preview</>
                       )}
                     </Button>
                   )}
@@ -567,7 +629,6 @@ export function ReportsView() {
             );
           })}
           </div>
-        </section>
 
         {/* ── Print Templates ──────────────────────────────── */}
         <section>
@@ -577,17 +638,19 @@ export function ReportsView() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
             <Card className="bg-white border-slate-200/60 p-6 sm:p-8 shadow-sm rounded-3xl flex flex-col hover:shadow-md transition-all duration-300">
-              <div className="flex items-start gap-4 mb-6">
+              <div className="flex items-start gap-4 mb-5">
                 <div className="w-14 h-14 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center shrink-0 shadow-inner">
                   <IdCard className="w-7 h-7" />
                 </div>
                 <div className="flex-1 min-w-0 pt-1">
-                  <h3 className="font-bold text-xl text-slate-900">Student ID Cards</h3>
-                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                    Print standard school ID cards for all enrolled learners with LRN and guardian info.
-                  </p>
+                  <h3 className="font-bold text-lg text-slate-900 leading-tight">Student ID Cards</h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5 uppercase tracking-wide">Printable Student ID</p>
                 </div>
               </div>
+
+              <p className="text-sm text-slate-500 leading-relaxed mb-6 flex-1">
+                Print standard school ID cards for all enrolled learners with LRN and guardian info.
+              </p>
 
               <div className="space-y-4 mb-8 flex-1">
                 <div className="space-y-1.5">
@@ -697,6 +760,9 @@ export function ReportsView() {
       )}
       {viewingSF8 && (
         <SF8ReportDocument data={viewingSF8} onClose={() => setViewingSF8(null)} />
+      )}
+      {viewingSF5 && (
+        <SF5ReportDocument data={viewingSF5} onClose={() => setViewingSF5(null)} />
       )}
       {viewingSF9 && (
         <SF9ReportDocument data={viewingSF9} onClose={() => setViewingSF9(null)} />

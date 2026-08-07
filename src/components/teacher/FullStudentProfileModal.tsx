@@ -59,7 +59,7 @@ export function FullStudentProfileModal({
 
   const SectionTitle = ({ icon: Icon, title }: { icon: any, title: string }) => (
     <div className="flex items-center gap-2 mb-4">
-      <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+      <div className="p-1.5 rounded-lg bg-[#D8232A]/10 text-[#D8232A]">
         <Icon className="w-4 h-4" />
       </div>
       <h4 className="font-bold text-slate-800 text-lg tracking-tight">{title}</h4>
@@ -78,10 +78,10 @@ export function FullStudentProfileModal({
       <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[85vh] rounded-2xl p-0 overflow-hidden border-0 shadow-2xl bg-white flex flex-col">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 pb-5 border-b border-border/50 shrink-0">
+        <div className="bg-gradient-to-r from-[#D8232A]/10 via-[#D8232A]/5 to-transparent p-6 pb-5 border-b border-border/50 shrink-0">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-800">
-              <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-lg border border-primary/30 shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-[#D8232A]/15 text-[#D8232A] flex items-center justify-center text-lg border border-[#D8232A]/30 shadow-sm font-bold">
                 {student.firstName?.charAt(0) || ''}{student.lastName?.charAt(0) || ''}
               </div>
               <div>
@@ -206,7 +206,7 @@ export function FullStudentProfileModal({
           {allowEditHealth && (
             <div className="border-t border-slate-100 pt-6 bg-slate-50/50 -mx-6 px-6 pb-2">
               <div className="flex items-center gap-2 mb-4">
-                <Activity className="w-5 h-5 text-primary" />
+                <Activity className="w-5 h-5 text-[#D8232A]" />
                 <h4 className="font-bold text-slate-800 text-lg">Update Health Data</h4>
               </div>
               
@@ -219,7 +219,7 @@ export function FullStudentProfileModal({
                     type="number"
                     value={editBmi.height}
                     onChange={(e) => setEditBmi({ ...editBmi, height: e.target.value })}
-                    className="rounded-xl border-slate-200 focus:ring-primary/20 bg-white"
+                    className="rounded-xl border-slate-200 focus:ring-2 focus:ring-[#D8232A]/20 focus:border-[#D8232A]/40 bg-white"
                     placeholder="e.g. 150"
                   />
                 </div>
@@ -231,7 +231,7 @@ export function FullStudentProfileModal({
                     type="number"
                     value={editBmi.weight}
                     onChange={(e) => setEditBmi({ ...editBmi, weight: e.target.value })}
-                    className="rounded-xl border-slate-200 focus:ring-primary/20 bg-white"
+                    className="rounded-xl border-slate-200 focus:ring-2 focus:ring-[#D8232A]/20 focus:border-[#D8232A]/40 bg-white"
                     placeholder="e.g. 45"
                   />
                 </div>
@@ -254,7 +254,7 @@ export function FullStudentProfileModal({
               {allowEditHealth ? 'Cancel' : 'Close'}
             </Button>
             {allowEditHealth && (
-              <Button className="w-full sm:w-auto rounded-xl shadow-md" onClick={handleSaveBmi}>
+              <Button className="w-full sm:w-auto rounded-xl bg-[#D8232A] hover:bg-[#9E171D] text-white font-semibold shadow-md" onClick={handleSaveBmi}>
                 Save Health Data
               </Button>
             )}

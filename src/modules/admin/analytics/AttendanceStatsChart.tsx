@@ -7,9 +7,9 @@ interface AttendanceStatsChartProps {
 }
 
 const COLORS = {
-  Present: '#10b981', // emerald-500
-  Late: '#f59e0b',    // amber-500
-  Absent: '#ef4444'   // red-500
+  Present: '#D8232A',
+  Late: '#F0555B',
+  Absent: '#F8A1A5'
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

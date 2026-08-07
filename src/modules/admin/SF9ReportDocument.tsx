@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ReportLayout } from './reports/ReportLayout';
 import { useAuth } from '../../lib/AuthContext';
+import { ChevronDown, Search } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { collection, getDocs, query } from 'firebase/firestore';
 
 interface SF9ReportDocumentProps {
   onClose: () => void;
@@ -11,16 +14,66 @@ interface SF9ReportDocumentProps {
     students: any[];
     attendance: any[];
     subjects: any[];
+    adviserName?: string;
+    gradeConfigurations?: any[];
   };
 }
 
 export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
-  const { schoolYear, gradeLevel, section, students, attendance, subjects } = data;
+  const { schoolYear, gradeLevel, section, students, attendance, subjects, adviserName: passedAdviserName, gradeConfigurations: passedGradeConfigs } = data;
   const { userData } = useAuth();
 
+  const [loadedGradeConfigs, setLoadedGradeConfigs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (passedGradeConfigs && passedGradeConfigs.length > 0) {
+      setLoadedGradeConfigs(passedGradeConfigs);
+    } else {
+      const q = query(collection(db, 'gradeConfigurations'));
+      getDocs(q).then((snap) => {
+        setLoadedGradeConfigs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }).catch((err) => {
+        console.error('Failed to load gradeConfigurations for SF9 preview:', err);
+      });
+    }
+  }, [passedGradeConfigs]);
+
+  const activeGradeConfigs = useMemo(() => {
+    return (passedGradeConfigs && passedGradeConfigs.length > 0) ? passedGradeConfigs : loadedGradeConfigs;
+  }, [passedGradeConfigs, loadedGradeConfigs]);
+
+  // Sort students alphabetically by lastName then firstName
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => {
+      const aName = `${a.lastName || ''}, ${a.firstName || ''}`.toLowerCase();
+      const bName = `${b.lastName || ''}, ${b.firstName || ''}`.toLowerCase();
+      return aName.localeCompare(bName);
+    });
+  }, [students]);
+
   const [selectedStudentId, setSelectedStudentId] = useState<string>(
-    students[0]?.id || ''
+    sortedStudents[0]?.id || ''
   );
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Sync default selection when student list changes
+  useEffect(() => {
+    if (sortedStudents.length > 0) {
+      setSelectedStudentId(sortedStudents[0].id);
+    }
+  }, [sortedStudents]);
+
+  // Filter students based on search term
+  const filteredStudents = useMemo(() => {
+    if (!searchTerm.trim()) return sortedStudents;
+    const q = searchTerm.toLowerCase();
+    return sortedStudents.filter(s =>
+      `${s.lastName || ''}, ${s.firstName || ''}`.toLowerCase().includes(q) ||
+      (s.lrn || '').toLowerCase().includes(q)
+    );
+  }, [sortedStudents, searchTerm]);
 
   const student = students.find((s) => s.id === selectedStudentId);
 
@@ -130,7 +183,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
   const attSummary = getAttendanceSummary(student.id);
 
   // --- SUBJECT GRADES DATA ---
-  const getSubjectGradesList = (stud: any) => {
+  const getDecryptedTemplateGrades = (stud: any) => {
     const activeRows: Array<{
       name: string;
       code: string;
@@ -142,72 +195,12 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
       isComponent?: boolean;
     }> = [];
 
-    const gradeKey = stud.gradeLevel ? `Grade ${stud.gradeLevel}` : 'Grade 6';
+    const gradeKey = stud.gradeLevel
+      ? (stud.gradeLevel.toLowerCase().startsWith('grade')
+        ? stud.gradeLevel
+        : `Grade ${stud.gradeLevel}`)
+      : 'Grade 6';
     const studentGrades = stud.grades?.[gradeKey] || {};
-
-    const buildSubjectsOrdered = () => {
-      const ordered: Array<{ name: string; code: string; label: string; isComponent?: boolean }> = [];
-      const gradeLevelClean = (stud.gradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
-      const dbSubjects = (subjects || []).filter((sub) => {
-        const sGrade = (sub.gradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
-        return sGrade === gradeLevelClean;
-      });
-
-      if (dbSubjects.length === 0) {
-        return [
-          { name: 'Filipino', code: 'FILIPINO', label: 'Filipino' },
-          { name: 'English', code: 'ENGLISH', label: 'English' },
-          { name: 'Mathematics', code: 'MATH', label: 'Mathematics' },
-          { name: 'Science', code: 'SCIENCE', label: 'Science' },
-          { name: 'Araling Panlipunan', code: 'AP', label: 'Araling Panlipunan (AP)' },
-          { name: 'Edukasyon sa Pagpapakatao', code: 'ESP', label: 'Edukasyon sa Pagpapakatao (EsP)' },
-          { name: 'TLE', code: 'TLE', label: 'Technology and Livelihood Education (TLE)' },
-          { name: 'MAPEH', code: 'MAPEH', label: 'MAPEH' },
-          { name: 'Music', code: 'MUSIC', label: 'Music', isComponent: true },
-          { name: 'Arts', code: 'ARTS', label: 'Arts', isComponent: true },
-          { name: 'Physical Education', code: 'PE', label: 'Physical Education (PE)', isComponent: true },
-          { name: 'Health', code: 'HEALTH', label: 'Health', isComponent: true }
-        ];
-      }
-
-      dbSubjects.forEach((sub) => {
-        const name = sub.name || '';
-        const lowerName = name.toLowerCase();
-
-        if (lowerName.includes('music') || lowerName.includes('arts') || lowerName === 'pe' || lowerName.includes('physical education') || lowerName === 'health') {
-          return;
-        }
-
-        if (lowerName.includes('mapeh')) {
-          ordered.push({ name: 'MAPEH', code: 'MAPEH', label: 'MAPEH' });
-          ordered.push({ name: 'Music', code: 'MUSIC', label: 'Music', isComponent: true });
-          ordered.push({ name: 'Arts', code: 'ARTS', label: 'Arts', isComponent: true });
-          ordered.push({ name: 'Physical Education', code: 'PE', label: 'Physical Education (PE)', isComponent: true });
-          ordered.push({ name: 'Health', code: 'HEALTH', label: 'Health', isComponent: true });
-        } else if (lowerName.includes('filipino')) {
-          ordered.push({ name: 'Filipino', code: 'FILIPINO', label: 'Filipino' });
-        } else if (lowerName.includes('english')) {
-          ordered.push({ name: 'English', code: 'ENGLISH', label: 'English' });
-        } else if (lowerName.includes('mathematics') || lowerName === 'math') {
-          ordered.push({ name: 'Mathematics', code: 'MATH', label: 'Mathematics' });
-        } else if (lowerName.includes('science')) {
-          ordered.push({ name: 'Science', code: 'SCIENCE', label: 'Science' });
-        } else if (lowerName.includes('araling panlipunan') || lowerName === 'ap') {
-          ordered.push({ name: 'Araling Panlipunan', code: 'AP', label: 'Araling Panlipunan (AP)' });
-        } else if (lowerName.includes('edukasyon sa pagpapakatao') || lowerName === 'esp' || lowerName.includes('values education') || lowerName.includes('good manners') || lowerName.includes('gmrc')) {
-          ordered.push({ name: 'Edukasyon sa Pagpapakatao', code: 'ESP', label: name });
-        } else if (lowerName.includes('tle') || lowerName.includes('epp')) {
-          ordered.push({ name: 'TLE', code: 'TLE', label: name });
-        } else {
-          const cleanCode = (sub.code || name).toUpperCase().replace(/\s+/g, '_');
-          ordered.push({ name, code: cleanCode, label: name });
-        }
-      });
-
-      return ordered;
-    };
-
-    const subjectsOrdered = buildSubjectsOrdered();
 
     const subjectRowMap: Record<string, string> = {
       'filipino': 'FILIPINO',
@@ -222,11 +215,13 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
       'values education': 'ESP',
       'good manners': 'ESP',
       'gmrc': 'ESP',
+      'good manners and right conduct (gmrc)': 'ESP',
       'tle': 'TLE',
       'epp': 'TLE',
       'mapeh': 'MAPEH',
       'music': 'MUSIC',
       'arts': 'ARTS',
+      'art': 'ARTS',
       'physical education': 'PE',
       'pe': 'PE',
       'health': 'HEALTH',
@@ -242,64 +237,138 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
       const standardCode = subjectRowMap[subNameLower] || subjectRowMap[code.toLowerCase().trim()] || (code.toUpperCase().replace(/\s+/g, '_'));
       if (standardCode) {
         const gradeData = studentGrades[code] || {};
-        mappedDbGrades[standardCode] = {
-          q1: typeof gradeData.q1 !== 'undefined' && gradeData.q1 !== null ? parseFloat(gradeData.q1) : null,
-          q2: typeof gradeData.q2 !== 'undefined' && gradeData.q2 !== null ? parseFloat(gradeData.q2) : null,
-          q3: typeof gradeData.q3 !== 'undefined' && gradeData.q3 !== null ? parseFloat(gradeData.q3) : null
+        // Compute static grades if available
+        let q1 = typeof gradeData.q1 !== 'undefined' && gradeData.q1 !== null ? parseFloat(gradeData.q1) : null;
+        let q2 = typeof gradeData.q2 !== 'undefined' && gradeData.q2 !== null ? parseFloat(gradeData.q2) : null;
+        let q3 = typeof gradeData.q3 !== 'undefined' && gradeData.q3 !== null ? parseFloat(gradeData.q3) : null;
+
+        // If static grade is missing, calculate average from dynamic columns for the term
+        const computeDynamicAvg = (termKey: string) => {
+          // Gather all numeric values from dynamic term objects (e.g., 'Term 1', 'Term 2')
+          const values: number[] = [];
+          Object.entries(gradeData).forEach(([key, val]) => {
+            if (['q1', 'q2', 'q3'].includes(key)) return;
+            if (typeof val === 'object' && val !== null) {
+              Object.values(val).forEach(v => {
+                if (typeof v === 'number') values.push(v);
+              });
+            }
+          });
+          if (values.length === 0) return null;
+          const sum = values.reduce((a, b) => a + b, 0);
+          return Math.round(sum / values.length);
         };
+
+        if (q1 === null) {
+          const dyn = computeDynamicAvg('q1');
+          if (dyn !== null) q1 = dyn;
+        }
+        if (q2 === null) {
+          const dyn = computeDynamicAvg('q2');
+          if (dyn !== null) q2 = dyn;
+        }
+        if (q3 === null) {
+          const dyn = computeDynamicAvg('q3');
+          if (dyn !== null) q3 = dyn;
+        }
+
+        mappedDbGrades[standardCode] = { q1, q2, q3 };
       }
     });
 
-    // Auto-average components for MAPEH
-    if (!mappedDbGrades['MAPEH']) {
-      const components = ['MUSIC', 'ARTS', 'PE', 'HEALTH'];
-      const q1s: number[] = [];
-      const q2s: number[] = [];
-      const q3s: number[] = [];
-      components.forEach((c) => {
-        const gd = mappedDbGrades[c];
-        if (gd) {
-          if (gd.q1 !== null) q1s.push(gd.q1);
-          if (gd.q2 !== null) q2s.push(gd.q2);
-          if (gd.q3 !== null) q3s.push(gd.q3);
-        }
-      });
-      if (q1s.length > 0 || q2s.length > 0 || q3s.length > 0) {
-        mappedDbGrades['MAPEH'] = {
-          q1: q1s.length > 0 ? Math.round(q1s.reduce((a, b) => a + b, 0) / q1s.length) : null,
-          q2: q2s.length > 0 ? Math.round(q2s.reduce((a, b) => a + b, 0) / q2s.length) : null,
-          q3: q3s.length > 0 ? Math.round(q3s.reduce((a, b) => a + b, 0) / q3s.length) : null
-        };
-      }
-    }
+    const isGrade1 = gradeLevel.toLowerCase().includes('1');
+    const isGrade2 = gradeLevel.toLowerCase().includes('2');
+    const isGrade3 = gradeLevel.toLowerCase().includes('3');
+    const isGrade4 = gradeLevel.toLowerCase().includes('4');
+    const isGrade5 = gradeLevel.toLowerCase().includes('5');
+    const isGrade6 = gradeLevel.toLowerCase().includes('6');
 
-    subjectsOrdered.forEach((item) => {
-      const gd = mappedDbGrades[item.code];
-      
-      const q1 = gd && gd.q1 !== null && typeof gd.q1 !== 'undefined' ? gd.q1 : '';
-      const q2 = gd && gd.q2 !== null && typeof gd.q2 !== 'undefined' ? gd.q2 : '';
-      const q3 = gd && gd.q3 !== null && typeof gd.q3 !== 'undefined' ? gd.q3 : '';
+    const getGradeByStandardCode = (code: string) => {
+      const gd = mappedDbGrades[code];
+      if (!gd) return { q1: '', q2: '', q3: '', final: '', remarks: '' };
 
-      const active = [q1, q2, q3].filter((g) => g !== '') as number[];
+      const q1 = gd.q1 !== null && typeof gd.q1 !== 'undefined' ? gd.q1 : '';
+      const q2 = gd.q2 !== null && typeof gd.q2 !== 'undefined' ? gd.q2 : '';
+      const q3 = gd.q3 !== null && typeof gd.q3 !== 'undefined' ? gd.q3 : '';
+
+      const active = [q1, q2, q3].filter(v => v !== '') as number[];
       const final = active.length > 0 ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : '';
       const remarks = final !== '' ? (final >= 75 ? 'PASSED' : 'FAILED') : '';
 
-      activeRows.push({
-        name: item.label,
-        code: item.code,
-        q1,
-        q2,
-        q3,
-        final,
-        remarks,
-        isComponent: item.isComponent
-      });
-    });
+      return { q1, q2, q3, final, remarks };
+    };
+
+    const averageGrades = (g1: any, g2: any) => {
+      const calculateQ = (qKey: 'q1' | 'q2' | 'q3') => {
+        const vals = [g1[qKey], g2[qKey]].filter(v => v !== '') as number[];
+        return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : '';
+      };
+      const q1 = calculateQ('q1');
+      const q2 = calculateQ('q2');
+      const q3 = calculateQ('q3');
+      const active = [q1, q2, q3].filter(v => v !== '') as number[];
+      const final = active.length > 0 ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : '';
+      const remarks = final !== '' ? (final >= 75 ? 'PASSED' : 'FAILED') : '';
+      return { q1, q2, q3, final, remarks };
+    };
+
+    // Row 1: English (or Language for Grade 1)
+    if (isGrade1) {
+      activeRows.push({ name: 'Language', code: 'LANGUAGE', ...getGradeByStandardCode('LANGUAGE') });
+    } else {
+      activeRows.push({ name: 'English', code: 'ENGLISH', ...getGradeByStandardCode('ENGLISH') });
+    }
+
+    // Row 2: Filipino (or Reading and Literacy for Grade 1)
+    if (isGrade1) {
+      activeRows.push({ name: 'Reading and Literacy', code: 'READING_AND_LITERACY', ...getGradeByStandardCode('READING_AND_LITERACY') });
+    } else {
+      activeRows.push({ name: 'Filipino', code: 'FILIPINO', ...getGradeByStandardCode('FILIPINO') });
+    }
+
+    // Row 3: Math
+    activeRows.push({ name: 'Mathematics', code: 'MATH', ...getGradeByStandardCode('MATH') });
+
+    // Row 4: Science (only Grade 3, 4, 5, 6)
+    if (isGrade3 || isGrade4 || isGrade5 || isGrade6) {
+      activeRows.push({ name: 'Science', code: 'SCIENCE', ...getGradeByStandardCode('SCIENCE') });
+    }
+
+    // Row 5: AP/Makabansa
+    if (isGrade1 || isGrade2 || isGrade3) {
+      activeRows.push({ name: 'AP/Makabansa', code: 'MAKABANSA', ...getGradeByStandardCode('MAKABANSA') });
+    } else {
+      activeRows.push({ name: 'AP/Makabansa', code: 'AP', ...getGradeByStandardCode('AP') });
+    }
+
+    // Row 6: EPP/TLE (only Grade 4, 5, 6)
+    if (isGrade4 || isGrade5 || isGrade6) {
+      activeRows.push({ name: 'EPP/TLE', code: 'TLE', ...getGradeByStandardCode('TLE') });
+    }
+
+    // Row 7: MAPEH (only Grade 4, 5, 6)
+    if (isGrade4 || isGrade5 || isGrade6) {
+      const musicGrad = getGradeByStandardCode('MUSIC');
+      const artsGrad = getGradeByStandardCode('ARTS');
+      const peGrad = getGradeByStandardCode('PE');
+      const healthGrad = getGradeByStandardCode('HEALTH');
+
+      const musicAndArts = averageGrades(musicGrad, artsGrad);
+      const peAndHealth = averageGrades(peGrad, healthGrad);
+      const mapeh = averageGrades(musicAndArts, peAndHealth);
+
+      activeRows.push({ name: 'MAPEH', code: 'MAPEH', ...mapeh });
+      activeRows.push({ name: 'Music & Arts', code: 'MUSIC_ARTS', ...musicAndArts, isComponent: true });
+      activeRows.push({ name: 'PE & Health', code: 'PE_HEALTH', ...peAndHealth, isComponent: true });
+    }
+
+    // Row 8: GMRC (mapped to ESP in database)
+    activeRows.push({ name: 'GMRC', code: 'ESP', ...getGradeByStandardCode('ESP') });
 
     return activeRows;
   };
 
-  const gradesList = getSubjectGradesList(student);
+  const gradesList = getDecryptedTemplateGrades(student);
 
   const getGeneralAverageVal = () => {
     const mainAreas = gradesList.filter((g) => !g.isComponent && typeof g.final === 'number');
@@ -309,6 +378,26 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
   };
 
   const generalAverage = getGeneralAverageVal();
+
+  const getNextGradeValue = () => {
+    const mainAreas = gradesList.filter((g) => !g.isComponent && typeof g.final === 'number');
+    if (mainAreas.length === 0) return '—';
+    const failedCount = mainAreas.filter((g) => (g.final as number) < 75).length;
+    if (failedCount === 0) {
+      if (gradeLevel.toLowerCase().includes('kinder')) {
+        return 'Grade 1';
+      }
+      const match = gradeLevel.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        return gradeLevel.replace(/\d+/, (num + 1).toString());
+      }
+      return '—';
+    }
+    return '—';
+  };
+
+  const eligibleGrade = getNextGradeValue();
 
   // Compute student age
   let studentAge: number | string = '';
@@ -326,8 +415,9 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
   }
 
   // Adviser / Teacher Name
-  const uData = userData as Record<string, string> | null;
-  const adviserName = uData ? `${uData.firstName} ${uData.lastName}` : 'Assigned Adviser';
+  const adviserName = passedAdviserName && passedAdviserName !== 'Assigned Adviser'
+    ? passedAdviserName
+    : (userData && userData.firstName ? `${userData.firstName} ${userData.lastName}`.trim() : 'Assigned Adviser');
 
   const fullName = `${student.lastName}, ${student.firstName} ${student.middleName || ''}`.trim();
 
@@ -339,7 +429,15 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
       "demonstrates contributions towards solidarity.": "makatao2",
       "cares for the environment and utilizes resources wisely and economically.": "makakalikasan1",
       "demonstrates pride in being a filipino; exercises rights and duties.": "makabansa1",
-      "demonstrates appropriate behavior in carrying out school/community duties.": "makabansa2"
+      "demonstrates appropriate behavior in carrying out school/community duties.": "makabansa2",
+      "expresses one's spiritual beliefs while respecting the spiritual beliefs of others": "makaDiyos1",
+      "show adherence to ethical principles by upholding truth": "makaDiyos2",
+      "is sensitive to individual, social, cultural, differences": "makatao1",
+      "demonstrate contributions toward solidarity.": "makatao2",
+      "demonstrate contributions toward solidarity": "makatao2",
+      "cares for the environment and utilizes resources wisely, judiciously, and economically": "makakalikasan1",
+      "demonstrates pride in being a filipino; exercises the rights and responsibilities of a filipino citizen": "makabansa1",
+      "demonstrates appropriate behavior in carrying out activities in the school, community, and country": "makabansa2"
     };
     const cleanStmt = stmtText.toLowerCase().replace(/['’]/g, "'").trim();
     const statementKey = keyMap[cleanStmt];
@@ -355,28 +453,28 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
     {
       core: '1. Maka-Diyos',
       statements: [
-        'Expresses one’s spiritual beliefs while respecting the spiritual beliefs of others.',
-        'Shows adherence to ethical principles by upholding truth.'
+        "Expresses one's spiritual beliefs while respecting the spiritual beliefs of others",
+        "Show adherence to ethical principles by upholding truth"
       ]
     },
     {
       core: '2. Makatao',
       statements: [
-        'Is sensitive to individual, social, and cultural differences.',
-        'Demonstrates contributions towards solidarity.'
+        "Is sensitive to individual, social, cultural, differences",
+        "Demonstrate contributions toward solidarity."
       ]
     },
     {
       core: '3. Maka-Kalikasan',
       statements: [
-        'Cares for the environment and utilizes resources wisely and economically.'
+        "Cares for the environment and utilizes resources wisely, judiciously, and economically"
       ]
     },
     {
       core: '4. Makabansa',
       statements: [
-        'Demonstrates pride in being a Filipino; exercises rights and duties.',
-        'Demonstrates appropriate behavior in carrying out school/community duties.'
+        "Demonstrates pride in being a Filipino; exercises the rights and responsibilities of a Filipino citizen",
+        "Demonstrates appropriate behavior in carrying out activities in the school, community, and country"
       ]
     }
   ];
@@ -384,23 +482,76 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
   return (
     <ReportLayout title="School Form 9 (SF9) - Report Card" onClose={onClose} landscape={false}>
       {/* Student Selector overlay in print header */}
-      <div className="flex items-center gap-3 p-4 bg-slate-100 rounded-2xl border border-slate-200/60 mb-6 print:hidden">
-        <label className="text-sm font-bold text-slate-700">Select Student:</label>
-        <select
-          value={selectedStudentId}
-          onChange={(e) => setSelectedStudentId(e.target.value)}
-          className="flex-1 max-w-xs bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
-        >
-          {students.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.lastName}, {s.firstName}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center gap-3 p-4 bg-slate-100 rounded-2xl border border-slate-200/60 mb-6 print:hidden relative z-50">
+        <label className="text-sm font-bold text-slate-700 whitespace-nowrap">Select Student:</label>
+        <div className="relative w-full max-w-md">
+          {/* Clickable trigger input */}
+          <div
+            onClick={() => setIsOpen(prev => !prev)}
+            className="flex items-center justify-between w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-800 cursor-pointer shadow-sm hover:border-slate-300"
+          >
+            <span>
+              {student ? `${student.lastName}, ${student.firstName} ${student.middleName?.charAt(0) ? `${student.middleName.charAt(0)}.` : ''}` : 'Select a student'}
+            </span>
+            <ChevronDown className="w-4 h-4 text-slate-400 ml-2" />
+          </div>
+
+          {/* Absolute dropdown panel */}
+          {isOpen && (
+            <>
+              {/* Overlay transparent backdrop to close on click outside */}
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => {
+                  setIsOpen(false);
+                  setSearchTerm('');
+                }}
+              />
+
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 flex flex-col max-h-[300px] overflow-hidden">
+                <div className="p-2 border-b border-slate-100 flex items-center bg-slate-50">
+                  <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search student name or LRN..."
+                    className="w-full bg-transparent text-sm font-semibold text-slate-700 focus:outline-none placeholder:text-slate-400"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex-1 overflow-y-auto py-1 max-h-[240px]">
+                  {filteredStudents.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-slate-400 font-semibold">
+                      No students found
+                    </div>
+                  ) : (
+                    filteredStudents.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedStudentId(s.id);
+                          setIsOpen(false);
+                          setSearchTerm('');
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors flex flex-col gap-0.5 hover:bg-indigo-50/50 hover:text-indigo-900 ${s.id === selectedStudentId ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}
+                      >
+                        <span>{s.lastName}, {s.firstName} {s.middleName ? ` ${s.middleName}` : ''}</span>
+                        {s.lrn && <span className="text-[10px] text-slate-400 font-mono">LRN: {s.lrn}</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="w-[1000px] mx-auto space-y-12 print:space-y-0 text-slate-900 leading-normal">
-        
+
         {/* ==================== PAGE 1: FRONT ==================== */}
         <div className="report-card-page bg-white p-8 border border-slate-200/80 rounded-3xl shadow-sm flex gap-8 w-[1000px] min-h-[640px] print:w-full print:min-h-0 print:border-none print:shadow-none print:p-0 page-break">
           {/* LEFT COLUMN: Attendance Grid */}
@@ -454,7 +605,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
                   Admitted to Grade: <span className="underline font-bold px-1">{gradeLevel}</span> Section: <span className="underline font-bold px-1">{section}</span>
                 </p>
                 <p className="indent-3 mb-4 leading-relaxed">
-                  Eligible for Admission to Grade: <span className="border-b border-slate-800 w-16 inline-block"></span>
+                  Eligible for Admission to Grade: <span className="underline font-bold px-2">{eligibleGrade}</span>
                 </p>
                 <div className="flex justify-between items-end mt-4 pt-4 border-t border-slate-200/60">
                   <div className="text-center w-5/12">
@@ -462,17 +613,26 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
                     <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Teacher</p>
                   </div>
                   <div className="text-center w-5/12">
-                    <p className="font-bold border-b border-slate-800 pb-0.5">Dr. Lepidaptera T. Villanueva</p>
-                    <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Principal</p>
+                    <p className="font-bold border-b border-slate-800 pb-0.5">MRS. LEPIDAPTERA VILLANUEVA</p>
+                    <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Principal I</p>
                   </div>
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/30 text-[9px] leading-relaxed">
+              <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/30 text-[9px] leading-relaxed space-y-2">
                 <h4 className="font-bold uppercase tracking-wider mb-1 text-center text-slate-800">
                   Cancellation of Eligibility to Transfer
                 </h4>
-                <p className="text-center">Admitted in: <span className="border-b border-slate-400 w-24 inline-block"></span> Date: <span className="border-b border-slate-400 w-24 inline-block"></span></p>
+                <div className="flex justify-between items-end">
+                  <div className="space-y-1">
+                    <p>Admitted in: <span className="border-b border-slate-400 w-24 inline-block"></span></p>
+                    <p>Date: <span className="border-b border-slate-400 w-24 inline-block"></span></p>
+                  </div>
+                  <div className="text-center w-5/12">
+                    <p className="border-b border-slate-400 pb-0.5 font-bold">MRS. LEPIDAPTERA VILLANUEVA</p>
+                    <p className="text-[8px] text-slate-400 font-semibold mt-0.5">Principal I</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -490,7 +650,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
               <p className="text-[10px] font-bold text-slate-600 mt-1">REGION IX</p>
               <p className="text-[10px] font-bold text-slate-600">DIVISION OF ZAMBOANGA</p>
               <p className="text-[10px] font-bold text-slate-600">DISTRICT OF STA. MARIA CENTRAL</p>
-              
+
               <h2 className="text-xs font-black uppercase text-slate-800 mt-4 tracking-wider leading-none">
                 STA. MARIA CS SPED CENTER
               </h2>
@@ -540,11 +700,22 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
               </div>
             </div>
 
-            <div className="text-[9px] leading-relaxed text-slate-400 p-2 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="text-[9px] leading-relaxed text-slate-400 p-2 bg-slate-50 rounded-xl border border-slate-100 mb-4">
               <p className="font-bold text-slate-600 mb-0.5">Dear Parent:</p>
               <p className="indent-3 text-justify">
                 This report card shows the ability and progress your child has made in the different learning areas as well as his/her core values. The school welcomes you should you desire to know more about your child's progress.
               </p>
+            </div>
+
+            <div className="flex justify-between items-end mt-4 pt-4 border-t border-slate-200/60">
+              <div className="text-center w-5/12">
+                <p className="font-bold border-b border-slate-800 pb-0.5 text-slate-850">{adviserName}</p>
+                <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Adviser</p>
+              </div>
+              <div className="text-center w-5/12">
+                <p className="font-bold border-b border-slate-800 pb-0.5 text-slate-850">MRS. LEPIDAPTERA VILLANUEVA</p>
+                <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Principal I</p>
+              </div>
             </div>
           </div>
         </div>
@@ -603,21 +774,43 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
             </div>
 
             {/* Grading Scale Legend */}
-            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/30 text-[9px] mt-4 space-y-1">
-              <h4 className="font-bold uppercase text-slate-700 border-b border-slate-200/60 pb-0.5 text-center">
-                Grading Scale Legend
-              </h4>
-              <div className="grid grid-cols-2 gap-2 text-slate-500">
-                <div>
-                  <p><span className="font-bold text-slate-700">Outstanding:</span> 90-100</p>
-                  <p><span className="font-bold text-slate-700">Very Satisfactory:</span> 85-89</p>
-                  <p><span className="font-bold text-slate-700">Satisfactory:</span> 80-84</p>
-                </div>
-                <div>
-                  <p><span className="font-bold text-slate-700">Fairly Satisfactory:</span> 75-79</p>
-                  <p><span className="font-bold text-slate-700">Did Not Meet Expectation:</span> Below 75</p>
-                </div>
-              </div>
+            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/30 text-[9px] mt-4">
+              <table className="w-full text-center border-collapse text-slate-500">
+                <thead>
+                  <tr className="font-bold text-slate-700 border-b border-slate-200">
+                    <th className="text-left pb-1 text-[8px] uppercase">Descriptors</th>
+                    <th className="pb-1 text-[8px] uppercase">Grading Scale</th>
+                    <th className="text-right pb-1 text-[8px] uppercase">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="text-left pt-1 font-bold text-slate-700">Advancing</td>
+                    <td className="pt-1">90-100</td>
+                    <td className="text-right pt-1 font-bold text-emerald-700">Passed</td>
+                  </tr>
+                  <tr>
+                    <td className="text-left font-bold text-slate-700">Benchmarking</td>
+                    <td>80-89</td>
+                    <td className="text-right font-bold text-emerald-700">Passed</td>
+                  </tr>
+                  <tr>
+                    <td className="text-left font-bold text-slate-700">Connecting</td>
+                    <td>75-79</td>
+                    <td className="text-right font-bold text-emerald-700">Passed</td>
+                  </tr>
+                  <tr>
+                    <td className="text-left font-bold text-slate-700">Developing</td>
+                    <td>65-74</td>
+                    <td className="text-right font-bold text-red-600">Failed</td>
+                  </tr>
+                  <tr>
+                    <td className="text-left font-bold text-slate-700">Emerging</td>
+                    <td>0-64</td>
+                    <td className="text-right font-bold text-red-650">Failed</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 

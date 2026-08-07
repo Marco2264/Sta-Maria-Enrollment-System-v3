@@ -41,6 +41,37 @@ export interface SF1Data {
   learners: SF1Learner[];
 }
 
+export async function fetchAdviserForSection(sectionId?: string): Promise<string> {
+  if (!sectionId || sectionId === 'all') return '';
+  try {
+    const secRef = doc(db, 'sections', sectionId);
+    const secSnap = await getDoc(secRef);
+    if (secSnap.exists()) {
+      const data = secSnap.data();
+      if (data.adviserName) return data.adviserName;
+      if (data.teacherName) return data.teacherName;
+      if (data.advisorName) return data.advisorName;
+    }
+
+    const qAssign = query(collection(db, 'assignments'), where('sectionId', '==', sectionId));
+    const assignSnap = await getDocs(qAssign);
+    if (!assignSnap.empty) {
+      const teacherId = assignSnap.docs[0].data().teacherId;
+      if (teacherId) {
+        const userSnap = await getDoc(doc(db, 'users', teacherId));
+        if (userSnap.exists()) {
+          const uData = userSnap.data();
+          const fullName = `${uData.firstName || ''} ${uData.lastName || ''}`.trim() || uData.displayName;
+          if (fullName) return fullName;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch adviser for section:', e);
+  }
+  return '';
+}
+
 /**
  * Represents one section's row in the SF4 Monthly Movement and Attendance form.
  * Absent/present/late counts default to 0 if attendance data is missing.

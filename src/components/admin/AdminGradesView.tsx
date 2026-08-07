@@ -22,7 +22,50 @@ export function AdminGradesView() {
   const { sections, subjects } = useAdminData();
   
   const [selectedGrade, setSelectedGrade] = useState<string>('Grade 1');
+
+  // Get all unique registered grade levels from the sections array
+  const registeredGradeLevels = useMemo(() => {
+    const levels = new Set<string>();
+    sections.forEach(s => {
+      if (s.gradeLevel) {
+        let normalized = s.gradeLevel.trim();
+        // If it is just a number (e.g. "3"), prefix it with "Grade "
+        if (/^\d+$/.test(normalized)) {
+          normalized = `Grade ${parseInt(normalized, 10)}`;
+        }
+        
+        // Exclude Grade 10 / 10
+        if (normalized === 'Grade 10' || normalized === '10') {
+          return;
+        }
+        
+        levels.add(normalized);
+      }
+    });
+    if (levels.size === 0) {
+      return ['Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+    }
+    const arr = Array.from(levels);
+    const gradeOrder = ['Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+    arr.sort((a, b) => {
+      const idxA = gradeOrder.indexOf(a);
+      const idxB = gradeOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+    return arr;
+  }, [sections]);
+
+  // Set default selected grade level if current one is not in registered list
+  useEffect(() => {
+    if (registeredGradeLevels.length > 0 && !registeredGradeLevels.includes(selectedGrade)) {
+      setSelectedGrade(registeredGradeLevels[0]);
+    }
+  }, [registeredGradeLevels, selectedGrade]);
   const [selectedSection, setSelectedSection] = useState<string>('');
+  const [selectedTerm, setSelectedTerm] = useState<string>('All');
   
   const [editingGrades, setEditingGrades] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -37,11 +80,18 @@ export function AdminGradesView() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedGrade, selectedSection, statusFilter]);
+  }, [searchQuery, selectedGrade, selectedSection, statusFilter, selectedTerm]);
 
   // Get available sections for the selected grade
   const availableSections = useMemo(() => {
-    return sections.filter(s => s.gradeLevel === selectedGrade);
+    return sections.filter(s => {
+      if (!s.gradeLevel) return false;
+      let normalized = s.gradeLevel.trim();
+      if (/^\d+$/.test(normalized)) {
+        normalized = `Grade ${parseInt(normalized, 10)}`;
+      }
+      return normalized === selectedGrade;
+    });
   }, [sections, selectedGrade]);
 
   // Auto-select first section when grade changes
@@ -53,9 +103,16 @@ export function AdminGradesView() {
     }
   }, [availableSections, selectedSection]);
 
-  // Get available subjects (for all grades or specific if we want)
   const availableSubjects = useMemo(() => {
-    const filtered = subjects.filter(s => s.status === 'Active' && (!s.gradeLevel || s.gradeLevel === selectedGrade));
+    const filtered = subjects.filter(s => {
+      if (s.status !== 'Active') return false;
+      if (!s.gradeLevel) return true;
+      let subjectNorm = s.gradeLevel.trim();
+      if (/^\d+$/.test(subjectNorm)) {
+        subjectNorm = `Grade ${parseInt(subjectNorm, 10)}`;
+      }
+      return subjectNorm === selectedGrade;
+    });
     
     // Deduplicate subjects based on code or name
     const unique = [];
@@ -122,10 +179,18 @@ export function AdminGradesView() {
       if (!currentGrades[gradeKey]) currentGrades[gradeKey] = {};
       if (!currentGrades[gradeKey][subjectCode]) currentGrades[gradeKey][subjectCode] = {};
       
-      currentGrades[gradeKey][subjectCode].finalGradeOverride = value === '' ? null : parseFloat(value);
+      const floatVal = value === '' ? null : parseFloat(value);
+      
+      if (selectedTerm === 'Term 1') {
+        currentGrades[gradeKey][subjectCode].q1 = floatVal;
+      } else if (selectedTerm === 'Term 2') {
+        currentGrades[gradeKey][subjectCode].q2 = floatVal;
+      } else if (selectedTerm === 'Term 3') {
+        currentGrades[gradeKey][subjectCode].q3 = floatVal;
+      }
       
       await updateDoc(doc(db, 'enrollments', studentId), { grades: currentGrades });
-      toast.success('Grade overridden successfully');
+      toast.success('Grade updated successfully');
       
       // Clear from editing state so it shows the saved value
       setEditingGrades(prev => {
@@ -134,8 +199,8 @@ export function AdminGradesView() {
         return next;
       });
     } catch (error) {
-      console.error('Error overriding grade:', error);
-      toast.error('Failed to override grade');
+      console.error('Error saving grade:', error);
+      toast.error('Failed to save grade');
     } finally {
       setSaving(false);
     }
@@ -152,34 +217,51 @@ export function AdminGradesView() {
       const subjGrades = availableSubjects.map(sub => {
         const code = sub.code || sub.name;
         const subjectData = s.grades?.[gradeKey]?.[code] || {};
-        const finalOverride = subjectData.finalGradeOverride;
 
         let finalGrade: number | null = null;
-        
-        if (finalOverride !== undefined && finalOverride !== null) {
-           finalGrade = Number(finalOverride);
-        } else {
-          const termsArray = ['Term 1', 'Term 2', 'Finals'];
-          const termGrades = termsArray.map(term => {
-            const cols = gradeConfigs.filter(c => c.subjectCode === code && c.term === term && c.type !== 'submission');
-            if (cols.length === 0) return null;
-            
-            let termTotal = 0;
-            let hasGrade = false;
-            const termData = subjectData[term] || {};
-            cols.forEach(col => {
-              const val = termData[col.id];
-              if (val !== undefined && val !== '') {
-                termTotal += (parseFloat(val) * (col.weight / 100));
-                hasGrade = true;
-              }
-            });
-            return hasGrade ? termTotal : null;
-          }).filter(v => v !== null) as number[];
+        let isOverride = false;
 
-          if (termGrades.length > 0) {
-             finalGrade = termGrades.reduce((a, b) => a + b, 0) / termGrades.length;
+        const getTermGrade = (term: string) => {
+          const dbKey = term === 'Term 1' ? 'q1' : term === 'Term 2' ? 'q2' : 'q3';
+          const dbVal = subjectData[dbKey];
+          if (dbVal !== undefined && dbVal !== null) {
+            return { val: Number(dbVal), isOverride: true };
           }
+          
+          // Calculate from columns
+          const configTerm = term === 'Term 3' ? 'Finals' : term;
+          const cols = gradeConfigs.filter(c => c.subjectCode === code && c.term === configTerm && c.type !== 'submission');
+          if (cols.length === 0) return { val: null, isOverride: false };
+          
+          let termTotal = 0;
+          let hasGrade = false;
+          const termData = subjectData[configTerm] || {};
+          cols.forEach(col => {
+            const val = termData[col.id];
+            if (val !== undefined && val !== '') {
+              termTotal += (parseFloat(val) * (col.weight / 100));
+              hasGrade = true;
+            }
+          });
+          return { val: hasGrade ? termTotal : null, isOverride: false };
+        };
+        
+        if (selectedTerm === 'All') {
+          // Final overall grade: average of the 3 terms
+          const t1 = getTermGrade('Term 1').val;
+          const t2 = getTermGrade('Term 2').val;
+          const t3 = getTermGrade('Term 3').val;
+          
+          const terms = [t1, t2, t3].filter(v => v !== null) as number[];
+          if (terms.length > 0) {
+            finalGrade = terms.reduce((a, b) => a + b, 0) / terms.length;
+          }
+          isOverride = false;
+        } else {
+          // Specific term grade
+          const termRes = getTermGrade(selectedTerm);
+          finalGrade = termRes.val;
+          isOverride = termRes.isOverride;
         }
 
         if (finalGrade !== null) {
@@ -187,7 +269,7 @@ export function AdminGradesView() {
            validSubjects++;
         }
         
-        return { code, value: finalGrade, isOverride: finalOverride !== undefined && finalOverride !== null };
+        return { code, value: finalGrade, isOverride };
       });
 
       const gwa = validSubjects > 0 ? (totalGWA / validSubjects).toFixed(2) : '—';
@@ -200,7 +282,7 @@ export function AdminGradesView() {
         isFailing
       };
     });
-  }, [students, selectedGrade, availableSubjects, gradeConfigs]);
+  }, [students, selectedGrade, availableSubjects, gradeConfigs, selectedTerm]);
 
   const filteredStudents = useMemo(() => {
     let result = processedStudents;
@@ -237,7 +319,7 @@ export function AdminGradesView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 print:bg-white print:h-auto">
-      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-blue-50/50 via-blue-50/30 to-transparent shrink-0 print:hidden">
+      <header className="h-20 px-6 border-b border-slate-200 bg-gradient-to-r from-blue-50/50 via-blue-50/30 to-transparent flex items-center shrink-0 print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-blue-700">
@@ -260,7 +342,7 @@ export function AdminGradesView() {
       <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full flex-1 overflow-y-auto print:p-0 print:overflow-visible">
         {/* Filters Panel */}
         <Card className="p-5 bg-white border border-slate-200 shadow-sm rounded-xl print:hidden">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div className="space-y-1.5 w-full">
               <label className="text-xs font-semibold text-slate-500 uppercase">Grade Level</label>
               <Select value={selectedGrade} onValueChange={setSelectedGrade}>
@@ -268,8 +350,8 @@ export function AdminGradesView() {
                   <SelectValue placeholder="Select Grade" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5, 6].map(g => (
-                    <SelectItem key={g} value={`Grade ${g}`}>Grade {g}</SelectItem>
+                  {registeredGradeLevels.map(lvl => (
+                    <SelectItem key={lvl} value={lvl}>{lvl}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -288,6 +370,21 @@ export function AdminGradesView() {
                   {availableSections.map(s => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 w-full">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Term</label>
+              <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Select Term" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Term 1">Term 1</SelectItem>
+                  <SelectItem value="Term 2">Term 2</SelectItem>
+                  <SelectItem value="Term 3">Term 3</SelectItem>
+                  <SelectItem value="All">Overall Grade</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -327,7 +424,7 @@ export function AdminGradesView() {
           <div className="mt-2 text-sm text-slate-600 font-medium space-x-4">
             <span><strong>Grade:</strong> {selectedGrade}</span>
             <span><strong>Section:</strong> {availableSections.find(s => s.id === selectedSection)?.name || 'Unknown'}</span>
-            <span><strong>Term:</strong> Final Overall Grades</span>
+            <span><strong>Term:</strong> {selectedTerm === 'All' ? 'Overall Grade' : selectedTerm}</span>
           </div>
         </div>
 
@@ -335,7 +432,7 @@ export function AdminGradesView() {
         <Card className="bg-white border shadow-sm rounded-xl overflow-hidden flex flex-col print:shadow-none print:border-none print:rounded-none">
             <div className="px-4 py-4 border-b bg-indigo-50/50 border-indigo-100 flex items-center justify-between print:hidden">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-indigo-900">Master Sheet (General Weighted Average)</span>
+                <span className="font-semibold text-indigo-900">Master Sheet (General Weighted Average) — {selectedTerm === 'All' ? 'Overall Grade' : selectedTerm}</span>
               </div>
               <div className="text-sm text-indigo-700 font-medium">
                 {filteredStudents.length} Students
@@ -379,26 +476,41 @@ export function AdminGradesView() {
                               {s.lastName}, {s.firstName} {s.middleName?.charAt(0) ? `${s.middleName.charAt(0)}.` : ''}
                             </span>
                           </TableCell>
-                          {subjGrades.map(sg => (
-                            <TableCell key={sg.code} className="text-center py-2.5 px-1 font-mono text-xs print:text-black">
-                              <div className="flex justify-center items-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  className={`w-16 text-center text-xs font-bold py-1.5 rounded border ${sg.isOverride ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-transparent border-transparent hover:border-slate-300'} transition-colors focus:bg-white focus:border-indigo-500 print:border-none print:bg-transparent ${sg.value !== null && Number(sg.value) < 75 ? 'text-red-600 bg-red-50/50' : 'text-slate-600'}`}
-                                  value={editingGrades[`${s.id}_${sg.code}`] !== undefined ? editingGrades[`${s.id}_${sg.code}`] : (sg.value !== null ? Number(sg.value).toFixed(1) : '')}
-                                  onChange={(e) => handleGradeChange(s.id, sg.code, e.target.value)}
-                                  onBlur={() => {
-                                    if (editingGrades[`${s.id}_${sg.code}`] !== undefined) {
-                                      handleSaveGrade(s.id, sg.code);
-                                    }
-                                  }}
-                                  placeholder="—"
-                                />
-                              </div>
-                            </TableCell>
-                          ))}
+                          {subjGrades.map((sg: any) => {
+                            const valStr = sg.value !== null ? Number(sg.value).toFixed(1) : '—';
+                            const isFailingVal = sg.value !== null && Number(sg.value) < 75;
+
+                            if (selectedTerm === 'All') {
+                              return (
+                                <TableCell key={sg.code} className="text-center py-2.5 px-1 font-mono text-xs print:text-black">
+                                  <span className={`inline-block font-bold text-[13px] ${isFailingVal ? 'text-red-600 bg-red-50/50 px-2 py-0.5 rounded border border-red-200' : sg.isOverride ? 'text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200' : 'text-slate-700'}`}>
+                                    {valStr}
+                                  </span>
+                                </TableCell>
+                              );
+                            }
+
+                            return (
+                              <TableCell key={sg.code} className="text-center py-2.5 px-1 font-mono text-xs print:text-black">
+                                <div className="flex justify-center items-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    className={`w-16 text-center text-xs font-bold py-1.5 rounded border ${sg.isOverride ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-transparent border-transparent hover:border-slate-300'} transition-colors focus:bg-white focus:border-indigo-500 print:border-none print:bg-transparent ${sg.value !== null && Number(sg.value) < 75 ? 'text-red-600 bg-red-50/50' : 'text-slate-600'}`}
+                                    value={editingGrades[`${s.id}_${sg.code}`] !== undefined ? editingGrades[`${s.id}_${sg.code}`] : (sg.value !== null ? Number(sg.value).toFixed(1) : '')}
+                                    onChange={(e) => handleGradeChange(s.id, sg.code, e.target.value)}
+                                    onBlur={() => {
+                                      if (editingGrades[`${s.id}_${sg.code}`] !== undefined) {
+                                        handleSaveGrade(s.id, sg.code);
+                                      }
+                                    }}
+                                    placeholder="—"
+                                  />
+                                </div>
+                              </TableCell>
+                            );
+                          })}
                           <TableCell className={`text-center pr-6 py-2.5 font-mono font-bold text-[13px] border-l border-slate-200 print:border-slate-300 print:text-black sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] ${isFailing ? 'text-red-700 bg-red-50/90' : 'text-indigo-900 bg-indigo-50/90'}`}>
                             {gwa}
                           </TableCell>
