@@ -272,6 +272,8 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     primaryAddress: '',
     religion: 'Roman Catholic',
     otherReligion: '',
+    motherTongue: 'Chavacano',
+    otherMotherTongue: '',
     isIndigenous: 'No',
     ipCommunity: '',
     is4ps: 'No'
@@ -504,7 +506,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
           emergencyPhone: isAccountSource ? (uData?.contactNumber || uData?.phoneNumber || '') : parentStudentInfo.primaryContact.trim()
         },
         additional: {
-          motherTongue: 'Tagalog / Bisaya',
+          motherTongue: parentStudentInfo.motherTongue === 'Others' ? parentStudentInfo.otherMotherTongue.toUpperCase() : parentStudentInfo.motherTongue.toUpperCase(),
           religion: parentStudentInfo.religion === 'Others' ? parentStudentInfo.otherReligion.toUpperCase() : parentStudentInfo.religion.toUpperCase(),
           isIndigenous: parentStudentInfo.isIndigenous === 'Yes',
           indigenousGroup: parentStudentInfo.ipCommunity.toUpperCase(),
@@ -1529,10 +1531,41 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                     <Users className="w-4 h-4 text-[#2563eb]" />
                     Additional Information ({parentStudentInfo.isPrimaryGuardian === 'Yes' ? 'Step 2 of 3' : 'Step 3 of 4'})
                   </h2>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Religion, Indigenous Peoples, and 4Ps affiliation.</p>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">Mother Tongue, Religion, Indigenous Peoples, and 4Ps affiliation.</p>
                 </div>
 
                 <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Mother Tongue *</Label>
+                    <Select
+                      value={parentStudentInfo.motherTongue}
+                      onValueChange={v => setParentStudentInfo({ ...parentStudentInfo, motherTongue: v })}
+                    >
+                      <SelectTrigger className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11">
+                        <SelectValue placeholder="Select mother tongue" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200">
+                        <SelectItem value="Chavacano">Chavacano</SelectItem>
+                        <SelectItem value="Tagalog">Tagalog</SelectItem>
+                        <SelectItem value="Tausug">Tausug</SelectItem>
+                        <SelectItem value="Bisaya">Bisaya</SelectItem>
+                        <SelectItem value="Others">Others</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {parentStudentInfo.motherTongue === 'Others' && (
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Specify Mother Tongue *</Label>
+                      <Input
+                        value={parentStudentInfo.otherMotherTongue}
+                        onChange={e => setParentStudentInfo({ ...parentStudentInfo, otherMotherTongue: e.target.value })}
+                        placeholder="Enter mother tongue"
+                        className="px-3.5 py-2.5 bg-slate-50 border-slate-200 rounded-xl text-slate-900 font-bold text-xs h-11"
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Religion *</Label>
                     <Select
@@ -1913,6 +1946,42 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                         {activeAddrDetails.barangay}, {activeAddrDetails.city}, {activeAddrDetails.province}
                         {activeAddrDetails.zipCode ? `, ${activeAddrDetails.zipCode}` : ''}
                       </p>
+                    </div>
+                  </div>
+
+                  {/* 4. Additional Information Card */}
+                  <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-[#2563eb]" />
+                        Additional Information
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setSubStep(9)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3 text-[#2563eb]" /> Edit
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Mother Tongue</span>
+                        <span className="font-bold text-slate-900">{parentStudentInfo.motherTongue === 'Others' ? (parentStudentInfo.otherMotherTongue || '—') : parentStudentInfo.motherTongue}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Religion</span>
+                        <span className="font-bold text-slate-900">{parentStudentInfo.religion === 'Others' ? (parentStudentInfo.otherReligion || '—') : parentStudentInfo.religion}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">IP Community</span>
+                        <span className="font-bold text-slate-900">{parentStudentInfo.isIndigenous === 'Yes' ? `Yes (${parentStudentInfo.ipCommunity || 'Not specified'})` : 'No'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">4Ps Beneficiary</span>
+                        <span className="font-bold text-slate-900">{parentStudentInfo.is4ps}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

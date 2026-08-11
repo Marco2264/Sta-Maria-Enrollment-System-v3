@@ -354,6 +354,283 @@ export function TeacherStudentDetailView({
 
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9]">
+      {/* HEADER */}
+      <header className="px-6 py-4 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white shadow-sm z-10 relative">
+        <div className="flex items-center gap-2 text-sm">
+          <button onClick={onBack} className="text-slate-500 font-semibold hover:text-slate-700 transition-colors cursor-pointer">
+            Students
+          </button>
+          <span className="text-slate-400">›</span>
+          <span className="font-extrabold text-slate-900 uppercase tracking-tight">{child.firstName} {child.lastName}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 rounded-lg px-4 gap-2 font-bold shadow-xs">
+            <XCircle className="w-4 h-4" /> Reject
+          </Button>
+          <Button className="bg-[#001D3D] hover:bg-[#001529] text-white rounded-lg px-4 gap-2 font-bold border-none shadow-sm transition-all hover:scale-105">
+            <CheckCircle2 className="w-4 h-4" /> Approve Enrollment
+          </Button>
+        </div>
+      </header>
+
+      {/* CONTENT */}
+      <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 bg-[#F4F7F9]">
+        
+        {/* ALERT */}
+        <div className="bg-[#FFF9E6] border border-[#FFE082] p-5 rounded-2xl flex items-start gap-4 shadow-sm">
+          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-bold text-amber-900">Enrollment is pending review</h4>
+            <p className="text-sm text-amber-700/80 mt-1 font-medium">This student's enrollment is currently pending your review. Please verify the submitted documents below.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* LEFT COL */}
+          <div className="lg:col-span-1 space-y-6 h-fit">
+            <Card className="p-8 flex flex-col items-center justify-center text-center space-y-5 shadow-sm border-slate-200 rounded-2xl bg-white relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-blue-50/50 to-transparent"></div>
+              
+              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-50 flex items-center justify-center relative z-10">
+                 {(() => {
+                    const photo = getStudentPhoto(child);
+                    return photo ? (
+                      <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-12 h-12 text-slate-300" />
+                    );
+                  })()}
+              </div>
+              <div className="relative z-10 space-y-2">
+                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                  {child.firstName} {child.lastName}
+                </h2>
+                <div className="flex items-center gap-2 justify-center flex-wrap">
+                  <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-50 px-3 py-1 font-bold rounded-full shadow-none text-xs">Grade {child.gradeLevel}</Badge>
+                  <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-50 px-3 py-1 font-bold rounded-full shadow-none text-xs">School Year 2026-2027</Badge>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* RIGHT COL */}
+          <div className="lg:col-span-2 space-y-6">
+            <Tabs defaultValue="personal" className="w-full">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-0">
+                <TabsList className="bg-transparent border-none p-0 h-auto gap-6">
+                  <TabsTrigger value="personal" className="px-1 py-3 rounded-none text-sm font-bold text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:border-b-2 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent hover:bg-transparent transition-none flex items-center gap-2 border-transparent">
+                    <User className="w-4 h-4" /> Personal Info
+                  </TabsTrigger>
+                  <TabsTrigger value="medical" className="px-1 py-3 rounded-none text-sm font-bold text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:border-b-2 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent hover:bg-transparent transition-none flex items-center gap-2 border-transparent">
+                    <BarChart3 className="w-4 h-4" /> Medical
+                  </TabsTrigger>
+                  <TabsTrigger value="documents" className="px-1 py-3 rounded-none text-sm font-bold text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:border-b-2 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent hover:bg-transparent transition-none flex items-center gap-2 border-transparent">
+                    <FileText className="w-4 h-4" /> Documents
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="personal" className="mt-6 space-y-6 outline-none">
+                {/* Personal Information */}
+                <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-[#2563eb]">
+                      <User className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Personal Information</h3>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Basic student details & demographics</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-8 gap-x-6">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">FIRST NAME</p>
+                      <p className="text-[15px] text-slate-900 font-bold uppercase">{child.firstName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">MIDDLE NAME</p>
+                      <p className="text-[15px] text-slate-900 font-bold uppercase">{child.middleName || '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">LAST NAME</p>
+                      <p className="text-[15px] text-slate-900 font-bold uppercase">{child.lastName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">DATE OF BIRTH</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{child.birthDate || '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">GENDER</p>
+                      <p className="text-[15px] text-slate-900 font-bold capitalize">{child.gender || '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">MOTHER TONGUE</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{child.additional?.motherTongue || '--'}</p>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Address & Contact */}
+                <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 text-indigo-600">
+                      <MapPin className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Address & Contact</h3>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Primary residence & location details</p>
+                    </div>
+                  </div>
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-2.5">PRIMARY RESIDENCE</p>
+                      <div className="bg-slate-50 p-5 rounded-xl text-[13px] font-semibold text-slate-700 break-all border border-slate-100 leading-relaxed">
+                        {child.address?.street ? `${child.address.street}, ` : ''}{child.address?.barangay || '--'}, {child.address?.city || '--'}, {child.address?.zipCode || '--'}
+                        {!child.address?.street && !child.address?.barangay && "Not provided"}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">CITY / MUNICIPALITY</p>
+                        <p className="text-[15px] text-slate-900 font-bold">{child.address?.city || '--'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">PROVINCE</p>
+                        <p className="text-[15px] text-slate-900 font-bold">{child.address?.province || '--'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Guardian & Emergency Contact */}
+                <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 text-emerald-600">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Guardian & Emergency Contact</h3>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Primary guardian and emergency details</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-8 gap-x-6">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">EMERGENCY CONTACT NAME</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{child.medical?.emergencyContact || (child as any).guardianDetails?.fullName || '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">RELATIONSHIP</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{(child as any).guardianDetails?.relationship || '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">CONTACT NUMBER</p>
+                      <p className="text-[15px] text-indigo-700 font-bold font-mono">{child.medical?.emergencyPhone || (child as any).guardianDetails?.contactNumber || '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">EMAIL ADDRESS</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{(child as any).guardianDetails?.email || '--'}</p>
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="medical" className="mt-6 space-y-6 outline-none">
+                {/* Physical Details */}
+                <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
+                    <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+                      <HeartPulse className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Physical Details</h3>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Height, weight, and blood type</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-8 gap-x-6">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">HEIGHT</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{child.medical?.height ? `${child.medical.height} cm` : '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">WEIGHT</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{child.medical?.weight ? `${child.medical.weight} kg` : '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">BLOOD TYPE</p>
+                      <p className="text-sm font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100 inline-block">{child.medical?.bloodType || '--'}</p>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Health Conditions */}
+                <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
+                    <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 text-amber-500">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Health Conditions</h3>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Allergies and diagnoses</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-8 gap-x-6">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">ALLERGIES</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{child.medical?.allergies || 'None reported'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">MEDICAL CONDITIONS</p>
+                      <p className="text-[15px] text-slate-900 font-bold">{(Array.isArray((child.medical as any)?.diagnoses) ? (child.medical as any).diagnoses.join(', ') : (child.medical as any)?.diagnoses) || 'None reported'}</p>
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="documents" className="mt-6 space-y-6 outline-none">
+                <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
+                    <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 text-sky-600">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Uploaded Documents</h3>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Verification files and requirements</p>
+                    </div>
+                  </div>
+                  
+                  {(!child.requirementUploads || Object.keys(child.requirementUploads).length === 0) ? (
+                    <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-sm font-semibold text-slate-500">No documents have been uploaded yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {Object.entries(child.requirementUploads).map(([key, docInfo]: [string, any]) => (
+                        <div key={key} className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
+                          <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-sm">
+                            <FileText className="w-5 h-5 text-slate-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-bold text-slate-900 truncate capitalize">{key.replace(/_/g, ' ')}</h4>
+                            <p className="text-xs text-slate-500 font-medium truncate">{docInfo.fileName || 'Document'}</p>
+                          </div>
+                          {docInfo.fileUrl && (
+                            <a href={docInfo.fileUrl} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View Document">
+                              <Search className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+
+      {false && (
+        <>
       {/* ── TOP HEADER / BREADCRUMBS BAR ── */}
       <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-2 text-sm">
@@ -908,6 +1185,8 @@ export function TeacherStudentDetailView({
           </Tabs>
         </div>
       </div>
+      </>
+      )}
 
       {/* Edit Student Dialog */}
       <Dialog open={isEditOpen} onOpenChange={(open) => !open && setIsEditOpen(false)}>
