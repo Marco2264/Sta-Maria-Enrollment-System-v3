@@ -95,9 +95,13 @@ export function AdminEditStudentModal({ student, isOpen, onClose }: AdminEditStu
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 pb-6 border-b border-border/50 sticky top-0 z-10 backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-800">
-              <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-lg border border-primary/30 shadow-sm shrink-0">
-                {student.firstName?.charAt(0)}{student.lastName?.charAt(0)}
-              </div>
+              {student.photoURL || student.photoUrl || student.profilePicture ? (
+                <img src={student.photoURL || student.photoUrl || student.profilePicture} alt={student.firstName} className="w-12 h-12 rounded-full object-cover border border-primary/30 shadow-sm shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-lg border border-primary/30 shadow-sm shrink-0">
+                  {student.firstName?.charAt(0)}{student.lastName?.charAt(0)}
+                </div>
+              )}
               <div>
                 <div className="flex items-center gap-2">
                   <span>Edit Student Profile</span>

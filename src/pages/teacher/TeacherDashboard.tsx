@@ -122,25 +122,40 @@ function TeacherDashboardContent() {
             <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none">Sta. Maria</span>
             <span className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none mt-1 truncate">Teacher Portal</span>
           </div>
-
-          {!isMobile && !collapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="ml-auto p-1.5 rounded-xl text-slate-400 hover:text-primary hover:bg-primary/5 transition-all duration-200 cursor-pointer shrink-0 relative group"
-              title="Collapse Sidebar"
-            >
-              <PanelLeftClose className="w-4.5 h-4.5" />
-            </button>
-          )}
         </div>
-
         {/* Nav Menu Items */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar py-5 px-3 space-y-5">
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden no-scrollbar ${collapsed ? 'py-4 px-2 space-y-3' : 'py-5 px-3 space-y-5'}`}>
+          {/* Toggle button row — below header dividing line, above nav items */}
+          {!isMobile && (
+            <div className={`mb-2 ${collapsed ? 'px-1' : ''}`}>
+              <button
+                onClick={toggleSidebar}
+                className="w-full flex items-center px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer relative group rounded-xl border border-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-200"
+                title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+              >
+                <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                  {collapsed ? <PanelLeftOpen className="w-4.5 h-4.5" /> : <PanelLeftClose className="w-4.5 h-4.5" />}
+                </div>
+                {!collapsed && (
+                  <span className="ml-3.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 group-hover:text-slate-600">
+                    Collapse
+                  </span>
+                )}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
+                    Expand Sidebar
+                  </div>
+                )}
+              </button>
+            </div>
+          )}
           {['Main', 'Classroom', 'Documents'].map((category) => (
-            <div key={category} className="space-y-2">
-              <div className={`px-2 text-[10px] font-extrabold uppercase tracking-widest leading-none mb-1 overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out text-[#D32F2F] ${collapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}`}>
-                {category}
-              </div>
+            <div key={category} className={collapsed ? "space-y-1" : "space-y-2"}>
+              {!collapsed && (
+                <div className="px-2 text-[10px] font-extrabold uppercase tracking-widest leading-none mb-1 text-[#D32F2F]">
+                  {category}
+                </div>
+              )}
               <div className="space-y-1">
                 {navItems.filter(item => item.category === category).map(item => {
                   const isActive = activeView === item.id;
@@ -148,7 +163,9 @@ function TeacherDashboardContent() {
                     <button
                       key={item.id}
                       onClick={() => { setActiveView(item.id); setMobileOpen(false); }}
-                      className={`w-full flex items-center px-3 py-2 text-sm transition-all duration-200 cursor-pointer relative group rounded-xl border ${
+                      className={`w-full flex items-center transition-all duration-200 cursor-pointer relative group rounded-xl border ${
+                        collapsed ? 'justify-center p-2.5' : 'px-3 py-2'
+                      } text-sm ${
                         isActive 
                           ? 'bg-[#D32F2F]/10 text-[#D32F2F] border-[#D32F2F] font-bold shadow-xs' 
                           : 'border-transparent text-slate-600 hover:bg-[#D32F2F]/5 hover:text-[#D32F2F] hover:border-[#D32F2F]/40 font-medium'
@@ -157,7 +174,7 @@ function TeacherDashboardContent() {
                       <div className="w-5 h-5 flex items-center justify-center shrink-0">
                         <item.icon className={`w-4.5 h-4.5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-[#D32F2F]' : 'text-slate-400 group-hover:text-[#D32F2F]'}`} />
                       </div>
-                      <div className={`ml-3.5 flex-1 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                      <div className={`${collapsed ? 'hidden' : 'ml-3.5'} flex-1 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out w-auto opacity-100`}>
                         <span className="truncate">{item.label}</span>
                         {item.badge && (
                           <Badge className="bg-rose-50 text-[#D32F2F] border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 ml-2">
@@ -233,7 +250,8 @@ function TeacherDashboardContent() {
         <SidebarContent />
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="lg:hidden h-20 border-b border-slate-150 bg-white px-5 flex items-center justify-between shrink-0 shadow-sm">
+        {/* Mobile header */}
+        <header className="lg:hidden h-14 border-b border-slate-150 bg-white px-5 flex items-center justify-between shrink-0 shadow-sm">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="-ml-2 hover:bg-slate-100 rounded-xl">
@@ -244,7 +262,7 @@ function TeacherDashboardContent() {
               <SidebarContent isMobile={true} />
             </SheetContent>
           </Sheet>
-          <div className="flex items-center gap-2.5 font-bold text-sm text-slate-800">
+          <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
             <div className="p-1 bg-primary/5 rounded-lg border border-primary/10 shadow-sm shrink-0">
               <img src="/pasted-image.jpg" alt="Logo" className="w-5 h-5 rounded-md object-cover" />
             </div>
@@ -252,6 +270,7 @@ function TeacherDashboardContent() {
           </div>
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-sm">{initials}</div>
         </header>
+
         <div className="flex-1 overflow-hidden bg-slate-50/50">
           {renderActiveView()}
         </div>

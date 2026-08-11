@@ -877,9 +877,17 @@ export function GradesView() {
                       <TableRow key={s.id} className="hover:bg-slate-50/80 transition-colors border-b border-slate-100">
                         <TableCell className="pl-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-xs font-bold shadow-sm shrink-0">
-                              {s.firstName?.charAt(0) || ''}{s.lastName?.charAt(0) || ''}
-                            </div>
+                            {(() => {
+                              const photoFields = [s.photoURL, s.photoUrl, (s as any).profilePicture, (s as any).avatarUrl, (s as any).avatar, (s as any).photo];
+                              const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+                              return photo ? (
+                                <img src={photo} alt={s.firstName} className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-xs font-bold shadow-sm shrink-0">
+                                  {s.firstName?.charAt(0) || ''}{s.lastName?.charAt(0) || ''}
+                                </div>
+                              );
+                            })()}
                             <div className="flex flex-col">
                               <span className="font-semibold text-slate-800 text-sm">
                                 {formatStudentName(s.firstName, s.lastName)}

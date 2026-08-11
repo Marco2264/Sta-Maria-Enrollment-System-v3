@@ -330,13 +330,21 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         let enrolledStudents: Student[] = [];
 
         const normalizedGradeLevel = gradeLevel ? gradeLevel.replace(/Grade /i, '').trim() : '';
+        const validGrades = [
+          normalizedGradeLevel,
+          `Grade ${normalizedGradeLevel}`,
+          `grade ${normalizedGradeLevel}`,
+          `GRADE ${normalizedGradeLevel}`
+        ];
+
         const qPending = query(
           collection(db, 'enrollments'),
-          where('gradeLevel', '==', normalizedGradeLevel),
           where('status', '==', 'Pending')
         );
         unsubPending = onSnapshot(qPending, (sSnap) => {
-          pendingStudents = sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Student));
+          pendingStudents = sSnap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Student))
+            .filter((s) => s.gradeLevel && validGrades.includes(s.gradeLevel.toString().trim()));
           setStudents([...pendingStudents, ...enrolledStudents]);
         });
 

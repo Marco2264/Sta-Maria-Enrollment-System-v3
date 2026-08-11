@@ -447,10 +447,18 @@ export function AttendanceView() {
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-4">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${avatarStatus === 'Unmarked' ? avatarColors.Unmarked : avatarColors[avatarStatus as 'Present' | 'Absent' | 'Late']
-              }`}>
-              {s.firstName?.charAt(0) || ''}{s.lastName?.charAt(0) || ''}
-            </div>
+            {(() => {
+              const photoFields = [(s as any).photoURL, (s as any).photoUrl, (s as any).profilePicture, (s as any).avatarUrl, (s as any).avatar, (s as any).photo];
+              const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+              if (photo) return (
+                <img src={photo} alt={s.firstName} className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" />
+              );
+              return (
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${avatarStatus === 'Unmarked' ? avatarColors.Unmarked : avatarColors[avatarStatus as 'Present' | 'Absent' | 'Late']}`}>
+                  {s.firstName?.charAt(0) || ''}{s.lastName?.charAt(0) || ''}
+                </div>
+              );
+            })()}
             <span className="font-bold text-slate-800 text-sm">
               {s.lastName}, {s.firstName}
             </span>

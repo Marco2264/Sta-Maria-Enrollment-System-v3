@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -22,6 +22,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useParentData } from '../../lib/parentData';
+import { db } from '../../lib/firebase';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 
 export function MyChildrenView({
   onSelectChild
@@ -181,9 +183,11 @@ export function MyChildrenView({
                       const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
                         ? child.gradeLevel
                         : `Grade ${child.gradeLevel || 'Level'}`;
-                      const displaySection = child.section
-                        ? (child.section.toString().toLowerCase().startsWith('section') ? child.section : `Section ${child.section}`)
-                        : 'Section A';
+                      const displaySection = (child.status === 'Enrolled' || child.status === 'Approved')
+                        ? (child.section
+                          ? (child.section.toString().toLowerCase().startsWith('section') ? child.section : `Section ${child.section}`)
+                          : 'TBA')
+                        : 'TBA';
                       const studentId = child.lrn || '126220200414';
 
                       return (
@@ -249,7 +253,7 @@ export function MyChildrenView({
                                 View Profile
                                 <ArrowRight className="w-3.5 h-3.5" />
                               </button>
-                              {child.status === 'Enrolled' || child.status === 'Approved' ? (
+                              {false ? (
                                 <button
                                   type="button"
                                   disabled

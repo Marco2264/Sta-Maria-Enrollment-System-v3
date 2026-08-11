@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -19,8 +19,11 @@ import {
   Eye,
   FileText,
   Lock,
-  AlertTriangle
+  AlertTriangle,
+  Wrench
 } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { collection, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useParentData } from '../../lib/parentData';
 
 export function MyChildrenView({
@@ -46,6 +49,33 @@ export function MyChildrenView({
       return fullName.includes(q) || lrn.includes(q) || grade.includes(q);
     });
   }, [children, searchQuery]);
+
+  const [isFixing, setIsFixing] = useState(false);
+
+  const handleFixEnrollments = async () => {
+    try {
+      setIsFixing(true);
+      const snapshot = await getDocs(collection(db, 'enrollments'));
+      let count = 0;
+      for (const document of snapshot.docs) {
+        const data = document.data();
+        if (data.status !== 'Pending') {
+          await updateDoc(doc(db, 'enrollments', document.id), {
+            status: 'Pending',
+            sectionId: '',
+            section: '',
+            submittedAt: data.submittedAt || serverTimestamp()
+          });
+          count++;
+        }
+      }
+      alert(`Success! ${count} students have been reset to Pending and added to the Admin/Teacher views.`);
+    } catch (e: any) {
+      alert(`Error fixing: ${e.message}`);
+    } finally {
+      setIsFixing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -144,6 +174,15 @@ export function MyChildrenView({
 
         {/* Search & Enrolled Count Badge */}
         <div className="flex items-center gap-3">
+          <Button 
+            onClick={handleFixEnrollments} 
+            disabled={isFixing}
+            className="bg-amber-500 hover:bg-amber-600 text-white rounded-full text-xs"
+          >
+            <Wrench className="w-4 h-4 mr-1" />
+            {isFixing ? 'Fixing...' : 'Fix DB (Make Pending)'}
+          </Button>
+
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
@@ -196,9 +235,11 @@ export function MyChildrenView({
                       const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
                         ? child.gradeLevel
                         : `Grade ${child.gradeLevel || 'Level'}`;
-                      const displaySection = child.section
-                        ? (child.section.toString().toLowerCase().startsWith('section') ? child.section : `Section ${child.section}`)
-                        : 'Section A';
+                      const displaySection = (child.status === 'Enrolled' || child.status === 'Approved')
+                        ? (child.section
+                          ? (child.section.toString().toLowerCase().startsWith('section') ? child.section : `Section ${child.section}`)
+                          : 'TBA')
+                        : 'TBA';
                       const studentId = child.lrn || '126220200414';
 
                       return (
@@ -215,15 +256,17 @@ export function MyChildrenView({
                           {/* Student Name & Avatar */}
                           <td className="py-5 px-6">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-blue-100/70 text-[#2563eb] font-bold text-xs flex items-center justify-center shrink-0 uppercase">
-                                {child.photoURL ? (
-                                  <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover rounded-full" />
-                                ) : (
-                                  <span>
-                                    {child.firstName?.charAt(0)}{child.lastName?.charAt(0)}
-                                  </span>
-                                )}
-                              </div>
+                              {child.photoURL || (child as any).photoUrl ? (
+                                <img
+                                  src={child.photoURL || (child as any).photoUrl}
+                                  alt={child.firstName}
+                                  className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-blue-50/80 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-blue-100/80 uppercase">
+                                  {child.firstName?.charAt(0)}{child.lastName?.charAt(0)}
+                                </div>
+                              )}
                               <div>
                                 <p className="font-extrabold text-slate-900 uppercase text-xs leading-snug">
                                   {child.lastName}, {child.firstName} {child.middleName ? `${child.middleName.charAt(0)}.` : ''}
@@ -264,7 +307,7 @@ export function MyChildrenView({
                                 View Profile
                                 <ArrowRight className="w-3.5 h-3.5" />
                               </button>
-                              {child.status === 'Enrolled' || child.status === 'Approved' ? (
+                              {false ? (
                                 <button
                                   type="button"
                                   disabled

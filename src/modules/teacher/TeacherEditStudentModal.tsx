@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/Dialog';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
-import { Save, Loader2, User } from 'lucide-react';
+import { Save, Loader2, User, Upload, Camera, Check } from 'lucide-react';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
 
 interface TeacherEditStudentModalProps {
   student: any;
@@ -17,6 +18,8 @@ interface TeacherEditStudentModalProps {
 export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEditStudentModalProps) {
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && student) {
@@ -26,6 +29,7 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
         middleName: student.middleName || '',
         gender: student.gender || '',
         birthDate: student.birthDate || '',
+        photoURL: student.photoURL || student.photoUrl || student.profilePicture || '',
         lrn: student.lrn || '',
         gradeLevel: student.gradeLevel ? student.gradeLevel.toString() : '',
         status: student.status || 'Pending',
@@ -48,6 +52,28 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
     }
   }, [isOpen, student]);
 
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    try {
+      const folder = buildImageKitFolder({ role: 'student', category: 'profiles' });
+      const fileName = buildStandardizedFileName({
+        role: 'student',
+        fullName: `${formData.firstName || student.firstName} ${formData.lastName || student.lastName}`,
+        originalFileName: file.name,
+        gradeLevel: student.gradeLevel
+      });
+      const url = await uploadToImageKit(file, { folder, fileName, useUniqueFileName: false });
+      setFormData((prev: any) => ({ ...prev, photoURL: url }));
+    } catch (err) {
+      console.error('Failed to upload photo to ImageKit:', err);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async () => {
     if (!student?.id) return;
     setIsSaving(true);
@@ -58,6 +84,7 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
         middleName: formData.middleName,
         gender: formData.gender,
         birthDate: formData.birthDate,
+        photoURL: formData.photoURL,
         lrn: formData.lrn,
         // gradeLevel, status, and sectionId are purposefully excluded to prevent teachers from modifying them
         'address.street': formData.addressStreet,
@@ -74,6 +101,7 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
       };
 
       await updateDoc(doc(db, 'enrollments', student.id), updates);
+      if (student) (student as any).photoURL = formData.photoURL;
       onClose();
     } catch (error) {
       console.error('Error updating student:', error);
@@ -90,9 +118,17 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 pb-6 border-b border-border/50 sticky top-0 z-10 backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-800">
-              <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-lg border border-primary/30 shadow-sm shrink-0">
-                {student.firstName?.charAt(0)}{student.lastName?.charAt(0)}
-              </div>
+              {(() => {
+                const photoFields = [student.photoURL, (student as any).photoUrl, (student as any).profilePicture, (student as any).avatarUrl, (student as any).avatar, (student as any).photo];
+                const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+                return photo ? (
+                  <img src={photo} alt={student.firstName} className="w-12 h-12 rounded-full object-cover border border-primary/30 shadow-sm shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-lg border border-primary/30 shadow-sm shrink-0">
+                    {student.firstName?.charAt(0)}{student.lastName?.charAt(0)}
+                  </div>
+                );
+              })()}
               <div>
                 <div className="flex items-center gap-2">
                   <span>Edit Student Profile</span>
@@ -137,6 +173,45 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
               <div className="space-y-2">
                 <Label>Birth Date</Label>
                 <Input type="date" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})} />
+              </div>
+              <div className="space-y-2 col-span-1 md:col-span-3">
+                <Label>Profile Photo</Label>
+                <div className="flex items-center gap-3">
+                  {formData.photoURL ? (
+                    <img src={formData.photoURL} alt="Preview" className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200 shrink-0 font-bold text-sm">
+                      {formData.firstName?.charAt(0)}{formData.lastName?.charAt(0)}
+                    </div>
+                  )}
+                  <Input 
+                    placeholder="https://ik.imagekit.io/... or click Upload" 
+                    value={formData.photoURL || ''} 
+                    onChange={e => setFormData({...formData, photoURL: e.target.value})} 
+                    className="flex-1"
+                  />
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handlePhotoFileChange} 
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    disabled={isUploadingPhoto} 
+                    onClick={() => fileInputRef.current?.click()} 
+                    className="shrink-0 rounded-xl"
+                  >
+                    {isUploadingPhoto ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-primary" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2 text-primary" />
+                    )}
+                    Upload Photo
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

@@ -106,6 +106,24 @@ export function ObservedValuesView() {
     return `${selectedStudent.firstName?.charAt(0) || ''}${selectedStudent.lastName?.charAt(0) || ''}`.toUpperCase();
   }, [selectedStudent]);
 
+  const getStudentPhoto = (s: any): string | null => {
+    if (!s) return null;
+    const fields = [s.photoURL, s.photoUrl, s.profilePicture, s.avatarUrl, s.avatar, s.photo];
+    const direct = fields.find((p): p is string => typeof p === 'string' && p.trim().length > 0);
+    if (direct) return direct.trim();
+    const reqs = s.requirementUploads;
+    if (reqs && typeof reqs === 'object') {
+      for (const key of Object.keys(reqs)) {
+        const lower = key.toLowerCase();
+        if (lower.includes('2x2') || lower.includes('photo') || lower.includes('picture') || lower.includes('avatar')) {
+          const fileUrl = reqs[key]?.fileUrl;
+          if (typeof fileUrl === 'string' && fileUrl.trim()) return fileUrl.trim();
+        }
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50/50 relative overflow-hidden">
       {/* Soft Ambient Background Glows */}
@@ -208,11 +226,18 @@ export function ObservedValuesView() {
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                      active ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {formatStudentName(s.firstName, s.lastName).charAt(0)}
-                    </div>
+                    {(() => {
+                      const photo = getStudentPhoto(s);
+                      return photo ? (
+                        <img src={photo} alt={s.firstName} className="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-200" />
+                      ) : (
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                          active ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {formatStudentName(s.firstName, s.lastName).charAt(0)}
+                        </div>
+                      );
+                    })()}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate font-medium">
                         {formatStudentName(s.firstName, s.lastName)}
@@ -239,9 +264,16 @@ export function ObservedValuesView() {
                 {/* Profile Card */}
                 <Card className="p-6 bg-white border border-slate-200/80 shadow-sm flex items-center gap-4 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl pointer-events-none" />
-                  <div className="w-12 h-12 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center text-rose-500 font-extrabold text-lg shadow-sm">
-                    {currentStudentInitials}
-                  </div>
+                  {(() => {
+                    const photo = getStudentPhoto(selectedStudent);
+                    return photo ? (
+                      <img src={photo} alt={selectedStudent.firstName} className="w-12 h-12 rounded-2xl object-cover border border-rose-100 shadow-sm shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center text-rose-500 font-extrabold text-lg shadow-sm">
+                        {currentStudentInitials}
+                      </div>
+                    );
+                  })()}
                   <div>
                     <h2 className="text-xl font-bold text-slate-900 leading-tight">
                       {formatStudentName(selectedStudent.firstName, selectedStudent.lastName)}

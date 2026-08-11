@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Save, Loader2, User, BookOpen, MapPin, Heart, Phone } from 'lucide-react';
+import { Save, Loader2, User, BookOpen, MapPin, Heart, Phone, Upload } from 'lucide-react';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
 
 interface TeacherEditStudentModalProps {
   student: any;
@@ -17,15 +18,19 @@ interface TeacherEditStudentModalProps {
 export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEditStudentModalProps) {
   const [formData, setFormData] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && student) {
+      const photo = student.photoURL || student.photoUrl || student.profilePicture || student.avatarUrl || student.requirementUploads?.['2x2Photo']?.fileUrl || '';
       setFormData({
         firstName: student.firstName || '',
         lastName: student.lastName || '',
         middleName: student.middleName || '',
         gender: student.gender || '',
         birthDate: student.birthDate || '',
+        photoURL: photo,
         lrn: student.lrn || '',
         gradeLevel: student.gradeLevel ? student.gradeLevel.toString() : '',
         status: student.status || 'Pending',
@@ -48,6 +53,28 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
     }
   }, [isOpen, student]);
 
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    try {
+      const folder = buildImageKitFolder({ role: 'student', category: 'profiles' });
+      const fileName = buildStandardizedFileName({
+        role: 'student',
+        fullName: `${formData.firstName || student.firstName} ${formData.lastName || student.lastName}`,
+        originalFileName: file.name,
+        gradeLevel: student.gradeLevel
+      });
+      const url = await uploadToImageKit(file, { folder, fileName, useUniqueFileName: false });
+      setFormData((prev: any) => ({ ...prev, photoURL: url }));
+    } catch (err) {
+      console.error('Failed to upload photo to ImageKit:', err);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const formatStudentName = (firstName: string | undefined, lastName: string | undefined) => {
     const first = (firstName || '').trim();
     const last = (lastName || '').trim();
@@ -66,6 +93,7 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
         middleName: formData.middleName,
         gender: formData.gender,
         birthDate: formData.birthDate,
+        photoURL: formData.photoURL,
         lrn: formData.lrn,
         // gradeLevel, status, and sectionId are purposefully excluded to prevent teachers from modifying them
         'address.street': formData.addressStreet,
@@ -82,6 +110,7 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
       };
 
       await updateDoc(doc(db, 'enrollments', student.id), updates);
+      if (student) (student as any).photoURL = formData.photoURL;
       onClose();
     } catch (error) {
       console.error('Error updating student:', error);
@@ -101,13 +130,17 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 sm:p-8 border-b border-slate-100 sticky top-0 z-10 backdrop-blur-xl shrink-0">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-4 text-slate-900">
-              <div className={`w-14 h-14 rounded-full border flex items-center justify-center text-base font-extrabold shadow-sm shrink-0 ${
-                isMale 
-                  ? 'bg-blue-50 text-blue-700 border-blue-100' 
-                  : 'bg-pink-50 text-pink-700 border-pink-100'
-              }`}>
-                {formData.firstName?.charAt(0) || ''}{formData.lastName?.charAt(0) || ''}
-              </div>
+              {formData.photoURL ? (
+                <img src={formData.photoURL} alt="Student" className="w-14 h-14 rounded-full object-cover border-2 border-primary/30 shadow-sm shrink-0" />
+              ) : (
+                <div className={`w-14 h-14 rounded-full border flex items-center justify-center text-base font-extrabold shadow-sm shrink-0 ${
+                  isMale 
+                    ? 'bg-blue-50 text-blue-700 border-blue-100' 
+                    : 'bg-pink-50 text-pink-700 border-pink-100'
+                }`}>
+                  {formData.firstName?.charAt(0) || ''}{formData.lastName?.charAt(0) || ''}
+                </div>
+              )}
               <div className="space-y-0.5">
                 <div className="text-xl font-extrabold tracking-tight">Edit Student Profile</div>
                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -126,6 +159,54 @@ export function TeacherEditStudentModal({ student, isOpen, onClose }: TeacherEdi
               <User className="w-5 h-5 text-slate-500" />
               <span>Basic Information</span>
             </h3>
+
+            {/* Profile Photo Uploader Section */}
+            <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 flex flex-col sm:flex-row items-center gap-4">
+              <div className="relative shrink-0">
+                {formData.photoURL ? (
+                  <img src={formData.photoURL} alt="Student Profile" className="w-16 h-16 rounded-full object-cover border-2 border-primary/30 shadow-sm" />
+                ) : (
+                  <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center text-lg font-extrabold shadow-sm ${
+                    isMale ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-pink-50 text-pink-700 border-pink-100'
+                  }`}>
+                    {formData.firstName?.charAt(0) || ''}{formData.lastName?.charAt(0) || ''}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 w-full space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">Profile Photo</Label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    placeholder="https://ik.imagekit.io/... or click Upload" 
+                    value={formData.photoURL || ''} 
+                    onChange={e => setFormData({...formData, photoURL: e.target.value})} 
+                    className="bg-white border-slate-200 rounded-xl h-10 text-xs flex-1"
+                  />
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handlePhotoFileChange} 
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    disabled={isUploadingPhoto} 
+                    onClick={() => fileInputRef.current?.click()} 
+                    className="shrink-0 rounded-xl h-10 px-3 text-xs bg-white"
+                  >
+                    {isUploadingPhoto ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-primary" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                    )}
+                    Upload Photo
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">First Name</Label>

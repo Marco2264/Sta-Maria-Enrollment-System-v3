@@ -27,6 +27,30 @@ export function StudentsView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [genderFilter, setGenderFilter] = useState('All');
 
+  const getStudentPhoto = (s: any): string | null => {
+    if (!s) return null;
+    if (typeof s.photoURL === 'string' && s.photoURL.trim()) return s.photoURL.trim();
+    if (typeof s.photoUrl === 'string' && s.photoUrl.trim()) return s.photoUrl.trim();
+    if (typeof s.profilePicture === 'string' && s.profilePicture.trim()) return s.profilePicture.trim();
+    if (typeof s.avatarUrl === 'string' && s.avatarUrl.trim()) return s.avatarUrl.trim();
+    if (typeof s.avatar === 'string' && s.avatar.trim()) return s.avatar.trim();
+    if (typeof s.photo === 'string' && s.photo.trim()) return s.photo.trim();
+
+    const reqs = s.requirementUploads;
+    if (reqs && typeof reqs === 'object') {
+      for (const key of Object.keys(reqs)) {
+        const lower = key.toLowerCase();
+        if (lower.includes('2x2') || lower.includes('photo') || lower.includes('picture') || lower.includes('avatar')) {
+          const fileUrl = reqs[key]?.fileUrl;
+          if (typeof fileUrl === 'string' && fileUrl.trim()) {
+            return fileUrl.trim();
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[400px]">
@@ -46,7 +70,8 @@ export function StudentsView() {
   const enrolled = React.useMemo(() => {
     return students
       .filter((s) => {
-        if (s.status !== 'Enrolled' && s.status !== 'enrolled' && s.status !== 'PROMOTED' && s.status !== 'RETAINED' && s.status !== 'IRREGULAR') return false;
+        const st = (s.status as string) || '';
+        if (st !== 'Enrolled' && st !== 'enrolled' && st !== 'PROMOTED' && st !== 'RETAINED' && st !== 'IRREGULAR') return false;
         if ((s as any).isManualHistory === true) return false;
         
         // Search filter
@@ -110,7 +135,7 @@ export function StudentsView() {
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#D8232A]/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
       <header className="relative px-8 py-10 bg-white/70 backdrop-blur-md shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Classroom</span>
@@ -138,7 +163,7 @@ export function StudentsView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full relative">
+      <div className="flex-1 overflow-y-auto p-6 sm:p-8 lg:p-10 w-full relative">
         <Card className="bg-white border border-slate-200/60 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
           <div className="p-6 border-b border-slate-100 bg-white/50 space-y-4">
             <div className="flex items-center justify-between">
@@ -202,22 +227,32 @@ export function StudentsView() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  enrolled.map((s) => (
-                    <TableRow key={s.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="pl-6 py-4">
-                        <div className="flex items-center gap-3.5">
-                          <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-xs font-bold shadow-sm ${
-                            s.gender === 'Male' 
-                              ? 'bg-blue-50 text-blue-700 border-blue-100' 
-                              : 'bg-pink-50 text-pink-700 border-pink-100'
-                          }`}>
-                            {s.firstName?.charAt(0) || ''}{s.lastName?.charAt(0) || ''}
+                  enrolled.map((s) => {
+                    const photo = getStudentPhoto(s);
+                    return (
+                      <TableRow key={s.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="pl-6 py-4">
+                          <div className="flex items-center gap-3.5">
+                            {photo ? (
+                              <img
+                                src={photo}
+                                alt={s.firstName}
+                                className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-xs font-bold shadow-sm shrink-0 ${
+                                s.gender === 'Male' 
+                                  ? 'bg-blue-50 text-blue-700 border-blue-100' 
+                                  : 'bg-pink-50 text-pink-700 border-pink-100'
+                              }`}>
+                                {s.firstName?.charAt(0) || ''}{s.lastName?.charAt(0) || ''}
+                              </div>
+                            )}
+                            <span className="font-bold text-slate-800 text-sm tracking-tight">
+                              {formatStudentName(s.firstName, s.lastName)}
+                            </span>
                           </div>
-                          <span className="font-bold text-slate-800 text-sm tracking-tight">
-                            {formatStudentName(s.firstName, s.lastName)}
-                          </span>
-                        </div>
-                      </TableCell>
+                        </TableCell>
                       <TableCell className="text-slate-500 font-mono text-xs font-medium py-4">
                         {s.lrn}
                       </TableCell>
@@ -304,8 +339,9 @@ export function StudentsView() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  );
+                })
+              )}
               </TableBody>
             </Table>
           </div>

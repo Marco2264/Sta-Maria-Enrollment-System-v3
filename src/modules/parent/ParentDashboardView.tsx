@@ -863,11 +863,15 @@ export function ParentDashboardView({
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#2563eb] font-extrabold flex items-center justify-center text-xs border border-blue-200 shrink-0 overflow-hidden">
-                              {child.photoURL ? (
-                                <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover" />
-                              ) : (
-                                <>{child.firstName?.[0]}{child.lastName?.[0]}</>
-                              )}
+                              {(() => {
+                                const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
+                                const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+                                return photo ? (
+                                  <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
+                                ) : (
+                                  <>{child.firstName?.[0]}{child.lastName?.[0]}</>
+                                );
+                              })()}
                             </div>
                             <div className="min-w-0">
                               <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight uppercase truncate">
