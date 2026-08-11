@@ -575,15 +575,23 @@ export function SchedulesView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="h-20 px-6 border-b border-slate-200 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent flex items-center shrink-0">
+    <div className="flex flex-col h-full bg-slate-50/30 relative overflow-hidden">
+      {/* Morphing Liquid Light Glass Background Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-red-200/25 blur-[120px] mix-blend-multiply animate-pulse pointer-events-none -z-10" />
+      <div className="absolute bottom-[20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#D8232A]/10 blur-[150px] mix-blend-multiply animate-pulse pointer-events-none -z-10 delay-1000" />
+      <div className="absolute top-[40%] left-[20%] w-[35%] h-[35%] rounded-full bg-rose-100/30 blur-[100px] pointer-events-none -z-10 delay-2000" />
+
+      <header className="min-h-[96px] py-6 px-6 sm:px-8 border-b border-white/20 bg-white/40 backdrop-blur-md flex items-center shrink-0 shadow-[0_2px_20px_rgba(0,0,0,0.02)]">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-primary">
-              <CalendarClock className="w-5 h-5" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Teachers Load</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Schedules</span>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
+            <div className="flex items-center gap-2 text-slate-900">
+              <CalendarClock className="w-5 h-5 text-[#D8232A]" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Faculty Teachin Load</h1>
+            </div>
+            <p className="text-sm text-slate-500 max-w-md leading-relaxed hidden sm:block">
               Manage teacher schedules, subject assignments, and time slots for academic year {syName}.
             </p>
           </div>
@@ -592,7 +600,7 @@ export function SchedulesView() {
             <Button
               onClick={handleResetAllSchedules}
               variant="outline"
-              className="bg-white text-rose-600 hover:bg-rose-50 border-rose-200 shadow-sm whitespace-nowrap hidden lg:flex"
+              className="bg-white/40 backdrop-blur-sm text-rose-600 border border-rose-200/50 hover:bg-rose-50/50 shadow-sm whitespace-nowrap rounded-full px-5 py-2 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 hidden lg:flex"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Reset All
@@ -605,7 +613,7 @@ export function SchedulesView() {
                   onClick={() => {
                     if (hasGlobalDrafts) handlePublishAllDrafts();
                   }}
-                  className={`shadow-sm whitespace-nowrap hidden lg:flex transition-all ${hasGlobalDrafts ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed border-none hover:bg-slate-200'}`}
+                  className={`shadow-sm whitespace-nowrap hidden lg:flex transition-all rounded-full px-5 py-2 hover:scale-[1.02] active:scale-[0.98] duration-300 ${hasGlobalDrafts ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-slate-200/40 text-slate-400 cursor-not-allowed border-none hover:bg-slate-200'}`}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Publish All
@@ -615,18 +623,10 @@ export function SchedulesView() {
             <Button
               onClick={handleDownloadAllPDF}
               variant="outline"
-              className="bg-white text-slate-700 hover:bg-slate-50 border-slate-200 shadow-sm whitespace-nowrap"
+              className="bg-white/40 backdrop-blur-sm text-slate-700 hover:bg-white/60 border border-white/45 shadow-sm whitespace-nowrap rounded-full px-5 py-2 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
             >
               <Download className="w-4 h-4 mr-2 text-slate-500" />
               Download PDF
-            </Button>
-            <Button
-              onClick={handleAutoGenerateSchedules}
-              disabled={isGenerating}
-              className="bg-primary text-primary-foreground shadow-sm whitespace-nowrap"
-            >
-              {isGenerating ? <span className="animate-pulse mr-2">⏳</span> : <CalendarClock className="w-4 h-4 mr-2" />}
-              {isGenerating ? 'Generating...' : 'Auto-Generate'}
             </Button>
           </div>
         </div>
@@ -635,9 +635,9 @@ export function SchedulesView() {
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full">
         <Tabs defaultValue="teachers" value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <TabsList className="bg-slate-200/50 p-1 rounded-xl inline-flex h-11 items-center justify-center shrink-0">
-              <TabsTrigger value="teachers" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-semibold transition-all">Teachers</TabsTrigger>
-              <TabsTrigger value="sections" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm font-semibold transition-all">Section Schedules</TabsTrigger>
+            <TabsList className="bg-slate-200/30 backdrop-blur-md p-1.5 rounded-full inline-flex h-12 items-center justify-center shrink-0 border border-white/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+              <TabsTrigger value="teachers" className="rounded-full px-6 h-9 data-[state=active]:bg-white/90 data-[state=active]:text-[#D8232A] data-[state=active]:shadow-sm font-semibold transition-all hover:scale-[1.03] duration-300">Teachers</TabsTrigger>
+              <TabsTrigger value="sections" className="rounded-full px-6 h-9 data-[state=active]:bg-white/90 data-[state=active]:text-[#D8232A] data-[state=active]:shadow-sm font-semibold transition-all hover:scale-[1.03] duration-300">Section Schedules</TabsTrigger>
             </TabsList>
 
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
@@ -645,7 +645,7 @@ export function SchedulesView() {
                 <>
                   <div className="w-[180px] shrink-0">
                     <Select value={teacherFilter} onValueChange={setTeacherFilter}>
-                      <SelectTrigger className="w-full h-11 bg-white border-2 border-slate-200/80 rounded-xl hover:border-slate-300 text-sm font-medium transition-colors">
+                      <SelectTrigger className="w-full h-11 bg-white/40 backdrop-blur-sm border border-white/40 hover:bg-white/60 rounded-full text-sm font-medium transition-all shadow-sm focus:ring-4 focus:ring-[#D8232A]/5 focus:border-[#D8232A]/30 [&>span]:truncate">
                         <SelectValue placeholder="Filter by Load" />
                       </SelectTrigger>
                     <SelectContent>
@@ -656,10 +656,10 @@ export function SchedulesView() {
                   </Select>
                   </div>
                   <div className="relative w-full sm:w-72 group">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-[#D8232A] transition-colors" />
                     <Input
                       placeholder="Search teachers..."
-                      className="pl-10 h-11 rounded-xl bg-white border-2 border-slate-200/80 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/5 shadow-sm transition-all text-sm font-medium text-black w-full"
+                      className="pl-10 h-11 rounded-full bg-white/40 backdrop-blur-sm border border-white/40 hover:bg-white/60 focus:border-[#D8232A]/30 focus:ring-4 focus:ring-[#D8232A]/5 shadow-sm transition-all text-sm font-medium text-black w-full"
                       value={teacherSearch}
                       onChange={(e) => setTeacherSearch(e.target.value)}
                     />
@@ -669,7 +669,7 @@ export function SchedulesView() {
                 <>
                   <div className="w-[180px] shrink-0">
                     <Select value={sectionFilter} onValueChange={setSectionFilter}>
-                      <SelectTrigger className="w-full h-11 bg-white border-2 border-slate-200/80 rounded-xl hover:border-slate-300 text-sm font-medium transition-colors">
+                      <SelectTrigger className="w-full h-11 bg-white/40 backdrop-blur-sm border border-white/40 hover:bg-white/60 rounded-full text-sm font-medium transition-all shadow-sm focus:ring-4 focus:ring-[#D8232A]/5 focus:border-[#D8232A]/30 [&>span]:truncate">
                         <SelectValue placeholder="Filter by Grade" />
                       </SelectTrigger>
                     <SelectContent>
@@ -689,10 +689,10 @@ export function SchedulesView() {
                   </Select>
                   </div>
                   <div className="relative w-full sm:w-72 group">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-[#D8232A] transition-colors" />
                     <Input
                       placeholder="Search sections..."
-                      className="pl-10 h-11 rounded-xl bg-white border-2 border-slate-200/80 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/5 shadow-sm transition-all text-sm font-medium text-black w-full"
+                      className="pl-10 h-11 rounded-full bg-white/40 backdrop-blur-sm border border-white/40 hover:bg-white/60 focus:border-[#D8232A]/30 focus:ring-4 focus:ring-[#D8232A]/5 shadow-sm transition-all text-sm font-medium text-black w-full"
                       value={sectionSearch}
                       onChange={(e) => setSectionSearch(e.target.value)}
                     />
@@ -703,10 +703,10 @@ export function SchedulesView() {
           </div>
 
           <TabsContent value="teachers" className="space-y-6 outline-none">
-        <Card className="bg-white border-slate-200/60 shadow-sm rounded-3xl overflow-hidden">
+        <Card className="bg-white/45 backdrop-blur-md border border-white/20 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.05),inset_0_1px_2px_rgba(255,255,255,0.4)] rounded-[2.5rem] overflow-hidden hover:shadow-[0_16px_48px_-6px_rgba(0,0,0,0.07)] transition-all duration-300">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-200/60 uppercase tracking-wider text-[10px]">
+              <thead className="bg-white/35 backdrop-blur-sm text-slate-500 font-semibold border-b border-slate-200/40 uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="px-6 py-4">Teacher Name</th>
                   <th className="px-6 py-4 hidden sm:table-cell text-center">Email</th>
@@ -727,17 +727,17 @@ export function SchedulesView() {
                     const loadCount = schedules.filter(s => s.teacherId === teacher.id && s.academicYear === syName).length;
                     
                     return (
-                      <tr key={teacher.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <tr key={teacher.id} className="hover:bg-white/50 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0 border border-primary/20 shadow-inner">
                               {teacher.firstName?.[0] || ''}{teacher.lastName?.[0] || ''}
                             </div>
                             <div className="text-left">
-                              <p className="font-bold text-slate-900 group-hover:text-primary transition-colors flex items-center gap-2">
+                              <p className="font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors flex items-center gap-2">
                                 {teacher.firstName} {teacher.lastName}
                                 {schedules.some(s => s.teacherId === teacher.id && s.academicYear === syName && (!s.status || s.status === 'draft')) && (
-                                  <span className="bg-amber-100 text-amber-700 border border-amber-200 text-[9px] px-1.5 py-0 rounded-full font-bold uppercase tracking-wider">Drafts</span>
+                                  <span className="bg-amber-100/80 backdrop-blur-sm text-amber-700 border border-amber-200/50 text-[9px] px-1.5 py-0 rounded-full font-bold uppercase tracking-wider">Drafts</span>
                                 )}
                               </p>
                             </div>
@@ -750,7 +750,7 @@ export function SchedulesView() {
                           <p className="text-slate-600">{teacher.contactNumber}</p>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <Badge variant="outline" className={loadCount > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-500"}>
+                          <Badge variant="outline" className={`rounded-full px-3 py-1 font-semibold text-xs border transition-all ${loadCount > 0 ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" : "bg-slate-500/10 text-slate-500 border-slate-500/20"}`}>
                             {loadCount} Class{loadCount !== 1 ? 'es' : ''}
                           </Badge>
                         </td>
@@ -758,7 +758,7 @@ export function SchedulesView() {
                           <div className="flex items-center justify-center">
                             <Button 
                               onClick={() => openManageModal(teacher.id)}
-                              className="rounded-xl px-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold transition-all text-xs h-9"
+                              className="rounded-full px-5 bg-[#D8232A]/90 text-white hover:bg-[#D8232A] hover:scale-[1.03] active:scale-[0.97] transition-all duration-300 shadow-sm font-semibold text-xs h-9"
                             >
                               <CalendarClock className="w-3.5 h-3.5 mr-2" />
                               Manage Schedule
@@ -851,7 +851,10 @@ export function SchedulesView() {
                 <section key={grade} className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="h-px bg-slate-200 flex-1"></div>
-                    <h3 className="font-bold text-slate-800 text-lg px-2 text-primary">{grade}</h3>
+                    <div className="flex items-center gap-2 px-2">
+                      <div className="w-1 h-4 rounded-full bg-[#D8232A]" />
+                      <h3 className="font-bold text-slate-800 text-lg text-[#D8232A]">{grade}</h3>
+                    </div>
                     <div className="h-px bg-slate-200 flex-1"></div>
                   </div>
                   
@@ -865,11 +868,11 @@ export function SchedulesView() {
                             setSelectedSectionScheduleId(section.id);
                             setIsSectionModalOpen(true);
                           }}
-                          className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group"
+                          className="bg-white/35 backdrop-blur-md p-5 rounded-[2rem] border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.04),inset_0_1px_2px_rgba(255,255,255,0.5)] hover:shadow-[0_16px_36px_rgba(216,35,42,0.16)] hover:border-[#D8232A]/30 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer group"
                         >
                           <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-bold text-slate-900 group-hover:text-primary transition-colors">{section.name}</h4>
-                            <Badge variant="outline" className={sectionSchedules.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-500"}>
+                            <h4 className="font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors">{section.name}</h4>
+                            <Badge variant="outline" className={`rounded-full px-3 py-0.5 font-bold text-xs border transition-all ${sectionSchedules.length > 0 ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" : "bg-slate-500/10 text-slate-500 border-slate-500/20"}`}>
                               {sectionSchedules.length}
                             </Badge>
                           </div>
@@ -889,10 +892,10 @@ export function SchedulesView() {
 
       {/* Section Schedule View Modal */}
       <Dialog open={isSectionModalOpen} onOpenChange={setIsSectionModalOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="px-6 py-5 border-b border-slate-100 bg-slate-50/80 shrink-0">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col p-0 border-0 ring-0 bg-white/60 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.18),inset_0_1px_3px_rgba(255,255,255,0.5)] rounded-[2.5rem]">
+          <DialogHeader className="px-6 py-5 border-b border-white/20 bg-white/40 backdrop-blur-md shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold border border-primary/20 shadow-inner">
+              <div className="w-10 h-10 rounded-full bg-[#D8232A]/10 text-[#D8232A] flex items-center justify-center font-bold border border-[#D8232A]/20 shadow-inner">
                 <CalendarClock className="w-5 h-5" />
               </div>
               <div>
@@ -909,13 +912,13 @@ export function SchedulesView() {
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-0 bg-slate-50/50 custom-scrollbar flex flex-col relative min-h-[500px]">
+          <div className="flex-1 overflow-y-auto p-0 bg-white/10 backdrop-blur-sm custom-scrollbar flex flex-col relative min-h-[500px]">
             {(() => {
               const secSchedules = schedules.filter(s => s.sectionId === selectedSectionScheduleId && s.academicYear === syName);
               if (secSchedules.length === 0) {
                 return (
                   <div className="flex-1 flex items-center justify-center p-6">
-                    <div className="text-center py-10 px-10 bg-white border border-dashed border-slate-200 rounded-2xl w-full max-w-md">
+                    <div className="text-center py-10 px-10 bg-white/50 backdrop-blur-md border border-dashed border-white/30 rounded-[2rem] w-full max-w-md shadow-sm">
                       <p className="text-sm font-medium text-slate-500">No classes scheduled for this section.</p>
                     </div>
                   </div>
@@ -923,23 +926,23 @@ export function SchedulesView() {
               }
 
               return (
-                <div className="flex-1 flex flex-col overflow-hidden relative bg-white">
+                <div className="flex-1 flex flex-col overflow-hidden relative bg-white/30">
                   {/* Day Headers (X-Axis) */}
-                  <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-sm shrink-0">
-                    <div className="w-12 sm:w-14 shrink-0 border-r border-slate-200" />
+                  <div className="flex border-b border-white/20 bg-white/50 sticky top-0 z-20 shadow-sm shrink-0">
+                    <div className="w-12 sm:w-14 shrink-0 border-r border-white/20" />
                     {DAYS_OF_WEEK.map(day => (
-                      <div key={day} className="flex-1 py-2 text-center border-r last:border-r-0 border-slate-200">
+                      <div key={day} className="flex-1 py-2 text-center border-r last:border-r-0 border-white/20">
                         <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest">{day.slice(0, 3)}</span>
                       </div>
                     ))}
                   </div>
                   
                   {/* Scrollable Grid Body */}
-                  <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-slate-50/30">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-white/10">
                     {/* Time Labels (Y-Axis) */}
-                    <div className="w-12 sm:w-14 shrink-0 border-r border-slate-200 bg-slate-50/80 sticky left-0 z-10 float-left h-[1040px]">
+                    <div className="w-12 sm:w-14 shrink-0 border-r border-white/20 bg-white/60 sticky left-0 z-10 float-left h-[1040px]">
                       {CALENDAR_HOURS.map(hour => (
-                        <div key={hour} className="h-[80px] relative flex items-start justify-end pr-1 sm:pr-2 pt-1 border-b border-slate-200 box-border">
+                        <div key={hour} className="h-[80px] relative flex items-start justify-end pr-1 sm:pr-2 pt-1 border-b border-white/20 box-border">
                           <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 leading-none">
                             {hour > 12 ? `${hour - 12} PM` : hour === 12 ? '12 PM' : `${hour} AM`}
                           </span>
@@ -950,11 +953,11 @@ export function SchedulesView() {
                     {/* Grid Lines Background */}
                     <div 
                       className="absolute left-12 sm:left-14 right-0 top-0 h-[1040px] bg-[length:100%_80px]" 
-                      style={{ backgroundImage: 'linear-gradient(to bottom, transparent 79px, #e2e8f0 80px)' }}
+                      style={{ backgroundImage: 'linear-gradient(to bottom, transparent 79px, rgba(255,255,255,0.4) 80px)' }}
                     >
                       <div className="absolute inset-0 flex h-full">
                         {DAYS_OF_WEEK.map(day => (
-                          <div key={day} className="flex-1 relative border-r last:border-r-0 border-slate-200/50">
+                          <div key={day} className="flex-1 relative border-r last:border-r-0 border-white/10">
                             {secSchedules.filter(s => s.dayOfWeek === day).map(schedule => {
                               const subject = subjects.find(s => s.id === schedule.subjectId);
                               const teacher = users.find(u => u.id === schedule.teacherId);
@@ -967,27 +970,27 @@ export function SchedulesView() {
                               return (
                                 <div
                                   key={schedule.id}
-                                  className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md sm:rounded-lg border flex flex-col p-1 sm:p-1.5 overflow-hidden group transition-all cursor-default z-10 bg-white border-primary/20 shadow-sm hover:shadow-md hover:border-primary/50 hover:z-30`}
+                                  className="absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-xl border flex flex-col p-1 sm:p-1.5 overflow-hidden group transition-all cursor-default z-10 bg-white/50 backdrop-blur-sm border-white/30 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_20px_rgba(216,35,42,0.15)] hover:border-[#D8232A]/40 hover:z-30 hover:scale-[1.02]"
                                   style={{ top: `${top}px`, height: `${height}px` }}
                                 >
                                   <div className="flex items-start justify-between">
-                                    <span className={`text-[9px] font-bold text-primary bg-primary/5 rounded px-1 -ml-0.5 inline-block`}>
+                                    <span className="text-[9px] font-bold text-[#D8232A] bg-[#D8232A]/5 rounded px-1 -ml-0.5 inline-block">
                                       {schedule.startTime}
                                     </span>
                                   </div>
                                   <span 
                                     title={subject?.name || 'Unknown Subject'}
-                                    className={`text-[9px] sm:text-[10px] font-bold leading-tight mt-1 truncate text-slate-800`}
+                                    className="text-[9px] sm:text-[10px] font-bold leading-tight mt-1 truncate text-slate-800"
                                   >
                                     {subject?.name || 'Unknown Subject'}
                                   </span>
                                   <span 
                                     title={teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Unknown Teacher'}
-                                    className={`text-[8px] sm:text-[9px] font-semibold truncate mt-0.5 text-slate-500`}
+                                    className="text-[8px] sm:text-[9px] font-semibold truncate mt-0.5 text-slate-500"
                                   >
                                     {teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Unknown Teacher'}
                                   </span>
-                                  <span className={`text-[8px] sm:text-[9px] font-bold mt-auto pt-0.5 sm:pt-1 border-t border-slate-100 text-slate-400 text-right`}>
+                                  <span className="text-[8px] sm:text-[9px] font-bold mt-auto pt-0.5 sm:pt-1 border-t border-white/20 text-slate-400 text-right">
                                     {schedule.endTime}
                                   </span>
                                 </div>
@@ -1003,8 +1006,8 @@ export function SchedulesView() {
             })()}
           </div>
           
-          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white shrink-0">
-            <Button variant="outline" onClick={() => setIsSectionModalOpen(false)}>Close</Button>
+          <DialogFooter className="px-6 py-4 border-t border-white/20 bg-white/40 backdrop-blur-md shrink-0">
+            <Button variant="outline" className="rounded-full px-5 hover:bg-white/60" onClick={() => setIsSectionModalOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1019,15 +1022,15 @@ export function SchedulesView() {
           setSectionDropdownSearch('');
         }
       }}>
-        <DialogContent className="w-[95vw] sm:max-w-[1000px] h-[90vh] sm:h-[800px] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0 flex flex-row items-center justify-between">
+        <DialogContent className="w-[95vw] sm:max-w-[1000px] h-[90vh] sm:h-[800px] overflow-hidden flex flex-col p-0 border-0 ring-0 bg-white/60 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.18),inset_0_1px_3px_rgba(255,255,255,0.5)] rounded-[2.5rem]">
+          <DialogHeader className="px-6 py-4 border-b border-white/20 bg-white/40 backdrop-blur-md shrink-0 flex flex-row items-center justify-between">
             <div className="flex items-center gap-3 mt-1">
               <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border border-primary/20 shadow-inner">
                 {selectedTeacher?.firstName?.[0]}{selectedTeacher?.lastName?.[0]}
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold text-slate-900 leading-tight">
-                  Manage Teaching Load
+                  Manage Faculty Teachin Load
                 </DialogTitle>
                 <p className="text-sm text-slate-500 mt-0.5">
                   {selectedTeacher?.firstName} {selectedTeacher?.lastName} • {syName}
@@ -1035,15 +1038,14 @@ export function SchedulesView() {
               </div>
             </div>
           </DialogHeader>
-
-          <div className="flex-1 overflow-hidden relative bg-slate-50/50">
+          <div className="flex-1 overflow-hidden relative bg-white/20 backdrop-blur-sm">
             {/* Slide-Out Form Panel */}
-            <div className={`absolute top-0 right-0 h-full w-[400px] bg-white shadow-2xl border-l border-slate-200 transition-transform duration-300 z-50 flex flex-col ${isFormOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-              <div className="flex items-center justify-between p-4 border-b border-slate-100 shrink-0">
+            <div className={`absolute top-0 right-0 h-full w-[400px] bg-white/70 backdrop-blur-xl border-l border-white/20 shadow-2xl transition-transform duration-300 z-50 flex flex-col ${isFormOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+              <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  {editingScheduleId ? <><Edit2 className="w-4 h-4 text-primary" /> Edit Schedule</> : <><Plus className="w-4 h-4 text-primary" /> Add Schedule</>}
+                  {editingScheduleId ? <><Edit2 className="w-4 h-4 text-[#D8232A]" /> Edit Schedule</> : <><Plus className="w-4 h-4 text-[#D8232A]" /> Add Schedule</>}
                 </h3>
-                <Button variant="ghost" size="icon" onClick={resetForm} className="h-8 w-8 text-slate-400 hover:text-slate-600">
+                <Button variant="ghost" size="icon" onClick={resetForm} className="h-8 w-8 text-slate-400 hover:text-slate-600 rounded-full">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -1051,13 +1053,13 @@ export function SchedulesView() {
               <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
                 <form onSubmit={handleSaveSchedule} className="space-y-4">
                   {error && (
-                    <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm flex gap-2">
+                    <div className="p-3 rounded-2xl bg-rose-50/80 backdrop-blur-sm border border-rose-200/50 text-rose-700 text-sm flex gap-2">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <p>{error}</p>
                     </div>
                   )}
                   
-                  <div className={`p-4 rounded-xl border transition-all space-y-4 ${editingScheduleId ? 'bg-amber-50/50 border-amber-200' : 'bg-transparent border-transparent p-0'}`}>
+                  <div className={`p-4 rounded-[1.5rem] border transition-all space-y-4 ${editingScheduleId ? 'bg-amber-50/50 border-amber-200' : 'bg-transparent border-transparent p-0'}`}>
                     
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -1081,9 +1083,9 @@ export function SchedulesView() {
                                 daysOfWeek: isSelected
                                   ? prev.daysOfWeek.filter(d => d !== day)
                                   : [...prev.daysOfWeek, day]
-                              }));
+                                }));
                             }}
-                            className={`rounded-full px-4 h-7 text-xs font-bold transition-all ${isSelected ? 'shadow-sm' : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-50'}`}
+                            className={`rounded-full px-4 h-7 text-xs font-bold transition-all ${isSelected ? 'bg-[#D8232A] hover:bg-[#c21e25] text-white shadow-sm' : 'text-slate-600 bg-white/40 backdrop-blur-sm border-white/30 hover:bg-white/60'}`}
                           >
                             {day.slice(0, 3)}
                           </Button>
@@ -1097,11 +1099,11 @@ export function SchedulesView() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Start Time</Label>
-                          <Input type="time" required value={scheduleForm.startTime} onChange={e => setScheduleForm({...scheduleForm, startTime: e.target.value})} className="bg-white h-9 text-sm" />
+                          <Input type="time" required value={scheduleForm.startTime} onChange={e => setScheduleForm({...scheduleForm, startTime: e.target.value})} className="bg-white/45 backdrop-blur-sm h-10 rounded-full border border-white/30 hover:bg-white/60 focus:border-[#D8232A]/30 focus:ring-4 focus:ring-[#D8232A]/5 transition-all text-sm px-4" />
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">End Time</Label>
-                          <Input type="time" required value={scheduleForm.endTime} onChange={e => setScheduleForm({...scheduleForm, endTime: e.target.value})} className="bg-white h-9 text-sm" />
+                          <Input type="time" required value={scheduleForm.endTime} onChange={e => setScheduleForm({...scheduleForm, endTime: e.target.value})} className="bg-white/45 backdrop-blur-sm h-10 rounded-full border border-white/30 hover:bg-white/60 focus:border-[#D8232A]/30 focus:ring-4 focus:ring-[#D8232A]/5 transition-all text-sm px-4" />
                         </div>
                       </div>
                       {/* Snap-to Duration Buttons */}
@@ -1119,7 +1121,7 @@ export function SchedulesView() {
                             variant="outline"
                             size="sm"
                             disabled={!scheduleForm.startTime}
-                            className="h-6 px-2 text-[10px] font-bold rounded bg-slate-50 text-slate-600 hover:text-primary hover:bg-primary/10 hover:border-primary/30 transition-all disabled:opacity-50"
+                            className="h-7 px-3 text-[10px] font-bold rounded-full bg-white/40 backdrop-blur-sm border border-white/30 text-slate-600 hover:text-[#D8232A] hover:bg-[#D8232A]/10 hover:border-[#D8232A]/30 transition-all duration-200 disabled:opacity-50"
                             onClick={() => setScheduleForm(prev => ({
                               ...prev,
                               endTime: addMinutesToTime(prev.startTime, dur.mins)
@@ -1135,7 +1137,7 @@ export function SchedulesView() {
                       <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subject</Label>
                       <Select value={scheduleForm.subjectId} onValueChange={v => setScheduleForm({...scheduleForm, subjectId: v})}>
-                        <SelectTrigger className="bg-white h-9 text-sm w-full [&>span]:truncate [&>span]:text-left [&>span]:w-[calc(100%-20px)]">
+                        <SelectTrigger className="bg-white/40 backdrop-blur-sm h-10 border border-white/30 hover:bg-white/60 rounded-full text-sm w-full [&>span]:truncate [&>span]:text-left [&>span]:w-[calc(100%-20px)]">
                           <SelectValue placeholder="Select Subject">
                             {scheduleForm.subjectId ? subjects.find(s => s.id === scheduleForm.subjectId)?.name : null}
                           </SelectValue>
@@ -1164,7 +1166,7 @@ export function SchedulesView() {
                       <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Section / Class</Label>
                       <Select value={scheduleForm.sectionId} onValueChange={v => setScheduleForm({...scheduleForm, sectionId: v})}>
-                        <SelectTrigger className="bg-white h-9 text-sm w-full [&>span]:truncate [&>span]:text-left [&>span]:w-[calc(100%-20px)]">
+                        <SelectTrigger className="bg-white/40 backdrop-blur-sm h-10 border border-white/30 hover:bg-white/60 rounded-full text-sm w-full [&>span]:truncate [&>span]:text-left [&>span]:w-[calc(100%-20px)]">
                           <SelectValue placeholder="Select Section">
                             {scheduleForm.sectionId ? (
                               (() => {
@@ -1218,7 +1220,7 @@ export function SchedulesView() {
 
                             return sortedGrades.map(grade => (
                               <SelectGroup key={grade}>
-                                <SelectLabel className="font-bold text-primary border-b border-slate-100 py-1">{grade}</SelectLabel>
+                                <SelectLabel className="font-bold text-[#D8232A] border-b border-slate-100 py-1">{grade}</SelectLabel>
                                 {groupedSectionsForView[grade].map(s => {
                                   const c = classrooms.find(c => c.id === s.classroomId);
                                   return (
@@ -1232,12 +1234,12 @@ export function SchedulesView() {
                           })()}
                         </SelectContent>
                       </Select>
+                      </div>
                     </div>
                   </div>
-                  </div>
 
-                  <div className="flex justify-end pt-4 mt-6 border-t border-slate-100">
-                    <Button type="submit" className="w-full h-10">
+                  <div className="flex justify-end pt-4 mt-6 border-t border-white/10">
+                    <Button type="submit" className="w-full h-11 bg-[#D8232A] hover:bg-[#c21e25] text-white rounded-full font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
                       {editingScheduleId ? 'Update Schedule' : 'Save Schedule'}
                     </Button>
                   </div>
@@ -1248,10 +1250,10 @@ export function SchedulesView() {
             {/* Calendar Block View Section (Full Width Background) */}
             <div className="absolute inset-0 p-6 overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50/80 shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 bg-white/40 backdrop-blur-md shrink-0 rounded-t-[2.5rem]">
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-slate-800 text-sm">Weekly Schedule</h3>
-                <Badge variant="outline" className="bg-white text-primary border-primary/20 shadow-sm">
+                <Badge variant="outline" className="bg-white text-[#D8232A] border-[#D8232A]/20 shadow-sm">
                   {teacherSchedules.length} Classes
                 </Badge>
               </div>
@@ -1270,7 +1272,7 @@ export function SchedulesView() {
                           await updateSchedule(d.id, { status: 'published' });
                         }
                       }}
-                      className={`h-8 text-xs font-bold shadow-sm transition-all ${hasDrafts ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed border-none hover:bg-slate-200'}`}
+                      className={`h-8 text-xs font-bold rounded-full px-4 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] duration-200 ${hasDrafts ? 'bg-[#D8232A] hover:bg-[#c21e25] text-white' : 'bg-slate-200/40 text-slate-400 cursor-not-allowed border-none'}`}
                     >
                       Publish Schedules
                     </Button>
@@ -1280,7 +1282,7 @@ export function SchedulesView() {
                   variant="outline" 
                   size="sm" 
                   onClick={handleResetTeacherSchedules}
-                  className="h-8 text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50"
+                  className="h-8 text-xs font-semibold text-rose-600 border border-rose-200/50 hover:bg-rose-50/50 rounded-full px-4 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   Reset Schedules
@@ -1289,7 +1291,7 @@ export function SchedulesView() {
                   variant="ghost" 
                   size="sm" 
                   onClick={handleDownloadTeacherPDF}
-                  className="h-8 text-xs font-semibold text-primary hover:bg-primary/10"
+                  className="h-8 text-xs font-semibold text-[#D8232A] hover:bg-[#D8232A]/10 rounded-full px-4 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                 >
                   <Download className="w-3.5 h-3.5 mr-1.5" />
                   Export PDF
@@ -1298,7 +1300,7 @@ export function SchedulesView() {
                   size="sm" 
                   disabled={isFormOpen}
                   onClick={() => setIsFormOpen(true)} 
-                  className={`h-8 text-xs font-semibold gap-1.5 shrink-0 transition-all ${isFormOpen ? 'bg-slate-200 text-slate-400 cursor-not-allowed border-none hover:bg-slate-200' : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm'}`}
+                  className={`h-8 text-xs font-semibold gap-1.5 shrink-0 transition-all rounded-full px-4 hover:scale-[1.02] active:scale-[0.98] duration-200 ${isFormOpen ? 'bg-slate-200/40 text-slate-400 cursor-not-allowed border-none' : 'bg-[#D8232A] hover:bg-[#c21e25] text-white shadow-sm'}`}
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Schedule
                 </Button>
@@ -1308,21 +1310,21 @@ export function SchedulesView() {
             {/* Calendar Grid */}
             <div className="flex-1 flex flex-col overflow-hidden relative">
               {/* Day Headers (X-Axis) */}
-              <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-sm shrink-0">
-                <div className="w-12 sm:w-14 shrink-0 border-r border-slate-200" />
+              <div className="flex border-b border-white/20 bg-white/50 sticky top-0 z-20 shadow-sm shrink-0">
+                <div className="w-12 sm:w-14 shrink-0 border-r border-white/20" />
                 {DAYS_OF_WEEK.map(day => (
-                  <div key={day} className="flex-1 py-2 text-center border-r last:border-r-0 border-slate-200">
+                  <div key={day} className="flex-1 py-2 text-center border-r last:border-r-0 border-white/20">
                     <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest">{day.slice(0, 3)}</span>
                   </div>
                 ))}
               </div>
               
               {/* Scrollable Grid Body */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-slate-50/30">
+              <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-white/10">
                 {/* Time Labels (Y-Axis) */}
-                <div className="w-12 sm:w-14 shrink-0 border-r border-slate-200 bg-slate-50/80 sticky left-0 z-10 float-left h-[1040px]">
+                <div className="w-12 sm:w-14 shrink-0 border-r border-white/20 bg-white/60 sticky left-0 z-10 float-left h-[1040px]">
                   {CALENDAR_HOURS.map(hour => (
-                    <div key={hour} className="h-[80px] relative flex items-start justify-end pr-1 sm:pr-2 pt-1 border-b border-slate-200 box-border">
+                    <div key={hour} className="h-[80px] relative flex items-start justify-end pr-1 sm:pr-2 pt-1 border-b border-white/20 box-border">
                       <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 leading-none">
                         {hour > 12 ? `${hour - 12} PM` : hour === 12 ? '12 PM' : `${hour} AM`}
                       </span>
@@ -1333,11 +1335,11 @@ export function SchedulesView() {
                 {/* Grid Lines Background */}
                 <div 
                   className="absolute left-12 sm:left-14 right-0 top-0 h-[1040px] bg-[length:100%_80px]" 
-                  style={{ backgroundImage: 'linear-gradient(to bottom, transparent 79px, #e2e8f0 80px)' }}
+                  style={{ backgroundImage: 'linear-gradient(to bottom, transparent 79px, rgba(255,255,255,0.4) 80px)' }}
                 >
                   <div className="absolute inset-0 flex h-full">
                     {DAYS_OF_WEEK.map(day => (
-                      <div key={day} className="flex-1 relative border-r last:border-r-0 border-slate-200/50">
+                      <div key={day} className="flex-1 relative border-r last:border-r-0 border-white/10">
                         {/* Ghost Block (Real-time Conflict Detection) */}
                         {(() => {
                           if (editingScheduleId) return null; // Don't show ghost block while editing
@@ -1357,11 +1359,11 @@ export function SchedulesView() {
                           
                           return (
                             <div 
-                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md sm:rounded-lg border-2 border-dashed flex flex-col p-1 sm:p-1.5 overflow-hidden z-20 pointer-events-none transition-all ${hasOverlap ? 'bg-rose-100/80 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'bg-primary/10 border-primary/50'}`}
+                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-xl border-2 border-dashed flex flex-col p-1 sm:p-1.5 overflow-hidden z-20 pointer-events-none transition-all duration-300 ${hasOverlap ? 'bg-rose-100/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'bg-[#D8232A]/10 border-[#D8232A]/50'}`}
                               style={{ top: `${top}px`, height: `${height}px` }}
                             >
                               <div className="flex items-center justify-between">
-                                <span className={`text-[9px] font-bold ${hasOverlap ? 'text-rose-700' : 'text-primary'}`}>
+                                <span className={`text-[9px] font-bold ${hasOverlap ? 'text-rose-700' : 'text-[#D8232A]'}`}>
                                   {scheduleForm.startTime}
                                 </span>
                                 {hasOverlap && <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-rose-600 shrink-0 bg-white/50 rounded-full" />}
@@ -1395,18 +1397,18 @@ export function SchedulesView() {
                           return (
                             <div
                               key={schedule.id}
-                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md sm:rounded-lg border flex flex-col p-1 sm:p-1.5 overflow-hidden group transition-all cursor-default z-10 ${isEditing ? 'bg-amber-100 border-amber-400 shadow-md ring-2 ring-amber-400/50 scale-[1.02]' : 'bg-white border-primary/20 shadow-sm hover:shadow-md hover:border-primary/50 hover:z-30'}`}
+                              className={`absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-xl border flex flex-col p-1 sm:p-1.5 overflow-hidden group transition-all duration-300 cursor-default z-10 ${isEditing ? 'bg-amber-100/90 border-amber-400/60 shadow-md ring-2 ring-amber-400/50 scale-[1.02] backdrop-blur-sm' : 'bg-white/55 backdrop-blur-md border border-white/40 shadow-sm hover:shadow-[0_10px_20px_rgba(216,35,42,0.18)] hover:border-[#D8232A]/40 hover:z-30 hover:scale-[1.03] active:scale-[0.98]'}`}
                               style={{ top: `${top}px`, height: `${height}px` }}
                             >
                               <div className="flex items-start justify-between">
-                                <span className={`text-[9px] font-bold ${isEditing ? 'text-amber-800' : 'text-primary'} bg-white/50 rounded px-1 -ml-0.5 inline-block`}>
+                                <span className={`text-[9px] font-bold ${isEditing ? 'text-amber-800' : 'text-[#D8232A]'} bg-white/50 rounded px-1 -ml-0.5 inline-block`}>
                                   {schedule.startTime}
                                 </span>
-                                <div className="flex flex-col gap-0.5 sm:gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm rounded-md shadow-sm border border-slate-200 p-0.5 absolute top-1 right-1 z-50">
-                                  <button onClick={(e) => { e.stopPropagation(); handleEditClick(schedule); }} className={`p-1 rounded ${isEditing ? 'text-amber-600 hover:bg-amber-100' : 'text-slate-400 hover:text-primary hover:bg-primary/10'}`}>
+                                <div className="flex flex-col gap-0.5 sm:gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/70 backdrop-blur-md rounded-full shadow-md border border-white/30 p-1 absolute top-1 right-1 z-50">
+                                  <button onClick={(e) => { e.stopPropagation(); handleEditClick(schedule); }} className={`p-1 rounded-full text-slate-400 hover:text-[#D8232A] hover:bg-[#D8232A]/10 transition-all ${isEditing ? 'text-amber-600 hover:bg-amber-100' : 'hover:text-primary hover:bg-primary/10'}`}>
                                     <Edit2 className="w-3 h-3" />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(schedule.id); }} className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(schedule.id); }} className="p-1 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50/50 transition-all">
                                     <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
@@ -1423,7 +1425,7 @@ export function SchedulesView() {
                               >
                                 {section ? `${formatGradeLevel(section.gradeLevel)} - ${section.name}` : ''}
                               </span>
-                              <span className={`text-[8px] sm:text-[9px] font-bold mt-auto pt-0.5 sm:pt-1 border-t ${isEditing ? 'border-amber-200/50 text-amber-800/80' : 'border-slate-100 text-slate-400'} text-right`}>
+                              <span className={`text-[8px] sm:text-[9px] font-bold mt-auto pt-0.5 sm:pt-1 border-t ${isEditing ? 'border-amber-200/50 text-amber-800/80' : 'border-white/20 text-slate-400'} text-right`}>
                                 {schedule.endTime}
                               </span>
                             </div>
@@ -1441,7 +1443,7 @@ export function SchedulesView() {
     </Dialog>
       {/* Auto-Generate Confirmation Modal */}
       <Dialog open={confirmGenerate} onOpenChange={setConfirmGenerate}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="sm:max-w-md border-0 ring-0 bg-white/60 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.18),inset_0_1px_3px_rgba(255,255,255,0.5)] rounded-[2.5rem] p-6">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Auto-Generate Schedules</DialogTitle>
           </DialogHeader>
@@ -1451,15 +1453,15 @@ export function SchedulesView() {
             </p>
           </div>
           <DialogFooter className="flex space-x-2 justify-end mt-4">
-            <Button variant="outline" onClick={() => setConfirmGenerate(false)}>Cancel</Button>
-            <Button onClick={executeAutoGenerate}>Confirm</Button>
+            <Button variant="outline" className="rounded-full px-5 hover:bg-white/60" onClick={() => setConfirmGenerate(false)}>Cancel</Button>
+            <Button className="rounded-full px-5 bg-[#D8232A] hover:bg-[#c21e25] text-white shadow-md" onClick={executeAutoGenerate}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Modal */}
       <Dialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="sm:max-w-md border-0 ring-0 bg-white/60 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.18),inset_0_1px_3px_rgba(255,255,255,0.5)] rounded-[2.5rem] p-6">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-rose-600 flex items-center gap-2">
               <AlertCircle className="w-5 h-5" />
@@ -1472,8 +1474,8 @@ export function SchedulesView() {
             </p>
           </div>
           <DialogFooter className="flex space-x-2 justify-end mt-4">
-            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
-            <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => confirmDeleteId && executeDelete(confirmDeleteId)}>
+            <Button variant="outline" className="rounded-full px-5 hover:bg-white/60" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+            <Button className="rounded-full px-5 bg-rose-600 hover:bg-rose-700 text-white shadow-md" onClick={() => confirmDeleteId && executeDelete(confirmDeleteId)}>
               Delete
             </Button>
           </DialogFooter>
@@ -1487,7 +1489,7 @@ export function SchedulesView() {
           setResetConfirmationText('');
         }
       }}>
-        <DialogContent className="sm:max-w-md rounded-2xl border-rose-200">
+        <DialogContent className="sm:max-w-md border-0 ring-0 bg-white/60 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.18),inset_0_1px_3px_rgba(255,255,255,0.5)] rounded-[2.5rem] p-6 border-rose-200">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-rose-600 flex items-center gap-2">
               <AlertCircle className="w-5 h-5" />
@@ -1511,9 +1513,9 @@ export function SchedulesView() {
             </div>
           </div>
           <DialogFooter className="flex space-x-2 justify-end mt-2">
-            <Button variant="outline" onClick={() => { setStrictResetModal(null); setResetConfirmationText(''); }}>Cancel</Button>
+            <Button variant="outline" className="rounded-full px-5 hover:bg-white/60" onClick={() => { setStrictResetModal(null); setResetConfirmationText(''); }}>Cancel</Button>
             <Button 
-              className="bg-rose-600 hover:bg-rose-700 text-white" 
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-full px-5 shadow-md" 
               disabled={resetConfirmationText !== 'RESET'}
               onClick={async () => {
                 if (strictResetModal?.action && resetConfirmationText === 'RESET') {
