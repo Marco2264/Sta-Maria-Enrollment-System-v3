@@ -69,7 +69,7 @@ export function MyChildrenView({
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-[#2563eb]/30 border-t-[#2563eb] rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-[#D8232A]/30 border-t-[#D8232A] rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -137,7 +137,7 @@ export function MyChildrenView({
     <div className="flex flex-col h-full bg-[#F4F7F9] font-sans">
       <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]">
+          <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]">
             <GraduationCap className="w-5 h-5" />
           </div>
           <div>
@@ -157,7 +157,7 @@ export function MyChildrenView({
               className="pl-9 pr-4 py-1.5 bg-slate-50 border-slate-200/80 rounded-full text-xs font-medium focus:bg-white transition-all w-full"
             />
           </div>
-          <span className="px-3.5 py-1.5 bg-blue-50 text-[#2563eb] border border-blue-100 rounded-full text-xs font-bold whitespace-nowrap shadow-2xs">
+          <span className="px-3.5 py-1.5 bg-red-50 text-[#D8232A] border border-red-100 rounded-full text-xs font-bold whitespace-nowrap shadow-2xs">
             {children.length} Enrolled
           </span>
         </div>
@@ -221,7 +221,7 @@ export function MyChildrenView({
                           {/* Student Name & Avatar */}
                           <td className="py-5 px-6">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-blue-100/70 text-[#2563eb] font-bold text-xs flex items-center justify-center shrink-0 uppercase">
+                              <div className="w-10 h-10 rounded-full bg-red-100/70 text-[#D8232A] font-bold text-xs flex items-center justify-center shrink-0 uppercase">
                                 {child.photoURL ? (
                                   <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover rounded-full" />
                                 ) : (
@@ -264,7 +264,7 @@ export function MyChildrenView({
                             <div className="flex items-center justify-end gap-3">
                               <Button 
                                 onClick={() => onSelectChild(child.id)}
-                                className="h-9 px-4 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-blue-200 cursor-pointer"
+                                className="h-9 px-4 bg-[#D8232A] hover:bg-red-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-red-200 cursor-pointer"
                               >
                                 View Profile <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                               </Button>

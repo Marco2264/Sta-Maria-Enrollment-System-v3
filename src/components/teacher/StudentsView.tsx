@@ -13,7 +13,8 @@ import {
   TableRow
 } from '../ui/Table';
 import { TeacherEditStudentModal } from './TeacherEditStudentModal';
-import { Eye, Users, Activity, Scale, Ruler, Trash2, FileEdit, Search, Filter, CalendarDays } from 'lucide-react';
+import { TeacherStudentDetailView } from '../../modules/teacher/TeacherStudentDetailView';
+import { Eye, Users, Activity, Scale, Ruler, Trash2, FileEdit, Search, Filter, CalendarDays, AlertTriangle } from 'lucide-react';
 import { useTeacherData } from '../../lib/teacherData';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -26,6 +27,10 @@ export function StudentsView() {
   const [editBmi, setEditBmi] = useState({ height: '', weight: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [genderFilter, setGenderFilter] = useState('All');
+  
+  // Custom confirm modal state
+  const [studentToRemove, setStudentToRemove] = useState<{ id: string, name: string } | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const getStudentPhoto = (s: any): string | null => {
     if (!s) return null;
@@ -50,14 +55,6 @@ export function StudentsView() {
     }
     return null;
   };
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-[#D8232A]/20 border-t-[#D8232A] rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   const formatStudentName = (firstName: string | undefined, lastName: string | undefined) => {
     const first = (firstName || '').trim();
@@ -109,18 +106,25 @@ export function StudentsView() {
     }
   };
 
-  const handleRemoveStudent = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to remove ${name} from this class? Their status will be set to Pending.`)) {
-      try {
-        await updateDoc(doc(db, 'enrollments', id), {
-          sectionId: null,
-          section: null,
-          status: 'Pending'
-        });
-      } catch (error) {
-        console.error("Error removing student:", error);
-        alert("Failed to remove student.");
-      }
+  const handleRemoveStudentClick = (id: string, name: string) => {
+    setStudentToRemove({ id, name });
+  };
+
+  const confirmRemoveStudent = async () => {
+    if (!studentToRemove) return;
+    try {
+      setIsRemoving(true);
+      await updateDoc(doc(db, 'enrollments', studentToRemove.id), {
+        sectionId: null,
+        section: null,
+        status: 'Pending'
+      });
+      setStudentToRemove(null);
+    } catch (error) {
+      console.error("Error removing student:", error);
+      alert("Failed to remove student.");
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -131,6 +135,23 @@ export function StudentsView() {
     if (hm > 0 && wk > 0) return (wk / (hm * hm)).toFixed(1);
     return '--';
   };
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-4 border-[#D8232A]/20 border-t-[#D8232A] rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (selectedStudent) {
+    return (
+      <TeacherStudentDetailView 
+        studentId={selectedStudent} 
+        onBack={() => setSelectedStudent(null)} 
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 relative overflow-hidden">
@@ -329,14 +350,14 @@ export function StudentsView() {
                           className="h-9 px-3.5 text-[#D8232A] hover:bg-[#D8232A]/10 hover:text-[#D8232A] transition-colors rounded-xl font-bold text-xs inline-flex items-center gap-1.5 active:scale-95 duration-100"
                           onClick={() => openProfile(s.id)}
                         >
-                          <FileEdit className="w-3.5 h-3.5" />
-                          Edit Profile
+                          <Eye className="w-3.5 h-3.5" />
+                          View Profile
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-9 w-9 text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors rounded-xl active:scale-95 duration-100 inline-flex items-center justify-center"
-                          onClick={() => handleRemoveStudent(s.id, formatStudentName(s.firstName, s.lastName))}
+                          onClick={() => handleRemoveStudentClick(s.id, formatStudentName(s.firstName, s.lastName))}
                           title="Remove Student from Class"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -357,6 +378,50 @@ export function StudentsView() {
         isOpen={!!selectedStudent}
         onClose={() => setSelectedStudent(null)}
       />
+
+      {/* Custom modern confirm modal */}
+      {studentToRemove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => !isRemoving && setStudentToRemove(null)}
+          />
+          
+          {/* Modal Body */}
+          <div className="relative bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all scale-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-[#D8232A] shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5 flex-1">
+                <h3 className="text-base font-bold text-slate-950">Remove Student</h3>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  Are you sure you want to remove <span className="font-semibold text-slate-800">{studentToRemove.name}</span> from this class? Their status will be set back to <span className="font-semibold text-slate-800">Pending</span>.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <Button
+                variant="ghost"
+                onClick={() => setStudentToRemove(null)}
+                disabled={isRemoving}
+                className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 rounded-xl border border-slate-200/80 transition-colors"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmRemoveStudent}
+                disabled={isRemoving}
+                className="px-4 py-2 text-xs font-bold text-white bg-[#D8232A] hover:bg-[#b01c22] rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 duration-100 flex items-center gap-1.5"
+              >
+                {isRemoving ? 'Removing...' : 'Confirm Remove'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

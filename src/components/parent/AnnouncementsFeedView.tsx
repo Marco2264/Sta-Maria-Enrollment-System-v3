@@ -79,8 +79,8 @@ export function AnnouncementsFeedView() {
       <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex items-center shrink-0">
         <div className="max-w-4xl mx-auto w-full space-y-2">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Bell className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-red-100 rounded-lg">
+              <Bell className="w-5 h-5 text-red-600" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Announcements</h1>
           </div>
@@ -106,7 +106,7 @@ export function AnnouncementsFeedView() {
                 <Card
                   key={announcement.id}
                   className={`p-4 cursor-pointer transition-all hover:shadow-md ${
-                    !isRead ? 'border-blue-300 bg-blue-50' : ''
+                    !isRead ? 'border-red-300 bg-red-50' : ''
                   }`}
                   onClick={() => handleAnnouncementClick(announcement.id)}
                 >
@@ -126,7 +126,7 @@ export function AnnouncementsFeedView() {
                           {announcement.category}
                         </Badge>
                         {!isRead && (
-                          <Badge className="bg-blue-600 text-white shrink-0">New</Badge>
+                          <Badge className="bg-red-600 text-white shrink-0">New</Badge>
                         )}
                       </div>
 

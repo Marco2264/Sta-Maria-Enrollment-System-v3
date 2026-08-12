@@ -35,8 +35,8 @@ const coreValuesList = [
   {
     category: '4. Makabansa',
     icon: Flag,
-    colorClass: 'text-blue-500 bg-blue-50 border-blue-200/50',
-    headerBg: 'bg-blue-50/50 border-blue-100',
+    colorClass: 'text-red-500 bg-red-50 border-red-200/50',
+    headerBg: 'bg-red-50/50 border-red-100',
     items: [
       { key: 'makabansa1', statement: 'Demonstrates pride in being a Filipino; exercises rights and duties.' },
       { key: 'makabansa2', statement: 'Demonstrates appropriate behavior in carrying out school/community duties.' }
@@ -53,7 +53,7 @@ const markingDescriptions: Record<string, string> = {
 
 const getMarkingBadge = (mark?: string) => {
   if (mark === 'AO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">AO</span>;
-  if (mark === 'SO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">SO</span>;
+  if (mark === 'SO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">SO</span>;
   if (mark === 'RO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">RO</span>;
   if (mark === 'NO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">NO</span>;
   return <span className="text-slate-300 font-medium text-xs">--</span>;
@@ -91,7 +91,7 @@ export function ObservedValuesCard({ observedValues, gradeLevel }: ObservedValue
       <Card className="p-6 sm:p-8 bg-white border border-slate-100 shadow-sm rounded-3xl space-y-6">
         <div className="pb-3 border-b border-slate-100">
           <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-            <Award className="w-5 h-5 text-[#2563eb]" />
+            <Award className="w-5 h-5 text-[#D8232A]" />
             Learner's Observed Values
           </h3>
           <p className="text-xs text-slate-500 font-medium mt-1">Core values and character evaluation</p>
@@ -114,7 +114,7 @@ export function ObservedValuesCard({ observedValues, gradeLevel }: ObservedValue
       <div className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-            <Award className="w-5 h-5 text-[#2563eb]" />
+            <Award className="w-5 h-5 text-[#D8232A]" />
             Learner's Observed Values
           </h3>
           <p className="text-xs text-slate-500 font-medium mt-1">Core values and character evaluation</p>

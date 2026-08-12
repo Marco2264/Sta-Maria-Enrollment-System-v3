@@ -703,8 +703,8 @@ export function ParentSettingsView() {
         {/* Header with Section Edit Button */}
         <div className="p-4 sm:p-6 md:p-8 border-b border-slate-100 flex items-center justify-between gap-3 sm:gap-4 bg-slate-50/50">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-              <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-red-100 rounded-xl flex items-center justify-center text-red-600 shrink-0">
+              <User className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
             </div>
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">Personal Information</h2>
@@ -717,7 +717,7 @@ export function ParentSettingsView() {
               <button
                 type="button"
                 onClick={() => setEditPersonal(true)}
-                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#B91C1C] hover:bg-red-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 Edit
@@ -740,7 +740,7 @@ export function ParentSettingsView() {
                   type="button"
                   onClick={handleSavePersonal}
                   disabled={savingSection === 'personal'}
-                  className="px-3.5 py-1.5 sm:px-4 sm:py-1.5 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 sm:px-4 sm:py-1.5 bg-[#B91C1C] hover:bg-red-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
                 >
                   {savingSection === 'personal' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   Save
@@ -895,7 +895,7 @@ export function ParentSettingsView() {
               <button
                 type="button"
                 onClick={() => setEditContact(true)}
-                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#B91C1C] hover:bg-red-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 Edit
@@ -915,7 +915,7 @@ export function ParentSettingsView() {
                   type="button"
                   onClick={handleSaveContact}
                   disabled={savingSection === 'contact'}
-                  className="px-3.5 py-1.5 sm:px-4 sm:py-1.5 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 sm:px-4 sm:py-1.5 bg-[#B91C1C] hover:bg-red-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
                 >
                   {savingSection === 'contact' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   Save
@@ -980,7 +980,7 @@ export function ParentSettingsView() {
                   onClick={() => setActiveAddressIdx(idx)}
                   className={`px-3 sm:px-4 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                     activeAddressIdx === idx
-                      ? 'bg-[#0C3B99] text-white shadow-xs'
+                      ? 'bg-[#B91C1C] text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
@@ -1005,7 +1005,7 @@ export function ParentSettingsView() {
               <button
                 type="button"
                 onClick={() => setEditAddress(true)}
-                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0"
+                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#B91C1C] hover:bg-red-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 Edit
@@ -1025,7 +1025,7 @@ export function ParentSettingsView() {
                   type="button"
                   onClick={handleSaveAddress}
                   disabled={savingSection === 'address'}
-                  className="px-3.5 py-1.5 sm:px-4 sm:py-1.5 bg-[#0C3B99] hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 sm:px-4 sm:py-1.5 bg-[#B91C1C] hover:bg-red-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
                 >
                   {savingSection === 'address' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   Save
@@ -1325,7 +1325,7 @@ export function ParentSettingsView() {
             <button
               type="submit"
               disabled={!isPasswordFormValid || isUpdatingPassword}
-              className="px-5 py-2.5 bg-[#0C3B99] hover:bg-blue-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed shrink-0"
+              className="px-5 py-2.5 bg-[#B91C1C] hover:bg-red-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed shrink-0"
             >
               {isUpdatingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
               <span>Update Password</span>

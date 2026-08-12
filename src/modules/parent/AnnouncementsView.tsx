@@ -197,7 +197,7 @@ export function AnnouncementsView() {
       {/* ── TOP HEADER WITH TITLE, SEARCH & BELL ── */}
       <header className="bg-white px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
+          <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0 border border-red-100">
             <Megaphone className="w-5 h-5" />
           </div>
           <div className="text-left">
@@ -230,7 +230,7 @@ export function AnnouncementsView() {
           <button className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative cursor-pointer shrink-0">
             <Bell className="w-4 h-4" />
             {badgeCounts.school + badgeCounts.subject + badgeCounts.adviser > 0 && (
-              <span className="w-2 h-2 rounded-full bg-[#2563eb] absolute top-2 right-2 ring-2 ring-white" />
+              <span className="w-2 h-2 rounded-full bg-[#D8232A] absolute top-2 right-2 ring-2 ring-white" />
             )}
           </button>
         </div>
@@ -245,7 +245,7 @@ export function AnnouncementsView() {
               onClick={() => setActiveTab('school')}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'school'
-                  ? 'bg-[#2563eb] text-white shadow-xs'
+                  ? 'bg-[#D8232A] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
@@ -255,7 +255,7 @@ export function AnnouncementsView() {
               onClick={() => setActiveTab('subject')}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'subject'
-                  ? 'bg-[#2563eb] text-white shadow-xs'
+                  ? 'bg-[#D8232A] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
@@ -265,7 +265,7 @@ export function AnnouncementsView() {
               onClick={() => setActiveTab('adviser')}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'adviser'
-                  ? 'bg-[#2563eb] text-white shadow-xs'
+                  ? 'bg-[#D8232A] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
@@ -318,8 +318,8 @@ export function AnnouncementsView() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredAnnouncements.map(item => {
               const isEmergency = item.category === 'Emergency' || item.category === 'Class Suspension';
-              const iconBg = isEmergency ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-[#2563eb]';
-              const categoryTextColor = isEmergency ? 'text-rose-600' : 'text-[#2563eb]';
+              const iconBg = isEmergency ? 'bg-rose-50 text-rose-600' : 'bg-red-50 text-[#D8232A]';
+              const categoryTextColor = isEmergency ? 'text-rose-600' : 'text-[#D8232A]';
 
               return (
                 <div
@@ -356,7 +356,7 @@ export function AnnouncementsView() {
                     <div>
                       <h3
                         onClick={() => handleOpenAnnouncement(item)}
-                        className="text-base font-bold text-slate-900 leading-snug hover:text-[#2563eb] transition-colors cursor-pointer"
+                        className="text-base font-bold text-slate-900 leading-snug hover:text-[#D8232A] transition-colors cursor-pointer"
                       >
                         {item.title}
                       </h3>
@@ -377,7 +377,7 @@ export function AnnouncementsView() {
                     {item.attachmentName ? (
                       <div
                         onClick={() => handleDownloadAttachment(item.attachmentName!)}
-                        className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#2563eb] transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#D8232A] transition-colors cursor-pointer"
                       >
                         <Paperclip className="w-3.5 h-3.5 text-slate-400" />
                         <span className="truncate max-w-[160px]">{item.attachmentName}</span>
@@ -386,7 +386,7 @@ export function AnnouncementsView() {
 
                     <button
                       onClick={() => handleOpenAnnouncement(item)}
-                      className="text-[#2563eb] font-bold hover:underline flex items-center gap-1 cursor-pointer ml-auto"
+                      className="text-[#D8232A] font-bold hover:underline flex items-center gap-1 cursor-pointer ml-auto"
                     >
                       Read Message <ArrowRight className="w-3.5 h-3.5" />
                     </button>
@@ -413,7 +413,7 @@ export function AnnouncementsView() {
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-red-50 text-[#D8232A] border border-red-100">
                       {selectedAnnouncement.category}
                     </span>
                     <span className="text-[11px] font-semibold text-slate-400">
@@ -447,9 +447,9 @@ export function AnnouncementsView() {
 
               {/* Attachment Download Box */}
               {selectedAnnouncement.attachmentName && (
-                <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-2xl flex items-center justify-between gap-3">
+                <div className="p-4 bg-red-50/60 border border-red-100 rounded-2xl flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-white border border-blue-200 rounded-xl flex items-center justify-center text-[#2563eb] shadow-2xs shrink-0">
+                    <div className="w-9 h-9 bg-white border border-red-200 rounded-xl flex items-center justify-center text-[#D8232A] shadow-2xs shrink-0">
                       <FileText className="w-4.5 h-4.5" />
                     </div>
                     <div className="min-w-0">
@@ -463,7 +463,7 @@ export function AnnouncementsView() {
                   <button
                     type="button"
                     onClick={() => handleDownloadAttachment(selectedAnnouncement.attachmentName!)}
-                    className="px-3.5 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
+                    className="px-3.5 py-2 bg-[#D8232A] hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" /> Download
                   </button>

@@ -417,7 +417,7 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
       sizeBytes: params.file.size
     });
 
-    await setDoc(doc(db, 'enrollments', params.enrollmentId), {
+    await updateDoc(doc(db, 'enrollments', params.enrollmentId), {
       schemaVersion: PHASE2_SCHEMA_VERSION,
       parentId: user.uid,
       [`requirementUploads.${requirementKey}`]: {
@@ -428,7 +428,7 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
         status: DOCUMENT_STATUS.PENDING,
         uploadedAt: serverTimestamp()
       }
-    }, { merge: true });
+    });
 
     try {
       await logActivity({

@@ -88,7 +88,7 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
       {/* Header matching screenshot */}
       <div className="mb-6 flex flex-col gap-1">
         <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <CalendarCheck className="w-5 h-5 text-blue-600" />
+          <CalendarCheck className="w-5 h-5 text-red-600" />
           Attendance History
         </h3>
         <p className="text-sm text-slate-500">Double session tracking records</p>
@@ -131,9 +131,9 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
             const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
             
             return (
-              <div key={day} className={`bg-white min-h-[110px] p-2 flex flex-col relative transition-colors ${isToday ? 'ring-1 ring-inset ring-blue-500/50 bg-blue-50/10' : ''} hover:bg-slate-50/50`}>
+              <div key={day} className={`bg-white min-h-[110px] p-2 flex flex-col relative transition-colors ${isToday ? 'ring-1 ring-inset ring-red-500/50 bg-red-50/10' : ''} hover:bg-slate-50/50`}>
                 <div className="flex justify-end mb-2">
-                  <span className={`text-sm font-semibold ${isToday ? 'text-blue-600' : 'text-slate-700'}`}>
+                  <span className={`text-sm font-semibold ${isToday ? 'text-red-600' : 'text-slate-700'}`}>
                     {day}
                   </span>
                 </div>

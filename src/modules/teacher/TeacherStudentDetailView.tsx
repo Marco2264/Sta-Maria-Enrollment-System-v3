@@ -38,6 +38,7 @@ import {
   ImageIcon,
   Upload,
   X,
+  Check,
   Camera,
   Search,
   Bell,
@@ -62,12 +63,48 @@ export function TeacherStudentDetailView({
   onBack: () => void;
 }) {
   const { user } = useAuth();
-  const { students } = useTeacherData();
+  const { students, updateStudentStatus } = useTeacherData();
   const child = students.find((s) => s.id === studentId)!;
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<any>(null);
+  
+  // State for tracking which document is currently updating status
+  const [updatingDocKey, setUpdatingDocKey] = useState<string | null>(null);
+  
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+
+  const handleApprove = async () => {
+    if (!child) return;
+    setIsApproving(true);
+    try {
+      await updateStudentStatus(child.id, 'Enrolled');
+      onBack();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to approve enrollment.');
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!child) return;
+    if (window.confirm(`Are you sure you want to reject ${child.firstName}'s enrollment?`)) {
+      setIsRejecting(true);
+      try {
+        await updateStudentStatus(child.id, 'Rejected');
+        onBack();
+      } catch (e) {
+        console.error(e);
+        alert('Failed to reject enrollment.');
+      } finally {
+        setIsRejecting(false);
+      }
+    }
+  };
 
   if (!child) return null;
 
@@ -88,6 +125,33 @@ export function TeacherStudentDetailView({
       alert('Failed to update student details. Please try again.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUpdateDocumentStatus = async (documentKey: string, newStatus: 'APPROVED' | 'REJECTED') => {
+    setUpdatingDocKey(documentKey);
+    try {
+      await updateDoc(doc(db, 'enrollments', child.id), {
+        [`requirementUploads.${documentKey}.status`]: newStatus
+      });
+      try {
+        await logActivity({
+          parentId: child.parentId || '',
+          title: `Document ${newStatus === 'APPROVED' ? 'Verified' : 'Rejected'}`,
+          subtitle: `Teacher ${newStatus === 'APPROVED' ? 'verified' : 'rejected'} document "${documentKey.replace(/_/g, ' ')}" for ${child.firstName} ${child.lastName}.`,
+          type: 'document',
+          badgeText: newStatus === 'APPROVED' ? 'VERIFIED' : 'REJECTED',
+          badgeColor: newStatus === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200',
+          dotColor: newStatus === 'APPROVED' ? 'bg-emerald-500' : 'bg-rose-500'
+        });
+      } catch (err) {
+        console.warn('Could not log document activity:', err);
+      }
+    } catch (error) {
+      console.error('Failed to update document status:', error);
+      alert('Failed to update document status.');
+    } finally {
+      setUpdatingDocKey(null);
     }
   };
 
@@ -238,27 +302,42 @@ export function TeacherStudentDetailView({
           <span className="text-slate-400">/</span>
           <span className="font-extrabold text-slate-900 uppercase tracking-tight">{child?.firstName} {child?.lastName}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 rounded-lg px-4 gap-2 font-bold shadow-xs">
-            <XCircle className="w-4 h-4" /> Reject
-          </Button>
-          <Button className="bg-[#001D3D] hover:bg-[#001529] text-white rounded-lg px-4 gap-2 font-bold border-none shadow-sm transition-all hover:scale-105">
-            <CheckCircle2 className="w-4 h-4" /> Approve Enrollment
-          </Button>
-        </div>
+        {childStatus !== 'Enrolled' && childStatus !== 'enrolled' && (
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={handleReject}
+              disabled={isRejecting || isApproving}
+              className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 rounded-lg px-4 gap-2 font-bold shadow-xs cursor-pointer"
+            >
+              {isRejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+              Reject
+            </Button>
+            <Button 
+              onClick={handleApprove}
+              disabled={isRejecting || isApproving}
+              className="bg-[#001D3D] hover:bg-[#001529] text-white rounded-lg px-4 gap-2 font-bold border-none shadow-sm transition-all hover:scale-105 cursor-pointer"
+            >
+              {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Approve Enrollment
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* CONTENT */}
       <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 bg-[#F4F7F9]">
         
         {/* ALERT */}
-        <div className="bg-[#FFF9E6] border border-[#FFE082] p-5 rounded-2xl flex items-start gap-4 shadow-sm">
-          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold text-amber-900">Enrollment is pending review</h4>
-            <p className="text-sm text-amber-700/80 mt-1 font-medium">This student's enrollment is currently pending your review. Please verify the submitted documents below.</p>
+        {childStatus !== 'Enrolled' && childStatus !== 'enrolled' && (
+          <div className="bg-[#FFF9E6] border border-[#FFE082] p-5 rounded-2xl flex items-start gap-4 shadow-sm">
+            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-amber-900">Enrollment is pending review</h4>
+              <p className="text-sm text-amber-700/80 mt-1 font-medium">This student's enrollment is currently pending your review. Please verify the submitted documents below.</p>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* LEFT COL */}
@@ -478,23 +557,92 @@ export function TeacherStudentDetailView({
                       <p className="text-sm font-semibold text-slate-500">No documents have been uploaded yet.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {Object.entries(child.requirementUploads).map(([key, docInfo]: [string, any]) => (
-                        <div key={key} className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
-                          <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-sm">
-                            <FileText className="w-5 h-5 text-slate-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-bold text-slate-900 truncate capitalize">{key.replace(/_/g, ' ')}</h4>
-                            <p className="text-xs text-slate-500 font-medium truncate">{docInfo.fileName || 'Document'}</p>
-                          </div>
-                          {docInfo.fileUrl && (
-                            <a href={docInfo.fileUrl} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View Document">
-                              <Search className="w-4 h-4" />
-                            </a>
-                          )}
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <table className="w-full text-left border-collapse min-w-[700px]">
+                        <thead>
+                          <tr className="bg-slate-50/80 border-b border-slate-200">
+                            <th className="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest w-[30%]">Document</th>
+                            <th className="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest w-[25%]">File Name</th>
+                            <th className="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest w-[20%]">Status</th>
+                            <th className="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-right w-[25%]">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {Object.entries(child.requirementUploads).map(([key, docInfo]: [string, any]) => {
+                            const status = docInfo.status || 'PENDING';
+                            const isDocUpdating = updatingDocKey === key;
+                            
+                            return (
+                              <tr key={key} className="hover:bg-slate-50/50 transition-colors group">
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3.5">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center shrink-0 shadow-2xs group-hover:border-slate-300 transition-colors">
+                                      <FileText className="w-4 h-4 text-slate-400" />
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-900 capitalize tracking-tight">{key.replace(/_/g, ' ').toLowerCase()}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="text-xs font-semibold text-slate-500 truncate block max-w-[180px]">{docInfo.fileName || 'Uploaded Document'}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {status === 'APPROVED' && (
+                                    <span className="px-2.5 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg inline-flex items-center gap-1.5 shadow-3xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Verified
+                                    </span>
+                                  )}
+                                  {status === 'REJECTED' && (
+                                    <span className="px-2.5 py-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-lg inline-flex items-center gap-1.5 shadow-3xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Rejected
+                                    </span>
+                                  )}
+                                  {status === 'PENDING' && (
+                                    <span className="px-2.5 py-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg inline-flex items-center gap-1.5 shadow-3xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Under Review
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-opacity">
+                                    {docInfo.fileUrl && (
+                                      <a 
+                                        href={docInfo.fileUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="h-8 px-3 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/80 rounded-xl transition-all duration-150 inline-flex items-center gap-1.5 shadow-3xs"
+                                      >
+                                        <Search className="w-3.5 h-3.5" /> View
+                                      </a>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={isDocUpdating || status === 'REJECTED'}
+                                      onClick={() => handleUpdateDocumentStatus(key, 'REJECTED')}
+                                      className="h-8 px-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-100/30 flex items-center gap-1"
+                                    >
+                                      <X className="w-3.5 h-3.5" /> Reject
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      disabled={isDocUpdating || status === 'APPROVED'}
+                                      onClick={() => handleUpdateDocumentStatus(key, 'APPROVED')}
+                                      className="h-8 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl flex items-center gap-1 shadow-sm"
+                                    >
+                                      {isDocUpdating ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <Check className="w-3.5 h-3.5" />
+                                      )}
+                                      Confirm
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </Card>

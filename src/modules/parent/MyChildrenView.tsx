@@ -170,7 +170,7 @@ export function MyChildrenView({
     const num = parseFloat(avgStr);
     if (isNaN(num)) return null;
     if (num >= 90) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (num >= 85) return { label: 'Very Good', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    if (num >= 85) return { label: 'Very Good', color: 'bg-red-50 text-red-700 border-red-200' };
     if (num >= 75) return { label: 'Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200' };
     return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200' };
   };
@@ -180,7 +180,7 @@ export function MyChildrenView({
       {/* ── TOP HEADER BAR ── */}
       <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]">
+          <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]">
             <GraduationCap className="w-5 h-5" />
           </div>
           <div>
@@ -209,7 +209,7 @@ export function MyChildrenView({
               className="pl-9 pr-4 py-1.5 bg-slate-50 border-slate-200/80 rounded-full text-xs font-medium focus:bg-white transition-all w-full"
             />
           </div>
-          <span className="px-3.5 py-1.5 bg-blue-50 text-[#2563eb] border border-blue-100 rounded-full text-xs font-bold whitespace-nowrap shadow-2xs">
+          <span className="px-3.5 py-1.5 bg-red-50 text-[#D8232A] border border-red-100 rounded-full text-xs font-bold whitespace-nowrap shadow-2xs">
             {children.length} Enrolled
           </span>
         </div>
@@ -280,7 +280,7 @@ export function MyChildrenView({
                                   className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
                                 />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-blue-50/80 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-blue-100/80 uppercase">
+                                <div className="w-10 h-10 rounded-full bg-red-50/80 text-red-600 font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-red-100/80 uppercase">
                                   {child.firstName?.charAt(0)}{child.lastName?.charAt(0)}
                                 </div>
                               )}
@@ -318,7 +318,7 @@ export function MyChildrenView({
                             <div className="flex items-center justify-end gap-3">
                               <Button 
                                 onClick={() => onSelectChild(child.id)}
-                                className="h-9 px-4 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-blue-200"
+                                className="h-9 px-4 bg-[#D8232A] hover:bg-red-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-red-200"
                               >
                                 View Profile <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                               </Button>

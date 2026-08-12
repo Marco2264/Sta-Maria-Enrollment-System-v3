@@ -340,7 +340,7 @@ export function ChildDetailView({
 
   const getSubjectStatus = (gradeNum: number) => {
     if (gradeNum >= 90) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (gradeNum >= 80) return { label: 'Good', color: 'bg-blue-50 text-[#2563eb] border-blue-200' };
+    if (gradeNum >= 80) return { label: 'Good', color: 'bg-red-50 text-[#D8232A] border-red-200' };
     return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200' };
   };
 
@@ -371,7 +371,7 @@ export function ChildDetailView({
       badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
     } else if (num >= 85) {
       label = '🔵 Very Good';
-      badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+      badgeClass = 'bg-red-50 text-red-700 border-red-200';
     } else if (num >= 75) {
       label = '🟠 Needs Improvement';
       badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
@@ -467,8 +467,8 @@ export function ChildDetailView({
           )}
 
           {(child.status === 'Enrolled' || child.status === 'Approved') && (
-            <div className="bg-blue-50/80 border border-blue-100 text-blue-900 p-4 rounded-2xl flex items-center gap-3 text-xs font-medium shadow-2xs">
-              <ShieldCheck className="w-5 h-5 text-[#2563eb] shrink-0" />
+            <div className="bg-red-50/80 border border-red-100 text-red-900 p-4 rounded-2xl flex items-center gap-3 text-xs font-medium shadow-2xs">
+              <ShieldCheck className="w-5 h-5 text-[#D8232A] shrink-0" />
               <span>
                 <strong className="font-bold">Official Enrolled Record:</strong> This student is officially enrolled for Academic Year 2026–2027. Personal information and demographic data are locked, but you may update your contact information using the button above. To request official record updates, please contact the school administration.
               </span>
@@ -487,7 +487,7 @@ export function ChildDetailView({
                   <div className="relative flex flex-col items-center">
                     <div className="relative w-28 h-28 flex items-center justify-center my-1 z-10">
                       {isPhotoUploading && (
-                        <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-75 pointer-events-none" />
+                        <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping opacity-75 pointer-events-none" />
                       )}
 
                       <div
@@ -508,7 +508,7 @@ export function ChildDetailView({
                           return photo ? (
                             <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-2xl font-black text-[#2563eb]">
+                            <span className="text-2xl font-black text-[#D8232A]">
                               {child.firstName.charAt(0)}{child.lastName.charAt(0)}
                             </span>
                           );
@@ -542,7 +542,7 @@ export function ChildDetailView({
                             setPhotoError(null);
                             photoInputRef.current?.click();
                           }}
-                          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#2563eb] hover:bg-slate-50 transition-colors z-20 cursor-pointer"
+                          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#D8232A] hover:bg-slate-50 transition-colors z-20 cursor-pointer"
                           title="Change photo"
                         >
                           <Camera className="w-3.5 h-3.5" />
@@ -553,12 +553,12 @@ export function ChildDetailView({
                       {isPhotoUploading && (
                         <>
                           <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none z-20" viewBox="0 0 112 112">
-                            <circle cx="56" cy="56" r="48" className="stroke-blue-100" strokeWidth="4" fill="none" />
+                            <circle cx="56" cy="56" r="48" className="stroke-red-100" strokeWidth="4" fill="none" />
                             <circle
                               cx="56"
                               cy="56"
                               r="48"
-                              className={`${isUploadSuccess ? 'stroke-emerald-500' : 'stroke-[#2563eb]'} transition-all duration-300 ease-out`}
+                              className={`${isUploadSuccess ? 'stroke-emerald-500' : 'stroke-[#D8232A]'} transition-all duration-300 ease-out`}
                               strokeWidth="4"
                               strokeDasharray={301.59}
                               strokeDashoffset={301.59 - (uploadProgress / 100) * 301.59}
@@ -566,7 +566,7 @@ export function ChildDetailView({
                               fill="none"
                             />
                           </svg>
-                          <span className="absolute -bottom-2 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-md text-[9px] font-black text-[#2563eb] z-30">
+                          <span className="absolute -bottom-2 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-md text-[9px] font-black text-[#D8232A] z-30">
                             {uploadProgress}%
                           </span>
                         </>
@@ -593,7 +593,7 @@ export function ChildDetailView({
                             startAutoUpload(selectedFile, previewUrl);
                           }
                         }}
-                        className="w-full py-2 px-3 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                        className="w-full py-2 px-3 bg-[#D8232A] hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
                       >
                         Confirm Upload
                       </button>
@@ -642,7 +642,7 @@ export function ChildDetailView({
                     <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full border border-slate-200/60">
                       Grade {child.gradeLevel}
                     </span>
-                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-100">
+                    <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full border border-red-100">
                       School Year 2026–2027
                     </span>
                   </div>
@@ -675,7 +675,7 @@ export function ChildDetailView({
                   <div className="space-y-3.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 font-medium">Enrollment Status</span>
-                      <span className="font-extrabold text-[#2563eb] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                      <span className="font-extrabold text-[#D8232A] bg-red-50 px-2.5 py-0.5 rounded-full border border-red-100">
                         {child.status || 'Active'}
                       </span>
                     </div>
@@ -718,21 +718,21 @@ export function ChildDetailView({
                       value="personal"
                       className="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-xs transition-all flex items-center gap-2"
                     >
-                      <User className="w-3.5 h-3.5 text-[#2563eb]" />
+                      <User className="w-3.5 h-3.5 text-[#D8232A]" />
                       Personal Info
                     </TabsTrigger>
                     <TabsTrigger
                       value="academic"
                       className="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-xs transition-all flex items-center gap-2"
                     >
-                      <BarChart3 className="w-3.5 h-3.5 text-[#2563eb]" />
+                      <BarChart3 className="w-3.5 h-3.5 text-[#D8232A]" />
                       Academic Record
                     </TabsTrigger>
                     <TabsTrigger
                       value="attendance"
                       className="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-xs transition-all flex items-center gap-2"
                     >
-                      <CalendarCheck className="w-3.5 h-3.5 text-[#2563eb]" />
+                      <CalendarCheck className="w-3.5 h-3.5 text-[#D8232A]" />
                       Attendance
                     </TabsTrigger>
 
@@ -747,7 +747,7 @@ export function ChildDetailView({
                   {/* Card 1: Personal Information */}
                   <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]">
+                      <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]">
                         <User className="w-5 h-5" />
                       </div>
                       <div>
@@ -787,7 +787,7 @@ export function ChildDetailView({
                   {/* Card 2: Address & Contact */}
                   <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]">
+                      <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]">
                         <MapPin className="w-5 h-5" />
                       </div>
                       <div>
@@ -936,7 +936,7 @@ export function ChildDetailView({
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                           <div>
                             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                              <BarChart3 className="w-5 h-5 text-[#2563eb]" />
+                              <BarChart3 className="w-5 h-5 text-[#D8232A]" />
                               Academic Status Overview
                             </h3>
                             <p className="text-xs text-slate-500 font-medium mt-1">Real-time synchronized student academic evaluation</p>
@@ -951,7 +951,7 @@ export function ChildDetailView({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-1">
+                          <div className="p-5 bg-red-50/50 rounded-2xl border border-red-100 space-y-1">
                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Current General Average</p>
                             <p className="text-3xl font-black text-slate-900">{avgDisplay}</p>
                           </div>
@@ -975,7 +975,7 @@ export function ChildDetailView({
                       <Card className="p-6 sm:p-8 bg-white border border-slate-100 shadow-sm rounded-3xl space-y-6">
                         <div className="pb-3 border-b border-slate-100">
                           <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                            <GraduationCap className="w-5 h-5 text-[#2563eb]" />
+                            <GraduationCap className="w-5 h-5 text-[#D8232A]" />
                             Subject Performance Breakdown
                           </h3>
                           <p className="text-xs text-slate-500 font-medium mt-1">Detailed 4-term grade breakdown and component analysis</p>
@@ -1052,7 +1052,7 @@ export function ChildDetailView({
                                       </div>
                                       <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-5">
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p>
-                                        <p className="text-base font-black text-[#2563eb]">{displayGrade}</p>
+                                        <p className="text-base font-black text-[#D8232A]">{displayGrade}</p>
                                       </div>
                                       <div className="text-slate-400 group-open:rotate-180 transition-transform duration-200 ml-1">
                                         <ChevronDown className="w-5 h-5" />
@@ -1096,9 +1096,9 @@ export function ChildDetailView({
                       </Card>
 
                       {/* Performance Summary Card */}
-                      <Card className="p-6 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 border border-blue-100 shadow-sm rounded-3xl">
+                      <Card className="p-6 bg-gradient-to-r from-red-50/80 to-indigo-50/40 border border-red-100 shadow-sm rounded-3xl">
                         <div className="flex items-start gap-3.5">
-                          <div className="w-9 h-9 rounded-xl bg-white text-[#2563eb] border border-blue-200 flex items-center justify-center shrink-0 shadow-xs">
+                          <div className="w-9 h-9 rounded-xl bg-white text-[#D8232A] border border-red-200 flex items-center justify-center shrink-0 shadow-xs">
                             <BarChart3 className="w-5 h-5" />
                           </div>
                           <div className="space-y-1">

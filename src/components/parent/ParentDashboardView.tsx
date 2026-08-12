@@ -187,7 +187,7 @@ export function ParentDashboardView({
     const num = parseFloat(avgStr);
     if (isNaN(num)) return null;
     if (num >= 90) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (num >= 85) return { label: 'Very Good', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    if (num >= 85) return { label: 'Very Good', color: 'bg-red-50 text-red-700 border-red-200' };
     if (num >= 75) return { label: 'Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200' };
     return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200' };
   };
@@ -529,7 +529,7 @@ export function ParentDashboardView({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
           <div className="space-y-1 text-left">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-[#2563eb] text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+              <span className="px-2.5 py-0.5 rounded-md bg-red-50 text-[#D8232A] text-[10px] font-bold uppercase tracking-wider border border-red-100">
                 Academic Year <span className="ml-1 text-slate-700 font-extrabold">2026–2027</span>
               </span>
             </div>
@@ -543,7 +543,7 @@ export function ParentDashboardView({
 
           <div className="shrink-0">
             <Button
-              className="w-full sm:w-auto rounded-xl h-11 px-5 shadow-lg shadow-blue-500/20 font-bold bg-[#2563eb] hover:bg-blue-700 text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-98 cursor-pointer"
+              className="w-full sm:w-auto rounded-xl h-11 px-5 shadow-lg shadow-red-500/20 font-bold bg-[#D8232A] hover:bg-red-700 text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-98 cursor-pointer"
               onClick={() => onNavigate('enrollment')}
             >
               <PlusCircle className="w-4.5 h-4.5" />
@@ -558,7 +558,7 @@ export function ParentDashboardView({
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Registered Students</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
+              <div className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0 border border-red-100">
                 <Users className="w-4 h-4" />
               </div>
             </div>
@@ -567,7 +567,7 @@ export function ParentDashboardView({
                 <h3 className="text-3xl font-black text-slate-900 mb-0.5">{registeredStudentsCount}</h3>
                 <p className="text-xs text-slate-400 font-medium">Linked to your account</p>
               </div>
-              <span className="px-2 py-0.5 bg-blue-50 text-[#2563eb] text-[10px] font-extrabold rounded-full border border-blue-100">
+              <span className="px-2 py-0.5 bg-red-50 text-[#D8232A] text-[10px] font-extrabold rounded-full border border-red-100">
                 Active
               </span>
             </div>
@@ -591,7 +591,7 @@ export function ParentDashboardView({
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Average Grade</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb] shrink-0 border border-blue-100">
+              <div className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0 border border-red-100">
                 <BarChart3 className="w-4 h-4" />
               </div>
             </div>
@@ -608,7 +608,7 @@ export function ParentDashboardView({
                       <p className="text-xs text-slate-400 font-medium">Across all children</p>
                     ) : (
                       <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5" title="Grades pending evaluation - available at end of Term 1">
-                        <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <Info className="w-3.5 h-3.5 text-red-500 shrink-0" />
                         Available at end of Term 1
                       </p>
                     )}
@@ -648,7 +648,7 @@ export function ParentDashboardView({
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
+                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
@@ -671,7 +671,7 @@ export function ParentDashboardView({
                         {idx < 4 && <div className="w-0.5 h-full bg-slate-100 absolute top-3 bottom-0" />}
                       </div>
                       <div className="min-w-0 space-y-0.5">
-                        <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#2563eb] transition-colors truncate">
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors truncate">
                           {upd.title}
                         </p>
                         <p className="text-[11px] text-slate-500 font-medium leading-relaxed truncate">
@@ -695,7 +695,7 @@ export function ParentDashboardView({
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
+                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
                     <Megaphone className="w-4 h-4" />
                   </div>
                   <div>
@@ -707,7 +707,7 @@ export function ParentDashboardView({
                 <button
                   type="button"
                   onClick={() => onNavigate('announcements')}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-[#2563eb]/10 hover:text-[#2563eb] text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-[#D8232A]/10 hover:text-[#D8232A] text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   <span>View All</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -718,7 +718,7 @@ export function ParentDashboardView({
                 {announcements.slice(0, 3).map((ann) => (
                   <div key={ann.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-1 transition-colors">
                     <div className="flex items-center justify-between text-[10px] font-bold">
-                      <span className="text-[#2563eb] uppercase tracking-wider">{ann.category}</span>
+                      <span className="text-[#D8232A] uppercase tracking-wider">{ann.category}</span>
                       <span className="text-slate-400">{ann.date}</span>
                     </div>
                     <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{ann.title}</h4>
@@ -735,7 +735,7 @@ export function ParentDashboardView({
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
+                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
@@ -749,7 +749,7 @@ export function ParentDashboardView({
                   onClick={() => onNavigate('requirements')}
                   className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
                 >
-                  <FolderOpen className="w-3.5 h-3.5 text-[#2563eb]" />
+                  <FolderOpen className="w-3.5 h-3.5 text-[#D8232A]" />
                   <span>Document Center</span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                 </button>
@@ -766,7 +766,7 @@ export function ParentDashboardView({
                           <FileText className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0 space-y-0.5">
-                          <span className="text-[10px] font-extrabold text-[#2563eb] block tracking-wide truncate">{item.studentName}</span>
+                          <span className="text-[10px] font-extrabold text-[#D8232A] block tracking-wide truncate">{item.studentName}</span>
                           <span className="text-xs font-bold text-slate-900 block truncate">{item.docName}</span>
                         </div>
                       </div>
@@ -784,7 +784,7 @@ export function ParentDashboardView({
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
+                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
                     <GraduationCap className="w-4 h-4" />
                   </div>
                   <div>
@@ -837,7 +837,7 @@ export function ParentDashboardView({
                       <div key={child.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5 transition-colors">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#2563eb] font-extrabold flex items-center justify-center text-xs border border-blue-200 shrink-0 overflow-hidden">
+                            <div className="w-9 h-9 rounded-xl bg-red-100 text-[#D8232A] font-extrabold flex items-center justify-center text-xs border border-red-200 shrink-0 overflow-hidden">
                               {child.photoURL ? (
                                 <img src={child.photoURL} alt={child.firstName} className="w-full h-full object-cover" />
                               ) : (

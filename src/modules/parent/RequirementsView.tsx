@@ -66,10 +66,10 @@ const STATUS_CONFIG: Record<StatusKey, {
   },
   PENDING: {
     label: 'Under Review',
-    bg: 'bg-blue-50',
-    text: 'text-blue-700',
-    border: 'border-blue-200',
-    dot: 'bg-blue-500',
+    bg: 'bg-red-50',
+    text: 'text-red-700',
+    border: 'border-red-200',
+    dot: 'bg-red-500',
     icon: <Clock className="w-3.5 h-3.5 animate-pulse" />
   },
   APPROVED: {
@@ -138,14 +138,14 @@ function UploadProgressBar({ progress }: { progress: number }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-[11px] font-bold">
-        <span className="text-[#2563eb] flex items-center gap-1.5">
+        <span className="text-[#D8232A] flex items-center gap-1.5">
           <Loader2 className="w-3 h-3 animate-spin" /> Uploading document...
         </span>
         <span className="text-slate-500">{Math.round(progress)}%</span>
       </div>
       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
         <motion.div
-          className="h-full bg-gradient-to-r from-[#2563eb] to-blue-400 rounded-full"
+          className="h-full bg-gradient-to-r from-[#D8232A] to-red-400 rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3 }}
@@ -369,20 +369,25 @@ export function RequirementsView() {
     if (status === 'Enrolled') return { label: 'Officially Enrolled', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
     if (status === 'Approved') return { label: 'Approved', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
     if (status === 'Rejected') return { label: 'Rejected', color: 'text-rose-700 bg-rose-50 border-rose-200' };
-    return { label: 'Registration Submitted', color: 'text-blue-700 bg-blue-50 border-blue-200' };
+    return { label: 'Registration Submitted', color: 'text-red-700 bg-red-50 border-red-200' };
   };
 
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9] font-sans relative">
 
-      {/* ── PAGE HEADER ─────────────────────────────────────────────── */}
+      {/* PAGE HEADER */}
       <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex items-center shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">Document Center</h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Manage and sync required documents for your learner's registration.
-            </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0">
+              <FolderOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">Document Center</h1>
+              <p className="text-xs text-slate-500 font-medium">
+                Manage and sync required documents for your learner's registration.
+              </p>
+            </div>
           </div>
 
           {/* Learner Selector */}
@@ -479,13 +484,13 @@ export function RequirementsView() {
                     <div className="w-48">
                       <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
                         <span>UPLOAD PROGRESS</span>
-                        <span className="text-[#2563eb] font-extrabold">
+                        <span className="text-[#D8232A] font-extrabold">
                           {Math.round((uploadedCount / requiredDocList.length) * 100)}%
                         </span>
                       </div>
                       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#2563eb] rounded-full transition-all duration-500"
+                          className="h-full bg-[#D8232A] rounded-full transition-all duration-500"
                           style={{ width: `${(uploadedCount / requiredDocList.length) * 100}%` }}
                         />
                       </div>
@@ -528,9 +533,11 @@ export function RequirementsView() {
                       status: reqMeta.status || 'PENDING'
                     } as EnrollmentDocument : undefined));
 
-                    const statusKey: StatusKey = docRecord
-                      ? (docRecord.status as StatusKey) ?? 'PENDING'
-                      : 'NOT_UPLOADED';
+                    const statusKey: StatusKey = reqMeta?.status 
+                      ? (reqMeta.status as StatusKey) 
+                      : docRecord 
+                        ? (docRecord.status as StatusKey) ?? 'PENDING'
+                        : 'NOT_UPLOADED';
                     const isUploading = uploadingDocType === req.key;
                     const progress = uploadProgress[req.key] ?? 0;
                     const docRec = docRecord as (EnrollmentDocument & { rejectionReason?: string }) | undefined;
@@ -563,7 +570,7 @@ export function RequirementsView() {
                                 </h4>
                                 <p className="text-[11px] text-slate-400 mt-0.5">{req.description}</p>
                                 {(docRec || stagedFiles[req.key]) && (
-                                  <p className="text-[10px] font-semibold text-[#2563eb] mt-1.5 truncate">
+                                  <p className="text-[10px] font-semibold text-[#D8232A] mt-1.5 truncate">
                                     {stagedFiles[req.key] ? stagedFiles[req.key].name : docRec?.fileName}{' '}
                                     <span className="text-slate-400 font-normal ml-1">
                                       {formatBytes(stagedFiles[req.key] ? stagedFiles[req.key].size : docRec?.sizeBytes || 0)}
@@ -582,7 +589,7 @@ export function RequirementsView() {
                               ) : (
                                 <span className={`text-[10px] font-extrabold tracking-widest uppercase ${
                                   statusKey === 'APPROVED' ? 'text-emerald-600' :
-                                  statusKey === 'PENDING' ? 'text-blue-600' :
+                                  statusKey === 'PENDING' ? 'text-red-600' :
                                   statusKey === 'REJECTED' ? 'text-rose-600' :
                                   stagedFiles[req.key] ? 'text-amber-600' :
                                   'text-slate-300'
@@ -680,7 +687,7 @@ export function RequirementsView() {
                                 <button
                                   type="button"
                                   onClick={() => fileInputRefs.current[req.key]?.click()}
-                                  className="px-5 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-[10px] font-black tracking-widest uppercase cursor-pointer border-0 outline-none transition-colors shadow-2xs"
+                                  className="px-5 py-2 bg-[#D8232A] hover:bg-red-700 text-white rounded-lg text-[10px] font-black tracking-widest uppercase cursor-pointer border-0 outline-none transition-colors shadow-2xs"
                                 >
                                   UPLOAD
                                 </button>
@@ -758,11 +765,27 @@ export function RequirementsView() {
               try {
                 for (const [docType, file] of Object.entries(stagedFiles)) {
                   setUploadingDocType(docType);
-                  await uploadRequirementDocument({
-                    enrollmentId: selectedEnrollmentId,
-                    documentType: docType as DocumentType,
-                    file
-                  });
+                  
+                  // Progress simulation for batch uploads
+                  let prog = 0;
+                  const interval = setInterval(() => {
+                    prog = Math.min(prog + Math.random() * 20, 90);
+                    setUploadProgress(p => ({ ...p, [docType]: prog }));
+                  }, 150);
+
+                  try {
+                    await uploadRequirementDocument({
+                      enrollmentId: selectedEnrollmentId,
+                      documentType: docType as DocumentType,
+                      file
+                    });
+                    clearInterval(interval);
+                    setUploadProgress(p => ({ ...p, [docType]: 100 }));
+                    setTimeout(() => setUploadProgress(p => { const n = { ...p }; delete n[docType]; return n; }), 1000);
+                  } catch (e) {
+                    clearInterval(interval);
+                    throw e;
+                  }
                 }
                 setStagedFiles({});
                 setSuccessMsg('Documents successfully submitted and saved!');
@@ -778,8 +801,8 @@ export function RequirementsView() {
             }}
             className={`px-6 py-3 rounded-xl text-xs font-extrabold transition-all shadow-md border-0 outline-none flex items-center gap-2 cursor-pointer ${
               Object.keys(stagedFiles).length > 0
-                ? 'bg-[#2563eb] hover:bg-blue-700 text-white shadow-blue-500/10'
-                : 'bg-[#2563eb]/50 text-white opacity-80 cursor-not-allowed'
+                ? 'bg-[#D8232A] hover:bg-red-700 text-white shadow-red-500/10'
+                : 'bg-[#D8232A]/50 text-white opacity-80 cursor-not-allowed'
             }`}
           >
             {uploading ? (
