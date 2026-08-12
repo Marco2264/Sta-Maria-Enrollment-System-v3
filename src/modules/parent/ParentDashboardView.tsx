@@ -614,9 +614,9 @@ export function ParentDashboardView({
                     {hasGrade ? (
                       <p className="text-xs text-slate-400 font-medium">Across all children</p>
                     ) : (
-                      <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5" title="Grades pending evaluation - available at end of Term 1">
+                      <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5" title="Grades pending evaluation - available at end of Quarter 1">
                         <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        Available at end of Term 1
+                        Available at end of Quarter 1
                       </p>
                     )}
                   </>

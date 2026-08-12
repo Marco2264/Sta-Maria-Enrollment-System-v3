@@ -69,16 +69,6 @@ export function TeacherStudentDetailView({
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<any>(null);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fileInfo, setFileInfo] = useState<{ name: string; size: string; type: string } | null>(null);
-  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploadSuccess, setIsUploadSuccess] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const photoInputRef = React.useRef<HTMLInputElement>(null);
-
   if (!child) return null;
 
   const handleOpenEdit = () => {
@@ -155,121 +145,6 @@ export function TeacherStudentDetailView({
       }
     }
     return null;
-  };
-
-  const startAutoUpload = async (file: File, objectUrl: string) => {
-    setIsPhotoUploading(true);
-    setIsUploadSuccess(false);
-    setPhotoError(null);
-    setSuccessMessage(null);
-    setUploadProgress(5);
-
-    const startTime = Date.now();
-
-    const progressTimer = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev < 35) return prev + 7;
-        if (prev < 70) return prev + 8;
-        if (prev < 92) return prev + 4;
-        return prev;
-      });
-    }, 110);
-
-    try {
-      const folder = buildImageKitFolder({ role: 'student', category: 'profiles' });
-      const fileName = buildStandardizedFileName({
-        role: 'student',
-        fullName: `${child.firstName} ${child.lastName}`,
-        originalFileName: file.name,
-        gradeLevel: child.gradeLevel,
-        section: (child as any).sectionId || (child as any).section
-      });
-
-      const photoUrl = await uploadToImageKit(file, { folder, fileName, useUniqueFileName: false });
-
-      clearInterval(progressTimer);
-      setUploadProgress(100);
-      setIsUploadSuccess(true);
-
-      await updateDoc(doc(db, 'enrollments', child.id), { photoURL: photoUrl });
-      (child as any).photoURL = photoUrl;
-
-      try {
-        await logActivity({
-          parentId: child.parentId || user?.uid || '',
-          title: 'Student Photo Updated',
-          subtitle: `Updated profile picture for ${child.firstName} ${child.lastName}.`,
-          type: 'profile',
-          badgeText: 'SUCCESSFUL',
-          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          dotColor: 'bg-emerald-500'
-        });
-      } catch (err) {
-        console.warn('Could not log student photo activity:', err);
-      }
-
-      const elapsed = Date.now() - startTime;
-      const remainingDelay = Math.max(1000 - elapsed, 1000);
-
-      setTimeout(() => {
-        setIsPhotoUploading(false);
-        setIsUploadSuccess(false);
-        URL.revokeObjectURL(objectUrl);
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        setFileInfo(null);
-        setUploadProgress(0);
-        if (photoInputRef.current) photoInputRef.current.value = '';
-        setSuccessMessage('Student profile photo updated successfully.');
-      }, remainingDelay);
-    } catch (err) {
-      clearInterval(progressTimer);
-      setIsPhotoUploading(false);
-      setIsUploadSuccess(false);
-      setUploadProgress(0);
-      console.error('Failed to update student photo:', err);
-      setPhotoError('Upload failed. Please try again.');
-    }
-  };
-
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    setPhotoError(null);
-    setSuccessMessage(null);
-    if (!file) return;
-
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type.toLowerCase())) {
-      setPhotoError('Invalid file type. Please select a JPG, JPEG, PNG, or WEBP image.');
-      if (photoInputRef.current) photoInputRef.current.value = '';
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoError('File size exceeds 5 MB. Please select a smaller photo.');
-      if (photoInputRef.current) photoInputRef.current.value = '';
-      return;
-    }
-
-    const formattedSize = file.size > 1024 * 1024
-      ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-      : `${Math.round(file.size / 1024)} KB`;
-
-    const objectUrl = URL.createObjectURL(file);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-
-    setSelectedFile(file);
-    setPreviewUrl(objectUrl);
-    setFileInfo({ name: file.name, size: formattedSize, type: file.type.split('/')[1]?.toUpperCase() || 'IMAGE' });
-  };
-
-  const handleCancelPhotoSelect = () => {
-    if (isPhotoUploading) return;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setFileInfo(null);
-    setPhotoError(null);
-    if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
   // Performance calculations
@@ -691,18 +566,8 @@ export function TeacherStudentDetailView({
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 text-center space-y-4 animate-fade-up">
                   <div className="relative flex flex-col items-center">
                     <div className="relative w-28 h-28 flex items-center justify-center my-1 z-10">
-                      {isPhotoUploading && (
-                        <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-75 pointer-events-none" />
-                      )}
-
-                      <div
-                        onClick={() => { if (!isPhotoUploading) { setPhotoError(null); photoInputRef.current?.click(); } }}
-                        className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 shadow-md flex items-center justify-center overflow-hidden relative group cursor-pointer"
-                        title={isPhotoUploading ? 'Uploading...' : 'Click to change photo'}
-                      >
-                        {previewUrl ? (
-                          <img src={previewUrl || undefined} alt="Preview" className="w-full h-full object-cover" />
-                        ) : (() => {
+                      <div className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 shadow-md flex items-center justify-center overflow-hidden relative">
+                        {(() => {
                           const photo = getStudentPhoto(child);
                           return photo ? (
                             <img src={photo || undefined} alt={child.firstName} className="w-full h-full object-cover" />
@@ -712,97 +577,9 @@ export function TeacherStudentDetailView({
                             </span>
                           );
                         })()}
-
-                        {!isPhotoUploading && (
-                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200">
-                            <Camera className="w-4 h-4 mb-0.5 text-white" />
-                            <span className="text-[8px] font-extrabold uppercase tracking-wider text-white">Change</span>
-                          </div>
-                        )}
-
-                        {isPhotoUploading && (
-                          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-10 animate-in fade-in duration-200">
-                            {isUploadSuccess ? (
-                              <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg animate-bounce">
-                                <CheckCircle2 className="w-4 h-4" />
-                              </div>
-                            ) : (
-                              <Loader2 className="w-5 h-5 text-white animate-spin drop-shadow-md" />
-                            )}
-                          </div>
-                        )}
                       </div>
-
-                      {!isPhotoUploading && (
-                        <button
-                          type="button"
-                          onClick={() => { setPhotoError(null); photoInputRef.current?.click(); }}
-                          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#2563eb] hover:bg-slate-50 transition-colors z-20 cursor-pointer"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-
-                      {isPhotoUploading && (
-                        <>
-                          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none z-20" viewBox="0 0 112 112">
-                            <circle cx="56" cy="56" r="48" className="stroke-blue-100" strokeWidth="4" fill="none" />
-                            <circle
-                              cx="56" cy="56" r="48"
-                              className={`${isUploadSuccess ? 'stroke-emerald-500' : 'stroke-[#2563eb]'} transition-all duration-300 ease-out`}
-                              strokeWidth="4"
-                              strokeDasharray={301.59}
-                              strokeDashoffset={301.59 - (uploadProgress / 100) * 301.59}
-                              strokeLinecap="round"
-                              fill="none"
-                            />
-                          </svg>
-                          <span className="absolute -bottom-2 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-md text-[9px] font-black text-[#2563eb] z-30">
-                            {uploadProgress}%
-                          </span>
-                        </>
-                      )}
                     </div>
-
-                    <input ref={photoInputRef} type="file" accept="image/png, image/jpeg, image/jpg, image/webp" onChange={handlePhotoSelect} className="hidden" />
                   </div>
-
-                  {selectedFile && !isPhotoUploading && (
-                    <div className="grid grid-cols-2 gap-2 pt-1 animate-in fade-in duration-200">
-                      <button
-                        type="button"
-                        onClick={() => { if (selectedFile && previewUrl) startAutoUpload(selectedFile, previewUrl); }}
-                        className="w-full py-2 px-3 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        Confirm Upload
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancelPhotoSelect}
-                        className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer border border-slate-200/60"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-
-                  {photoError && (
-                    <div className="w-full bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl p-3 font-semibold flex items-center justify-between gap-2 animate-in fade-in-50 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                        <span>{photoError}</span>
-                      </div>
-                      <button type="button" onClick={() => { setPhotoError(null); photoInputRef.current?.click(); }} className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shrink-0 cursor-pointer">
-                        Retry
-                      </button>
-                    </div>
-                  )}
-
-                  {successMessage && (
-                    <div className="w-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-xl p-3 font-semibold">
-                      {successMessage}
-                    </div>
-                  )}
 
                   <div>
                     <h2 className="text-xl font-semibold text-slate-800 tracking-normal">

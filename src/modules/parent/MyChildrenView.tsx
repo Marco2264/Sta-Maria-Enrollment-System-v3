@@ -36,6 +36,23 @@ export function MyChildrenView({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [childToDelete, setChildToDelete] = useState<any | null>(null);
+  const [sectionsMap, setSectionsMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchSections = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'sections'));
+        const map: Record<string, string> = {};
+        snap.docs.forEach(doc => {
+          map[doc.id] = doc.data().name || doc.data().sectionName || doc.id;
+        });
+        setSectionsMap(map);
+      } catch (err) {
+        console.error('Error fetching sections for parent view:', err);
+      }
+    };
+    fetchSections();
+  }, []);
 
   const filteredChildren = useMemo(() => {
     const list = children || [];
@@ -235,9 +252,10 @@ export function MyChildrenView({
                       const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
                         ? child.gradeLevel
                         : `Grade ${child.gradeLevel || 'Level'}`;
+                      const actualSectionName = child.sectionId ? (sectionsMap[child.sectionId] || child.section) : child.section;
                       const displaySection = (child.status === 'Enrolled' || child.status === 'Approved')
-                        ? (child.section
-                          ? (child.section.toString().toLowerCase().startsWith('section') ? child.section : `Section ${child.section}`)
+                        ? (actualSectionName
+                          ? (actualSectionName.toString().toLowerCase().startsWith('section') ? actualSectionName : `Section ${actualSectionName}`)
                           : 'TBA')
                         : 'TBA';
                       const studentId = child.lrn || '126220200414';
@@ -245,8 +263,7 @@ export function MyChildrenView({
                       return (
                         <tr
                           key={child.id}
-                          onClick={() => onSelectChild(child.id)}
-                          className="hover:bg-slate-50/60 transition-colors duration-150 cursor-pointer group"
+                          className="hover:bg-slate-50/60 transition-colors duration-150 group"
                         >
                           {/* Row Index */}
                           <td className="py-5 px-6 text-slate-400 font-medium text-center">
@@ -298,34 +315,26 @@ export function MyChildrenView({
 
                           {/* Action Button */}
                           <td className="py-5 px-6" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                type="button"
+                            <div className="flex items-center justify-end gap-3">
+                              <Button 
                                 onClick={() => onSelectChild(child.id)}
-                                className="px-4 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-full text-xs font-semibold transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                                className="h-9 px-4 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-blue-200"
                               >
-                                View Profile
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </button>
-                              {false ? (
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="p-1.5 text-slate-300 rounded-lg cursor-not-allowed opacity-40"
-                                  title="Officially enrolled student profiles cannot be deleted."
-                                >
-                                  <Trash2 className="w-4 h-4 text-slate-300" />
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setChildToDelete(child)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Cancel & Delete Registration"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
+                                View Profile <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className={`h-9 w-9 rounded-xl transition-colors ${
+                                  child.status === 'Enrolled' || child.status === 'Approved'
+                                    ? 'text-slate-300 cursor-not-allowed'
+                                    : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                                }`}
+                                disabled={child.status === 'Enrolled' || child.status === 'Approved'}
+                                onClick={() => setChildToDelete(child)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </td>
                         </tr>

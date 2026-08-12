@@ -23,6 +23,8 @@ export type Student = {
   lrn: string;
   gradeLevel: string;
   sectionId: string;
+  section?: string;
+  adviser?: string;
   birthDate: string;
   status: 'Enrolled' | 'Dropped' | 'Transferred' | 'Pending' | 'Rejected';
   enrollmentDate?: string;
@@ -119,7 +121,7 @@ type TeacherContextType = {
 const TeacherContext = createContext<TeacherContextType | undefined>(undefined);
 
 export function TeacherDataProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<TeacherSubject[]>([]);
   const [attendance, setAttendance] = useState<AttendanceEntry[]>([]);
@@ -357,6 +359,22 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
           enrolledStudents = sSnap.docs
             .map(d => ({ id: d.id, ...d.data() } as Student))
             .filter((s: any) => s.isManualHistory !== true);
+          
+          // Auto-heal missing section names for Parent Portal sync
+          if (sName) {
+            const adviserName = (userData?.firstName && userData?.lastName) 
+              ? `${userData.firstName} ${userData.lastName}` 
+              : (userData?.fullName || 'Teacher');
+            enrolledStudents.forEach(student => {
+              if (student.status === 'Enrolled' && (!student.section || student.adviser !== adviserName)) {
+                updateDoc(doc(db, 'enrollments', student.id), { 
+                  section: sName,
+                  adviser: adviserName
+                }).catch(err => console.error("Auto-heal failed:", err));
+              }
+            });
+          }
+
           setStudents([...pendingStudents, ...enrolledStudents]);
         });
 
@@ -417,9 +435,15 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
   const updateStudentStatus = async (id: string, status: 'Enrolled' | 'Rejected') => {
     if (status === 'Enrolled' && currentSection) {
       const todayStr = new Date().toISOString().split('T')[0];
+      const adviserName = (userData?.firstName && userData?.lastName) 
+        ? `${userData.firstName} ${userData.lastName}` 
+        : (userData?.fullName || 'Teacher');
+        
       await updateDoc(doc(db, 'enrollments', id), { 
         status, 
         sectionId: currentSection,
+        section: currentSectionName,
+        adviser: adviserName,
         enrollmentDate: todayStr 
       });
     } else {

@@ -324,28 +324,32 @@ export function ClassroomsView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="h-20 px-6 border-b border-slate-200 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent flex items-center shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Classrooms & Sections</h1>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center shrink-0 shadow-xs">
+        <div className="flex flex-row items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-slate-900">
+              <Home className="w-5 h-5 text-[#D8232A]" />
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">Classrooms &amp; Sections</h1>
+            </div>
+            <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+            <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
               Manage physical classrooms, logical sections, and teacher assignments {selectedGrade === 'All' ? 'across all grade levels' : `for ${selectedGrade}`}.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-            <div className="relative w-full sm:w-96 shrink-0 group">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <div className="flex flex-row items-center gap-2 w-full lg:w-auto shrink-0">
+            <div className="relative shrink-0 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
               <Input
                 placeholder="Search classroom by name..."
-                className="pl-10 h-11 rounded-xl bg-white border-2 border-slate-200/80 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/5 shadow-sm transition-all text-sm font-medium text-black w-full"
+                className="pl-9 h-9 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/5 shadow-sm transition-all text-sm w-56"
                 value={mainClassroomSearchQuery}
                 onChange={(e) => setMainClassroomSearchQuery(e.target.value)}
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto shrink-0">
-              <div className="flex items-center bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl w-full sm:w-auto">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center bg-white border border-slate-200 shadow-sm px-3 py-1 rounded-xl">
                 <Select value={selectedGrade} onValueChange={(val) => setSelectedGrade(val)}>
                   <SelectTrigger className="h-8 border-none bg-transparent shadow-none w-full sm:w-[130px] text-xs font-bold">
                     <SelectValue placeholder="Grade Level" />
@@ -362,8 +366,8 @@ export function ClassroomsView() {
 
               <Dialog open={isAddClassroomOpen} onOpenChange={setIsAddClassroomOpen}>
                 <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto rounded-xl px-6 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold transition-all">
-                    <Plus className="w-4 h-4 mr-2" /> Add Classroom
+                  <Button className="rounded-xl px-5 h-9 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold transition-all text-sm whitespace-nowrap">
+                    <Plus className="w-4 h-4 mr-1.5" /> Add Classroom
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">

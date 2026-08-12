@@ -107,20 +107,15 @@ function TeacherDashboardContent() {
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => {
     const collapsed = isMobile ? false : sidebarCollapsed;
     return (
-      <div className="flex flex-col h-full bg-white font-sans overflow-x-hidden">
+      <div className="flex flex-col h-full bg-white font-sans overflow-hidden">
         {/* Brand Header */}
         <div className="h-[72px] border-b border-slate-200 flex items-center px-4 shrink-0 overflow-hidden relative">
-          <div
-            className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm shrink-0 cursor-pointer hover:scale-105 hover:bg-primary/10 transition-all duration-200"
-            onClick={collapsed ? toggleSidebar : () => setActiveView('dashboard')}
-            title={collapsed ? 'Expand Sidebar' : 'Dashboard'}
-          >
+          <div className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm shrink-0 transition-all duration-200">
             <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
           </div>
 
           <div className={`ml-3 flex flex-col text-left overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-36 opacity-100'}`}>
             <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none">Sta. Maria</span>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none mt-1 truncate">Teacher Portal</span>
           </div>
         </div>
         {/* Nav Menu Items */}

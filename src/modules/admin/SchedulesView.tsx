@@ -581,20 +581,18 @@ export function SchedulesView() {
       <div className="absolute bottom-[20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#D8232A]/10 blur-[150px] mix-blend-multiply animate-pulse pointer-events-none -z-10 delay-1000" />
       <div className="absolute top-[40%] left-[20%] w-[35%] h-[35%] rounded-full bg-rose-100/30 blur-[100px] pointer-events-none -z-10 delay-2000" />
 
-      <header className="min-h-[96px] py-6 px-6 sm:px-8 border-b border-white/20 bg-white/40 backdrop-blur-md flex items-center shrink-0 shadow-[0_2px_20px_rgba(0,0,0,0.02)]">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Schedules</span>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex flex-row items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-slate-900">
+                <CalendarClock className="w-5 h-5 text-[#D8232A]" />
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">Faculty Teaching Load</h1>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
+                Manage teacher schedules, subject assignments, and time slots for academic year {syName}.
+              </p>
             </div>
-            <div className="flex items-center gap-2 text-slate-900">
-              <CalendarClock className="w-5 h-5 text-[#D8232A]" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Faculty Teachin Load</h1>
-            </div>
-            <p className="text-sm text-slate-500 max-w-md leading-relaxed hidden sm:block">
-              Manage teacher schedules, subject assignments, and time slots for academic year {syName}.
-            </p>
-          </div>
           
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <Button

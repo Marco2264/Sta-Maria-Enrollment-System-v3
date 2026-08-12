@@ -353,7 +353,7 @@ function ParentPortalContent() {
             </div>
             Parent Portal
           </div>
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-sm">{initials}</div>
+          <div className="w-8 h-8 shrink-0"></div>
         </header>
         <div className="flex-1 overflow-y-auto bg-[#F4F7F9] flex flex-col relative">
           <AnimatePresence mode="wait">

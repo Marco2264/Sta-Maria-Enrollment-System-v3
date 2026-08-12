@@ -160,19 +160,23 @@ export function AttendanceView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-primary">
-              <Users className="w-5 h-5" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Attendance Records</h1>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex flex-row items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <div className="flex items-center gap-2 text-slate-900">
+                <Users className="w-5 h-5 text-[#D8232A]" />
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">Attendance Records</h1>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
+                View student attendance by grade and section
+              </p>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
-              View student attendance by grade and section
-            </p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            
+            <div className="flex items-center gap-3 w-full lg:w-auto">
             <input
               type="date"
               max={todayDate}

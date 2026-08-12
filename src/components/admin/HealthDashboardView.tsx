@@ -48,19 +48,23 @@ export function HealthDashboardView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-emerald-500/5 via-emerald-500/10 to-transparent shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-emerald-600">
-              <Heart className="w-5 h-5" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Health & Nutrition</h1>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex flex-row items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <div className="flex items-center gap-2 text-slate-900">
+                <Heart className="w-5 h-5 text-[#D8232A]" />
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">Health & Nutrition</h1>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <p className="text-xs text-slate-500 max-w-xl hidden lg:block truncate">
+                Monitor student nutritional status, BMI trends, and manage feeding program eligibility based on DepEd standards.
+              </p>
             </div>
-            <p className="text-sm text-slate-600 max-w-xl leading-relaxed hidden sm:block">
-              Monitor student nutritional status, BMI trends, and manage feeding program eligibility based on DepEd standards.
-            </p>
-          </div>
-          
-          <Button
+            
+            <Button
             variant="outline"
             className="w-full sm:w-auto rounded-xl px-6 bg-white shadow-sm border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-semibold transition-all"
             onClick={() => window.print()}

@@ -231,24 +231,25 @@ export function SubjectsView() {
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredSubjects.length / itemsPerPage));
-  const paginatedSubjects = filteredSubjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+const paginatedSubjects = filteredSubjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-primary">
-              <BookOpen className="w-5 h-5" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Subjects Management</h1>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex flex-row items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-slate-900">
+                <BookOpen className="w-5 h-5 text-[#D8232A]" />
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">Subjects Management</h1>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <p className="text-xs text-slate-500 max-w-md hidden lg:flex items-center gap-2 truncate">
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                Managing subjects {selectedYear === 'All' ? 'across all academic years' : `for Academic Year ${selectedYear}`}
+              </p>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
-              Managing subjects {selectedYear === 'All' ? 'across all academic years' : `for Academic Year ${selectedYear}`}
-            </p>
-          </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+          
+          <div className="flex items-center gap-3 w-full lg:w-auto">
           <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl relative w-full sm:w-64">
             <Search className="w-4 h-4 text-slate-400 absolute left-3" />
             <Input

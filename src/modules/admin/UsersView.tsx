@@ -299,23 +299,22 @@ export function UsersView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/40">
-      {/* Clean White Header Banner (No gradient wash) */}
-      <header className="min-h-[96px] py-6 sm:py-8 px-6 sm:px-8 border-b border-slate-200/80 bg-white shrink-0">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 text-slate-900">
-              <Users className="w-6 h-6 text-[#D8232A]" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">System Users</h1>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex flex-row items-center justify-between gap-4 w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-slate-900">
+                <Users className="w-5 h-5 text-[#D8232A]" />
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">System Users</h1>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
+                Manage and monitor all school personnel, teachers, and parent accounts across the system.
+              </p>
             </div>
-            {/* FIX 1: slate-500 for better contrast on secondary text */}
-            <p className="text-xs sm:text-sm text-slate-500 max-w-md leading-relaxed">
-              Manage and monitor all school personnel, teachers, and parent accounts across the system.
-            </p>
           </div>
-        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 w-full">
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
@@ -581,9 +580,17 @@ export function UsersView() {
                       <TableCell className="whitespace-nowrap py-2">
                         <div className="flex items-center gap-3">
                           {/* Multi-Tone Pastel Avatars — slightly smaller for tighter rows */}
-                          <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border shadow-2xs", getAvatarStyle(user.id || user.firstName))}>
-                            {user.firstName?.charAt(0) || ''}{user.lastName?.charAt(0) || ''}
-                          </div>
+                          {user.photoURL || (user as any).photoUrl ? (
+                            <img
+                              src={user.photoURL || (user as any).photoUrl}
+                              alt={`${user.firstName} ${user.lastName}`}
+                              className="h-8 w-8 rounded-full object-cover shrink-0 border shadow-2xs"
+                            />
+                          ) : (
+                            <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border shadow-2xs", getAvatarStyle(user.id || user.firstName))}>
+                              {user.firstName?.charAt(0) || ''}{user.lastName?.charAt(0) || ''}
+                            </div>
+                          )}
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-800 text-xs leading-tight">{user.firstName} {user.lastName}</span>
                             <span className="text-[11px] text-slate-500 font-normal mt-0.5">{user.email}</span>

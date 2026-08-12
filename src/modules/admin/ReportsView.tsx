@@ -386,19 +386,20 @@ export function ReportsView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-8 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-primary">
-              <FileText className="w-6 h-6" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">School Forms</h1>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex flex-row items-center justify-between gap-4 max-w-7xl mx-auto w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-slate-900">
+                <FileText className="w-5 h-5 text-[#D8232A]" />
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">School Forms</h1>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
+                Generate and download official DepEd school forms based on live enrollment and attendance data.
+              </p>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed">
-              Generate and download official DepEd school forms based on live enrollment and attendance data.
-            </p>
           </div>
-        </div>
-      </header>
+        </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {error && (

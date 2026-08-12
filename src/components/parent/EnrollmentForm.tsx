@@ -2163,16 +2163,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
         )}
 
         <div className="flex items-center gap-6">
-          <button
-            type="button"
-            onClick={() => {
-              setSuccessMsg("Registration draft saved successfully!");
-              setTimeout(() => setSuccessMsg(null), 3000);
-            }}
-            className="text-slate-500 hover:text-slate-700 font-extrabold uppercase tracking-widest text-xs cursor-pointer transition-colors border-0 bg-transparent outline-none"
-          >
-            Save as Draft
-          </button>
+
 
           {subStep === 11 ? (
             <button

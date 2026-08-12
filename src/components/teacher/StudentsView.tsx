@@ -15,7 +15,7 @@ import {
 import { TeacherEditStudentModal } from './TeacherEditStudentModal';
 import { Eye, Users, Activity, Scale, Ruler, Trash2, FileEdit, Search, Filter, CalendarDays } from 'lucide-react';
 import { useTeacherData } from '../../lib/teacherData';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { HealthAnalyticsService } from '../../lib/services/healthAnalyticsService';
@@ -109,13 +109,17 @@ export function StudentsView() {
     }
   };
 
-  const handleDeleteStudent = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
+  const handleRemoveStudent = async (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to remove ${name} from this class? Their status will be set to Pending.`)) {
       try {
-        await deleteDoc(doc(db, 'enrollments', id));
+        await updateDoc(doc(db, 'enrollments', id), {
+          sectionId: null,
+          section: null,
+          status: 'Pending'
+        });
       } catch (error) {
-        console.error("Error deleting student:", error);
-        alert("Failed to delete student.");
+        console.error("Error removing student:", error);
+        alert("Failed to remove student.");
       }
     }
   };
@@ -332,8 +336,8 @@ export function StudentsView() {
                           variant="ghost"
                           size="icon"
                           className="h-9 w-9 text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors rounded-xl active:scale-95 duration-100 inline-flex items-center justify-center"
-                          onClick={() => handleDeleteStudent(s.id, formatStudentName(s.firstName, s.lastName))}
-                          title="Delete Student Record"
+                          onClick={() => handleRemoveStudent(s.id, formatStudentName(s.firstName, s.lastName))}
+                          title="Remove Student from Class"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

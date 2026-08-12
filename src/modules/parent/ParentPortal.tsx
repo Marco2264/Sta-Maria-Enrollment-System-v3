@@ -345,13 +345,7 @@ function ParentPortalContent() {
             <img src="/pasted-image.jpg" alt="Logo" className="w-6 h-6 rounded-md object-cover" />
             Parent Portal
           </div>
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
-            {uData?.photoURL ? (
-              <img src={uData.photoURL} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <>{uData?.firstName?.charAt(0) || 'P'}{uData?.lastName?.charAt(0) || 'U'}</>
-            )}
-          </div>
+          <div className="w-8 h-8"></div>
         </header>
         <div className="flex-1 overflow-y-auto bg-muted/30 flex flex-col relative">
           <AnimatePresence mode="wait">

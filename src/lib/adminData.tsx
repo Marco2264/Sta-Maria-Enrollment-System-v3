@@ -62,6 +62,8 @@ export type User = {
   status: 'Active' | 'Pending';
   assignedGrade?: string;
   password?: string;
+  photoURL?: string;
+  photoUrl?: string;
   createdAt: unknown;
 };
 export type Assignment = {

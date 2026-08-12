@@ -15,6 +15,8 @@ import {
   TableHeader,
   TableRow
 } from '../../components/ui/Table';
+import { StudentAttendanceCalendar } from '../../components/parent/StudentAttendanceCalendar';
+import { ObservedValuesCard } from '../../components/parent/ObservedValuesCard';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -899,16 +901,8 @@ export function ChildDetailView({
                 </TabsContent>
 
                 <TabsContent value="attendance" className="mt-0 outline-none space-y-6">
-                  <Card className="bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl overflow-hidden">
-                    <div className="p-6 sm:p-8 border-b border-slate-100">
-                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <CalendarCheck className="w-5 h-5 text-primary" />
-                        Attendance History
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1">Double session tracking records</p>
-                    </div>
-
-                    {child.status !== 'Enrolled' ? (
+                  {child.status !== 'Enrolled' ? (
+                    <Card className="bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl overflow-hidden">
                       <div className="p-16 text-center">
                         <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                           <CalendarCheck className="w-10 h-10 text-slate-300" />
@@ -918,59 +912,10 @@ export function ChildDetailView({
                           Attendance records will be available once the student is officially enrolled in a class.
                         </p>
                       </div>
-                    ) : !child.attendance || child.attendance.length === 0 ? (
-                      <div className="p-16 text-center">
-                        <div className="w-20 h-20 bg-emerald-50/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                          <CalendarCheck className="w-10 h-10 text-emerald-300" />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">No Records Yet</h3>
-                        <p className="text-slate-500 max-w-sm mx-auto text-sm">
-                          There are no attendance records logged for this student yet.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
-                            <TableRow className="hover:bg-transparent border-none">
-                              <TableHead className="font-bold text-slate-700 pl-6 sm:pl-8 py-4 whitespace-nowrap">
-                                Date
-                              </TableHead>
-                              <TableHead className="font-bold text-slate-700 py-4 whitespace-nowrap">
-                                Morning (AM)
-                              </TableHead>
-                              <TableHead className="font-bold text-slate-700 py-4 whitespace-nowrap">
-                                Afternoon (PM)
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {child.attendance.map((record, i) => (
-                              <TableRow
-                                key={i}
-                                className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
-                              >
-                                <TableCell className="font-bold text-slate-800 pl-6 sm:pl-8 py-4 whitespace-nowrap text-sm">
-                                  {new Date(record.date).toLocaleDateString('en-US', {
-                                    weekday: 'short',
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })}
-                                </TableCell>
-                                <TableCell className="py-4 whitespace-nowrap text-sm">
-                                  {getAttendanceBadge(record.amStatus || record.status || 'Unmarked')}
-                                </TableCell>
-                                <TableCell className="py-4 whitespace-nowrap text-sm">
-                                  {getAttendanceBadge(record.pmStatus || record.status || 'Unmarked')}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </Card>
+                    </Card>
+                  ) : (
+                    <StudentAttendanceCalendar records={child.attendance || []} />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="academic" className="mt-0 outline-none space-y-6">
@@ -1033,7 +978,7 @@ export function ChildDetailView({
                             <GraduationCap className="w-5 h-5 text-[#2563eb]" />
                             Subject Performance Breakdown
                           </h3>
-                          <p className="text-xs text-slate-500 font-medium mt-1">Detailed 3-term grade breakdown and component analysis</p>
+                          <p className="text-xs text-slate-500 font-medium mt-1">Detailed 4-term grade breakdown and component analysis</p>
                         </div>
 
                         {!child.grades || Object.keys(child.grades).length === 0 ? (
@@ -1049,20 +994,28 @@ export function ChildDetailView({
                         ) : (
                           <div className="space-y-4">
                             {Object.entries(child.grades).map(([subjName, subjVal]: [string, any]) => {
+                              let q1: number | string = '--';
+                              let q2: number | string = '--';
+                              let q3: number | string = '--';
+                              let q4: number | string = '--';
                               let finalVal: number | null = null;
+                              
                               if (typeof subjVal === 'object' && subjVal !== null) {
-                                const nums = Object.values(subjVal).map(v => parseFloat(v as any)).filter(n => !isNaN(n));
+                                q1 = subjVal.q1 ? parseFloat(subjVal.q1) || '--' : '--';
+                                q2 = subjVal.q2 ? parseFloat(subjVal.q2) || '--' : '--';
+                                q3 = subjVal.q3 ? parseFloat(subjVal.q3) || '--' : '--';
+                                q4 = subjVal.q4 ? parseFloat(subjVal.q4) || '--' : '--';
+                                const nums = [q1, q2, q3, q4].filter(n => typeof n === 'number') as number[];
                                 if (nums.length > 0) finalVal = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
                               } else {
                                 const n = parseFloat(subjVal);
-                                if (!isNaN(n)) finalVal = n;
+                                if (!isNaN(n)) {
+                                  finalVal = n;
+                                  q1 = n;
+                                }
                               }
 
-                              // Mocking 3-term layout visually
-                              const t1 = finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 3)) : 'N/A';
-                              const t2 = finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : 'N/A';
-                              const t3 = finalVal || 'N/A';
-                              const displayGrade = finalVal !== null ? finalVal : 'N/A';
+                              const displayGrade = finalVal !== null ? finalVal : '--';
                               const subjBadge = finalVal !== null ? getSubjectStatus(finalVal) : null;
 
                               return (
@@ -1079,21 +1032,25 @@ export function ChildDetailView({
                                       )}
                                     </div>
                                     
-                                    {/* 3-Term Quick View */}
-                                    <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
+                                    {/* 4-Term Quick View */}
+                                    <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
                                       <div className="text-center min-w-[2.5rem]">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T1</p>
-                                        <p className="text-sm font-semibold text-slate-700">{t1}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q1</p>
+                                        <p className="text-sm font-semibold text-slate-700">{q1}</p>
                                       </div>
                                       <div className="text-center min-w-[2.5rem]">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T2</p>
-                                        <p className="text-sm font-semibold text-slate-700">{t2}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q2</p>
+                                        <p className="text-sm font-semibold text-slate-700">{q2}</p>
                                       </div>
                                       <div className="text-center min-w-[2.5rem]">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T3</p>
-                                        <p className="text-sm font-semibold text-slate-700">{t3}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q3</p>
+                                        <p className="text-sm font-semibold text-slate-700">{q3}</p>
                                       </div>
-                                      <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-6">
+                                      <div className="text-center min-w-[2.5rem]">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q4</p>
+                                        <p className="text-sm font-semibold text-slate-700">{q4}</p>
+                                      </div>
+                                      <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-5">
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p>
                                         <p className="text-base font-black text-[#2563eb]">{displayGrade}</p>
                                       </div>
@@ -1152,6 +1109,9 @@ export function ChildDetailView({
                           </div>
                         </div>
                       </Card>
+
+                      {/* Observed Values Card */}
+                      <ObservedValuesCard observedValues={(child as any).observedValues} gradeLevel={child.gradeLevel} />
                     </>
                   )}
                 </TabsContent>

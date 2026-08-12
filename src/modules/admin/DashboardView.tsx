@@ -154,9 +154,9 @@ export function DashboardView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="min-h-[96px] py-6 px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+        <div className="flex flex-row items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Home</span>
             </div>

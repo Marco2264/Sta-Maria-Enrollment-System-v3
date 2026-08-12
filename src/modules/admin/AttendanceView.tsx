@@ -160,9 +160,9 @@ export function AttendanceView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="h-20 px-6 border-b border-slate-200 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent flex items-center shrink-0">
-        <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+        <div className="flex flex-row items-center justify-between gap-4 max-w-7xl mx-auto w-full">
+          <div className="flex items-center gap-3">
             <div>
               <h1 className="text-3xl font-bold text-foreground">Attendance Records</h1>
               <p className="text-muted-foreground mt-1 text-lg">View student attendance by grade and section</p>

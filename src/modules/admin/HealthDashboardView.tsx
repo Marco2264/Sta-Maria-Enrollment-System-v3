@@ -48,18 +48,18 @@ export function HealthDashboardView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="min-h-[96px] py-6 px-6 sm:px-8 border-b border-slate-200 bg-gradient-to-r from-emerald-500/5 via-emerald-500/10 to-transparent flex items-center shrink-0">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-2">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+        <div className="flex flex-row items-center justify-between gap-4 max-w-7xl mx-auto w-full">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-emerald-600">
               <Heart className="w-6 h-6" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Health & Nutrition</h1>
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">Health & Nutrition</h1>
             </div>
-            <p className="text-sm text-slate-600 max-w-xl leading-relaxed">
+            <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+            <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
               Monitor student nutritional status, BMI trends, and manage feeding program eligibility based on DepEd standards.
             </p>
           </div>
-          
           <Button
             variant="outline"
             className="w-full sm:w-auto rounded-xl px-6 bg-white shadow-sm border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-semibold transition-all"
