@@ -130,36 +130,40 @@ export function ObservedValuesView() {
       <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
-      <header className="relative px-8 py-10 border-b border-slate-200 bg-white/70 backdrop-blur-md shrink-0 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
-          <div className="space-y-1 text-left">
-            <div className="flex flex-wrap items-center gap-3 text-slate-800">
-              <div className="p-2.5 bg-rose-50 rounded-2xl text-rose-500 shadow-sm border border-rose-100">
-                <Heart className="w-6 h-6 fill-current" />
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white  shrink-0 flex items-center justify-between">
+        <div className="flex flex-row items-center justify-between gap-6 w-full">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-6 flex-1 min-w-0">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="p-2 bg-rose-50 rounded-xl text-[#D8232A] shrink-0 border border-rose-100/50 shadow-sm">
+                <Heart className="w-5 h-5 fill-current" />
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Observed Values</h1>
-              
-              {/* Sync status indicator */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100/80 border border-slate-200/50 text-slate-500 text-xs font-semibold select-none transition-all duration-300">
-                {isSaving ? (
-                  <>
-                    <Save className="w-3.5 h-3.5 animate-spin text-primary" />
-                    <span className="text-primary font-bold">Saving...</span>
-                  </>
-                ) : saveSuccess ? (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-50" />
-                    <span className="text-emerald-600 font-bold">Saved to Cloud</span>
-                  </>
-                ) : (
-                  <>
-                    <HelpCircle className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="text-amber-600 font-bold">Saving failed</span>
-                  </>
-                )}
+              <div className="flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-none">Values</span>
+                  {/* Sync status indicator */}
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100/80 border border-slate-200/50 text-slate-500 text-[9px] font-semibold select-none transition-all duration-300">
+                    {isSaving ? (
+                      <>
+                        <Save className="w-2.5 h-2.5 animate-spin text-primary" />
+                        <span className="text-primary font-bold leading-none">Saving...</span>
+                      </>
+                    ) : saveSuccess ? (
+                      <>
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                        <span className="text-emerald-700 font-bold leading-none">Saved</span>
+                      </>
+                    ) : (
+                      <>
+                        <HelpCircle className="w-2.5 h-2.5 text-amber-500" />
+                        <span className="text-amber-700 font-bold leading-none">Unsaved</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">Observed Values</h1>
               </div>
             </div>
-            <p className="text-sm text-slate-500 pl-1">
+            <p className="hidden lg:block text-xs text-slate-500 lg:border-l lg:border-slate-200 lg:pl-5 py-0.5 flex-1 leading-relaxed truncate">
               Rate the behavior and character traits of students in your class based on DepEd Core Values.
             </p>
           </div>
@@ -198,7 +202,7 @@ export function ObservedValuesView() {
           </p>
         </div>
       ) : (
-        <div className="flex-1 flex overflow-hidden w-full max-w-7xl mx-auto">
+        <div className="flex-1 flex overflow-hidden w-full">
           {/* Sidebar Student List */}
           <aside className="w-80 border-r border-slate-200 bg-white/50 backdrop-blur-sm flex flex-col shrink-0">
             <div className="p-4 border-b border-slate-200 bg-slate-50/50">

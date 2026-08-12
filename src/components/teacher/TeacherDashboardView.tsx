@@ -150,20 +150,22 @@ export function TeacherDashboardView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 relative overflow-hidden">
-      <header className="min-h-[96px] py-6 px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center shrink-0 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Teacher Portal</span>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex flex-row items-center justify-between gap-4 w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 bg-[#D8232A]/10 text-[#D8232A] rounded-full">Teacher Portal</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <div className="flex items-center gap-2 text-slate-900">
+                <GraduationCap className="w-5 h-5 text-[#D8232A]" />
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">Teacher Dashboard</h1>
+              </div>
+              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+              <p className="text-xs text-slate-500 max-w-md hidden lg:block">
+                Welcome back. Monitor live metrics, attendance, and grading.
+              </p>
             </div>
-            <div className="flex items-center gap-2 text-slate-900">
-              <GraduationCap className="w-5 h-5 text-[#D8232A]" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Teacher Dashboard</h1>
-            </div>
-            <p className="text-sm text-slate-500 max-w-md leading-relaxed hidden sm:block">
-              Welcome back. Monitor live metrics, attendance tracking, and grading analytics for your classroom.
-            </p>
-          </div>
           
           <div className="flex items-center gap-3 md:self-center">
             {pending.length > 0 && (
@@ -176,7 +178,7 @@ export function TeacherDashboardView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full relative">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 w-full relative">
         {/* Stat Cards */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, i) => (

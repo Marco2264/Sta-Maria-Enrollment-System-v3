@@ -233,30 +233,30 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-200">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-[#2563eb]" />
-            Manage Announcements
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Create and manage targeted announcements for parents and students.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {!isTeacher && (
-            <Button onClick={handleDeleteAll} disabled={isSubmitting} className="gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer shadow-sm border border-rose-100">
-              <Trash2 className="w-4 h-4" /> Clear All
+    <div className="flex flex-col h-full bg-slate-50/50">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center justify-between">
+        <div className="flex flex-row items-center justify-between gap-6 w-full">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-[#2563eb]" />
+              Manage Announcements
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            {!isTeacher && (
+              <Button onClick={handleDeleteAll} disabled={isSubmitting} className="gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer shadow-sm border border-rose-100">
+                <Trash2 className="w-4 h-4" /> Clear All
+              </Button>
+            )}
+            <Button onClick={() => setIsDialogOpen(true)} className="gap-2 bg-[#2563eb] hover:bg-blue-700 text-white shadow-sm cursor-pointer">
+              <Plus className="w-4 h-4" /> New Announcement
             </Button>
-          )}
-          <Button onClick={() => setIsDialogOpen(true)} className="gap-2 bg-[#2563eb] hover:bg-blue-700 text-white cursor-pointer shadow-md">
-            <Plus className="w-4 h-4" /> New Announcement
-          </Button>
+          </div>
         </div>
-      </div>
+      </header>
+      <div className="flex-1 overflow-y-auto p-6 w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
 
-      <Card className="p-4 rounded-2xl border border-slate-200/60 shadow-sm">
+        <Card className="p-4 rounded-2xl border border-slate-200/60 shadow-sm">
         <div className="relative mb-4">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <Input 
@@ -539,6 +539,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
           </div>
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   );
 }

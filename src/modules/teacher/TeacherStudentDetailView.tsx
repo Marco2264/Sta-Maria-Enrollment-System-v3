@@ -63,7 +63,7 @@ export function TeacherStudentDetailView({
 }) {
   const { user } = useAuth();
   const { students } = useTeacherData();
-  const child = students.find((s) => s.id === studentId);
+  const child = students.find((s) => s.id === studentId)!;
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -303,7 +303,7 @@ export function TeacherStudentDetailView({
 
   const rawAvg = getStudentAverage(child);
   const avgDisplay = rawAvg === 'N/A' ? 'No Grades Yet' : `${rawAvg}%`;
-  const standingInfo = getAcademicStandingBadge(rawAvg);
+  const standingInfo = getAcademicStandingBadge(rawAvg) || { label: 'Unknown', color: 'bg-slate-50', status: 'Unknown', statusColor: 'bg-slate-500' };
 
   const getSubjectStatus = (gradeNum: number) => {
     if (gradeNum >= 90) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
@@ -355,13 +355,13 @@ export function TeacherStudentDetailView({
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9]">
       {/* HEADER */}
-      <header className="px-6 py-4 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white shadow-sm z-10 relative">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center justify-between z-10 relative">
         <div className="flex items-center gap-2 text-sm">
           <button onClick={onBack} className="text-slate-500 font-semibold hover:text-slate-700 transition-colors cursor-pointer">
             Students
           </button>
-          <span className="text-slate-400">›</span>
-          <span className="font-extrabold text-slate-900 uppercase tracking-tight">{child.firstName} {child.lastName}</span>
+          <span className="text-slate-400">/</span>
+          <span className="font-extrabold text-slate-900 uppercase tracking-tight">{child?.firstName} {child?.lastName}</span>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 rounded-lg px-4 gap-2 font-bold shadow-xs">
@@ -632,13 +632,13 @@ export function TeacherStudentDetailView({
       {false && (
         <>
       {/* ── TOP HEADER / BREADCRUMBS BAR ── */}
-      <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm">
           <button onClick={onBack} className="text-slate-400 hover:text-slate-700 font-medium transition-colors cursor-pointer">
             Students
           </button>
-          <span className="text-slate-300">›</span>
-          <span className="font-bold text-slate-900">{child.firstName} {child.lastName}</span>
+          <span className="text-slate-300">/</span>
+          <span className="font-bold text-slate-900">{child?.firstName} {child?.lastName}</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -650,7 +650,7 @@ export function TeacherStudentDetailView({
             className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
           >
             <Edit className="w-3.5 h-3.5" />
-            {childStatus === 'Enrolled' || childStatus === 'Approved' ? 'Update Contact Info' : 'Edit Profile'}
+            Edit Profile
           </button>
         </div>
       </header>
@@ -701,11 +701,11 @@ export function TeacherStudentDetailView({
                         title={isPhotoUploading ? 'Uploading...' : 'Click to change photo'}
                       >
                         {previewUrl ? (
-                          <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                          <img src={previewUrl || undefined} alt="Preview" className="w-full h-full object-cover" />
                         ) : (() => {
                           const photo = getStudentPhoto(child);
                           return photo ? (
-                            <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
+                            <img src={photo || undefined} alt={child.firstName} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-2xl font-black text-[#2563eb]">
                               {child.firstName.charAt(0)}{child.lastName.charAt(0)}
@@ -926,7 +926,7 @@ export function TeacherStudentDetailView({
                       <div>
                         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">PRIMARY RESIDENCE</p>
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-[15px] font-semibold text-slate-800">
-                          {child.address?.street ? `${child.address.street}, ` : ''}{child.address?.barangay || '--'}, {child.address?.city || '--'}, {child.address?.zipCode || '--'}
+                          {child.address?.street ? `${child.address?.street}, ` : ''}{child.address?.barangay || '--'}, {child.address?.city || '--'}, {child.address?.zipCode || '--'}
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 pt-2">
@@ -961,8 +961,8 @@ export function TeacherStudentDetailView({
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-6 gap-x-8">
-                      <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">HEIGHT</p><p className="text-[16px] text-slate-900 font-semibold">{child.medical?.height ? `${child.medical.height} cm` : '--'}</p></div>
-                      <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">WEIGHT</p><p className="text-[16px] text-slate-900 font-semibold">{child.medical?.weight ? `${child.medical.weight} kg` : '--'}</p></div>
+                      <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">HEIGHT</p><p className="text-[16px] text-slate-900 font-semibold">{child.medical?.height ? `${child.medical?.height} cm` : '--'}</p></div>
+                      <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">WEIGHT</p><p className="text-[16px] text-slate-900 font-semibold">{child.medical?.weight ? `${child.medical?.weight} kg` : '--'}</p></div>
                       <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">BLOOD TYPE</p><p className="text-sm font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100 inline-block">{child.medical?.bloodType || '--'}</p></div>
                     </div>
                   </div>
@@ -1095,7 +1095,7 @@ export function TeacherStudentDetailView({
                           <p className="text-xs text-slate-500 font-medium mt-1">Detailed 3-term grade breakdown and component analysis</p>
                         </div>
 
-                        {!child.grades || Object.keys(child.grades).length === 0 ? (
+                        {!child.grades || Object.keys(child.grades || {}).length === 0 ? (
                           <div className="p-12 text-center">
                             <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                               <BarChart3 className="w-8 h-8 text-slate-300" />
@@ -1107,7 +1107,7 @@ export function TeacherStudentDetailView({
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {Object.entries(child.grades).map(([subjName, subjVal]: [string, any]) => {
+                            {Object.entries(child.grades || {}).map(([subjName, subjVal]: [string, any]) => {
                               let finalVal: number | null = null;
                               if (typeof subjVal === 'object' && subjVal !== null) {
                                 const nums = Object.values(subjVal).map(v => parseFloat(v as any)).filter(n => !isNaN(n));

@@ -109,7 +109,7 @@ function TeacherDashboardContent() {
     return (
       <div className="flex flex-col h-full bg-white font-sans overflow-x-hidden">
         {/* Brand Header */}
-        <div className="h-16 lg:h-20 flex items-center px-4 shrink-0 overflow-hidden relative">
+        <div className="h-[72px] border-b border-slate-200 flex items-center px-4 shrink-0 overflow-hidden relative">
           <div
             className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm shrink-0 cursor-pointer hover:scale-105 hover:bg-primary/10 transition-all duration-200"
             onClick={collapsed ? toggleSidebar : () => setActiveView('dashboard')}
@@ -246,7 +246,7 @@ function TeacherDashboardContent() {
 
   return (
     <div className="flex h-screen w-full bg-slate-50/50 overflow-hidden font-sans">
-      <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} border-r border-slate-200/60 bg-white flex-col shrink-0 transition-[width] duration-300 ease-in-out`}>
+      <aside className={`hidden lg:flex ${sidebarCollapsed ? 'w-20' : 'w-64'} border-r border-slate-200 bg-white flex-col shrink-0 transition-[width] duration-300 ease-in-out`}>
         <SidebarContent />
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden">

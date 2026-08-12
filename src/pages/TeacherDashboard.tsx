@@ -69,10 +69,8 @@ function TeacherDashboardContent() {
   };
   const SidebarContent = () =>
   <>
-      <div className="h-16 flex items-center justify-between px-6 shrink-0">
-        <div
-        className="flex items-center gap-3 cursor-pointer"
-        onClick={() => navigate('/')}>
+      <div className="min-h-[72px] py-3 flex items-center justify-between px-6 shrink-0 border-b border-slate-200">
+        <div className="flex items-center gap-3">
         
           <img
           src="/pasted-image.jpg"
@@ -88,7 +86,7 @@ function TeacherDashboardContent() {
             </span>
           </div>
         </div>
-        <ChevronDown className="w-4 h-4 text-muted-foreground hidden lg:block" />
+        
       </div>
 
       <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
@@ -125,7 +123,7 @@ function TeacherDashboardContent() {
       )}
       </div>
 
-      <div className="border-t border-border p-3 shrink-0">
+      <div className="border-t border-slate-200 p-3 shrink-0">
         <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-md transition-colors mb-2">
           <Settings className="w-4 h-4" />
           Settings
@@ -150,14 +148,14 @@ function TeacherDashboardContent() {
   return (
     <div className="flex h-screen w-full bg-muted/30 overflow-hidden font-sans">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-border bg-card flex-col shrink-0">
+      <aside className="hidden lg:flex w-64 border-r border-slate-200 bg-white flex-col shrink-0">
         <SidebarContent />
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Top Bar */}
-        <header className="lg:hidden h-14 border-b border-border bg-card px-4 flex items-center justify-between shrink-0">
+        <header className="lg:hidden h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="-ml-2">

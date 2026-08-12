@@ -109,19 +109,19 @@ export function StudentsView() {
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#D8232A]/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#D8232A]/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
-      <header className="relative px-8 py-10 border-b border-slate-200 bg-white/70 backdrop-blur-md shrink-0 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Classroom</span>
-            </div>
-            <div className="flex items-center gap-3 text-slate-800">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white/70 backdrop-blur-md shrink-0 flex items-center justify-between">
+        <div className="flex flex-row items-center justify-between gap-6 w-full">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-6 flex-1 min-w-0">
+            <div className="flex items-center gap-3 shrink-0">
               <div className="p-2.5 bg-[#D8232A]/10 text-[#D8232A] border border-[#D8232A]/20 rounded-2xl shadow-sm">
-                <Users className="w-6 h-6" />
+                <Users className="w-5 h-5" />
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Student Profiles</h1>
+              <div className="flex flex-col justify-center">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-none mb-1">Classroom</span>
+                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">Student Profiles</h1>
+              </div>
             </div>
-            <p className="text-sm text-slate-500 pl-14">
+            <p className="hidden lg:block text-xs text-slate-500 lg:border-l lg:border-slate-200 lg:pl-5 py-0.5 flex-1 leading-relaxed truncate">
               View and manage your enrolled students' profiles, physical health parameters, and BMI calculations.
             </p>
           </div>
@@ -323,8 +323,9 @@ export function StudentsView() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  );
+                })
+              )}
               </TableBody>
             </Table>
           </div>

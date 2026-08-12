@@ -410,7 +410,7 @@ export function GradesView() {
 
   if (!isGradebookOpen) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="p-4 sm:p-6 lg:p-8  space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Your Assigned Grades & Sections</h1>
           <p className="text-slate-500 mt-1 text-sm">Select a section below to manage your assigned subjects or view the overall classroom progress.</p>
@@ -420,7 +420,7 @@ export function GradesView() {
           <Card className="border-2 border-dashed border-slate-200 shadow-none flex flex-col items-center justify-center p-16 text-center bg-slate-50/50 rounded-2xl col-span-full w-full mt-4">
             <BookOpen className="w-16 h-16 text-slate-300 mb-4" />
             <h3 className="text-xl font-bold text-slate-700">No Assigned Sections</h3>
-            <p className="text-sm text-slate-500 mt-2 max-w-md">
+            <p className="hidden md:block text-xs text-slate-500 mt-2 max-w-md">
               You currently do not have any subjects or sections assigned to you for this academic year. Please contact the administrator to assign your teaching loads.
             </p>
           </Card>
@@ -580,8 +580,8 @@ export function GradesView() {
           {/* Header */}
           <div className="flex items-end justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{selectedSubjectCode === 'MASTER_SHEET' ? 'Master Gradebook Report' : selectedSubjectCode || 'No Subject Selected'}</h1>
-              <p className="text-sm text-slate-500 mt-1">{currentGradeLevel} — {currentSectionName}</p>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">{selectedSubjectCode === 'MASTER_SHEET' ? 'Master Gradebook Report' : selectedSubjectCode || 'No Subject Selected'}</h1>
+              <p className="hidden md:block text-xs text-slate-500 mt-1">{currentGradeLevel} — {currentSectionName}</p>
             </div>
             
             <div className="flex items-center gap-3">
@@ -878,7 +878,7 @@ export function GradesView() {
                         <TableCell className="pl-6 py-4">
                           <div className="flex items-center gap-3">
                             {(() => {
-                              const photoFields = [s.photoURL, s.photoUrl, (s as any).profilePicture, (s as any).avatarUrl, (s as any).avatar, (s as any).photo];
+                              const photoFields = [(s as any).photoURL, (s as any).photoUrl, (s as any).profilePicture, (s as any).avatarUrl, (s as any).avatar, (s as any).photo];
                               const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
                               return photo ? (
                                 <img src={photo} alt={s.firstName} className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
@@ -1023,7 +1023,7 @@ export function GradesView() {
                 max={remainingWeight}
                 min="1"
               />
-              <p className="text-xs text-slate-500 mt-1">Remaining weight for this term: {remainingWeight}%</p>
+              <p className="hidden md:block text-xs text-slate-500 mt-1">Remaining weight for this term: {remainingWeight}%</p>
             </div>
           </div>
           <DialogFooter>
@@ -1063,7 +1063,7 @@ export function GradesView() {
                 max={remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}
                 min="1"
               />
-              <p className="text-xs text-slate-500 mt-1">Remaining weight for this term: {remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}%</p>
+              <p className="hidden md:block text-xs text-slate-500 mt-1">Remaining weight for this term: {remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}%</p>
             </div>
           </div>
           <DialogFooter>

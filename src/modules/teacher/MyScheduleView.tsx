@@ -78,21 +78,26 @@ export function MyScheduleView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
-      <header className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-transparent shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-primary">
-              <CalendarClock className="w-5 h-5" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">My Teaching Schedule</h1>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-gradient-to-r  shrink-0 flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4  w-full">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-6 flex-1 min-w-0">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="p-2 bg-rose-50 rounded-xl text-[#D8232A] shrink-0 border border-rose-100/50 shadow-sm">
+                <CalendarClock className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col justify-center">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-none mb-1">Schedule</span>
+                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">My Teaching Schedule</h1>
+              </div>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed hidden sm:block">
+            <p className="hidden lg:block text-xs text-slate-500 lg:border-l lg:border-slate-200 lg:pl-5 py-0.5 flex-1 leading-relaxed truncate">
               View your assigned subjects, sections, and class times for the academic year {syName}.
             </p>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full">
+      <div className="flex-1 overflow-hidden p-4 sm:p-6 lg:p-8  w-full">
         <Card className="flex flex-col h-full bg-white border-slate-200/60 shadow-sm overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50/80 shrink-0">

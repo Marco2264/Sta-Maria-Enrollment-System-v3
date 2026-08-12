@@ -150,17 +150,19 @@ export function TeacherDashboardView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 relative overflow-hidden">
-      <header className="min-h-[96px] py-6 px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center shrink-0 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D8232A]">Teacher Portal</span>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white  shrink-0 flex items-center justify-between">
+        <div className="flex flex-row items-center justify-between gap-4  w-full">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-6 flex-1 min-w-0">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="p-2 bg-rose-50 rounded-xl text-[#D8232A] shrink-0 border border-rose-100/50 shadow-sm">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col justify-center">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-none mb-1">Teacher Portal</span>
+                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">Teacher Dashboard</h1>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-slate-900">
-              <GraduationCap className="w-5 h-5 text-[#D8232A]" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Teacher Dashboard</h1>
-            </div>
-            <p className="text-sm text-slate-500 max-w-md leading-relaxed hidden sm:block">
+            <p className="hidden lg:block text-xs text-slate-500 lg:border-l lg:border-slate-200 lg:pl-5 py-0.5 flex-1 leading-relaxed truncate">
               Welcome back. Monitor live metrics, attendance tracking, and grading analytics for your classroom.
             </p>
           </div>
@@ -176,7 +178,7 @@ export function TeacherDashboardView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full relative">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8  w-full relative">
         {/* Stat Cards */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, i) => (
@@ -214,7 +216,7 @@ export function TeacherDashboardView() {
                   <div className="w-1 h-4 rounded-full bg-[#D8232A]" />
                   <h3 className="text-lg font-bold text-slate-800">Attendance Trends</h3>
                 </div>
-                <p className="text-xs text-slate-500 font-medium mt-1 pl-3">Daily attendance history tracking for the last 30 active days.</p>
+                <p className="hidden md:block text-xs text-slate-500 font-medium mt-1 pl-3">Daily attendance history tracking for the last 30 active days.</p>
               </div>
               <ArrowUpRight className="w-5 h-5 text-slate-300" />
             </div>
@@ -231,7 +233,7 @@ export function TeacherDashboardView() {
                   <div className="w-1 h-4 rounded-full bg-[#D8232A]" />
                   <h3 className="text-lg font-bold text-slate-800">Recent Activity</h3>
                 </div>
-                <p className="text-xs text-slate-500 font-medium mt-1 pl-3">Recent student movements and enrollment listings.</p>
+                <p className="hidden md:block text-xs text-slate-500 font-medium mt-1 pl-3">Recent student movements and enrollment listings.</p>
               </div>
               <Clock className="w-4 h-4 text-slate-400 shrink-0" />
             </div>
@@ -248,7 +250,7 @@ export function TeacherDashboardView() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{item.name}</p>
-                        <p className="text-xs text-slate-500 truncate mt-0.5">{item.detail}</p>
+                        <p className="hidden md:block text-xs text-slate-500 truncate mt-0.5">{item.detail}</p>
                       </div>
                       <Badge variant="outline" className={`${item.color} px-2.5 py-1 rounded-xl font-bold text-[9px] uppercase tracking-wider shrink-0 shadow-inner border`}>
                         {item.value}

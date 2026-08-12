@@ -100,21 +100,21 @@ export function EnrollmentsView() {
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
-      <header className="relative px-6 sm:px-8 py-8 border-b border-slate-200 bg-white/70 backdrop-blur-md shrink-0 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3 text-slate-800">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white/70 backdrop-blur-md shrink-0 flex items-center justify-between">
+        <div className="flex flex-row items-center justify-between gap-6 w-full">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-6 flex-1 min-w-0">
+            <div className="flex items-center gap-3 shrink-0">
               <div className="p-2.5 bg-slate-100 rounded-2xl text-primary shadow-sm border border-slate-200">
-                <ClipboardCheck className="w-6 h-6" />
+                <ClipboardCheck className="w-5 h-5" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center flex-wrap gap-2.5">
+              <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none flex items-center gap-2">
                 Pending Enrollment
-                <span className="text-xs font-bold px-3 py-1 bg-amber-100/80 text-amber-800 border border-amber-200/70 rounded-full shadow-2xs">
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100/80 text-amber-800 border border-amber-200/70 rounded-full shadow-2xs">
                   Action Required
                 </span>
               </h1>
             </div>
-            <p className="text-sm text-slate-500 pl-14">
+            <p className="hidden lg:block text-xs text-slate-500 lg:border-l lg:border-slate-200 lg:pl-5 py-0.5 flex-1 leading-relaxed truncate">
               Review and approve pending student enrollments for your assigned section.
             </p>
           </div>
@@ -270,7 +270,7 @@ export function EnrollmentsView() {
               </div>
               Confirm Enrollment
             </DialogTitle>
-            <p className="text-sm text-slate-500 leading-relaxed">
+            <p className="hidden md:block text-xs text-slate-500 leading-relaxed">
               Please verify the student details below before approving and enrolling them into your section.
             </p>
           </DialogHeader>
