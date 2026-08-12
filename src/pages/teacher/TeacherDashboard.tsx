@@ -23,6 +23,7 @@ import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncem
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { TeacherDataProvider, useTeacherData } from '../../lib/teacherData';
 import { TeacherDashboardView } from '../../components/teacher/TeacherDashboardView';
+import { TeacherSettingsView } from '../../modules/teacher/TeacherSettingsView';
 import { EnrollmentsView } from '../../components/teacher/EnrollmentsView';
 import { StudentsView } from '../../components/teacher/StudentsView';
 import { AttendanceView } from '../../components/teacher/AttendanceView';
@@ -100,6 +101,7 @@ function TeacherDashboardContent() {
       case 'announcements': return <ManageAnnouncementsView sections={assignedSections} students={students} />;
       case 'reports': return <TeacherReportsView />;
       case 'sf10': return <SF10Module students={students} sections={assignedSections} isAdmin={false} />;
+      case 'settings': return <TeacherSettingsView />;
       default: return <TeacherDashboardView />;
     }
   };
@@ -199,7 +201,13 @@ function TeacherDashboardContent() {
         <div className="h-20 border-t border-slate-100 px-3 flex items-center shrink-0 relative bg-white">
           {showUserMenu && (
             <div className={`absolute ${collapsed ? 'left-full ml-3 bottom-2 w-48' : 'bottom-20 left-3 right-3'} bg-white border border-slate-200/60 p-2 rounded-2xl shadow-xl space-y-1 animate-in fade-in-50 duration-200 z-50 backdrop-blur-md`}>
-              <button className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-xl transition-all">
+              <button 
+                onClick={() => {
+                  setActiveView('settings');
+                  setShowUserMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-xl transition-all"
+              >
                 <Settings className="w-4 h-4 text-slate-400" />
                 Settings
               </button>
