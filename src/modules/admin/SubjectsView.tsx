@@ -276,14 +276,14 @@ export function SubjectsView() {
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
       <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
-        <div className="flex flex-row items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+        <div className="flex flex-row items-center justify-between gap-4 w-full">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-primary">
-              <BookOpen className="w-6 h-6" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Subjects Management</h1>
+            <div className="flex items-center gap-2 text-slate-900">
+              <BookOpen className="w-5 h-5 text-[#D8232A]" />
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">Subjects Management</h1>
             </div>
-            <p className="text-sm text-slate-600 max-w-md leading-relaxed flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+            <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
               Managing subjects {selectedYear === 'All' ? 'across all academic years' : `for Academic Year ${selectedYear}`}
             </p>
           </div>
@@ -427,7 +427,7 @@ export function SubjectsView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full">
         <Card className="bg-white border-slate-200/60 rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <Table className="table-fixed min-w-[800px]">

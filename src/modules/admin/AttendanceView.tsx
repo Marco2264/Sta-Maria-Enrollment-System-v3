@@ -14,7 +14,7 @@ import { Button } from '../../components/ui/Button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../../components/ui/command';
 import { cn } from '../../lib/utils';
-import { Users, Loader2, ChevronsUpDown, Check } from 'lucide-react';
+import { Users, Loader2, ChevronsUpDown, Check, CalendarCheck } from 'lucide-react';
 import { useAdminData } from '../../lib/adminData';
 
 export function AttendanceView() {
@@ -161,13 +161,20 @@ export function AttendanceView() {
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
       <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs">
-        <div className="flex flex-row items-center justify-between gap-4 max-w-7xl mx-auto w-full">
+        <div className="flex flex-row items-center justify-between gap-4 w-full">
           <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Attendance Records</h1>
-              <p className="text-muted-foreground mt-1 text-lg">View student attendance by grade and section</p>
+            <div className="flex items-center gap-2 text-slate-900">
+              <CalendarCheck className="w-5 h-5 text-[#D8232A]" />
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">Attendance Records</h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+            <p className="text-xs text-slate-500 max-w-md hidden lg:block truncate">
+              View student attendance by grade and section
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-slate-700">Date</label>
               <input
                 type="date"
                 max={todayDate}
@@ -188,8 +195,6 @@ export function AttendanceView() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-slate-700">Grade Level</label>
               <Popover open={openGrade} onOpenChange={setOpenGrade}>
@@ -321,7 +326,7 @@ export function AttendanceView() {
       </header>
 
       <main className="flex-1 overflow-auto p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
           {selectedSection === 'All' ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
