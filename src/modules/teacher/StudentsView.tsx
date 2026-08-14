@@ -21,11 +21,270 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { HealthAnalyticsService } from '../../lib/services/healthAnalyticsService';
 
 export function StudentsView() {
-  const { students, updateStudentBmi, loading } = useTeacherData();
+  const { students, updateStudentBmi, loading, currentGradeLevel, currentSectionName, currentSection, allAssignments, allTeachers, gradeConfigurations, subjects } = useTeacherData();
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [editBmi, setEditBmi] = useState({ height: '', weight: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [genderFilter, setGenderFilter] = useState('All');
+
+  const getStudentStatusText = (s: any) => {
+    const gradeLevelClean = (currentGradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
+    const dbSubjects = (subjects || []).filter((sub) => {
+      const sGrade = (sub.gradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
+      return sGrade === gradeLevelClean;
+    });
+
+    let expectedSubjectsList: string[] = [];
+    if (dbSubjects.length === 0) {
+      expectedSubjectsList = [
+        'Filipino',
+        'English',
+        'Mathematics',
+        'Science',
+        'Araling Panlipunan (AP)',
+        'Edukasyon sa Pagpapakatao (EsP)',
+        'EPP/TLE',
+        'MAPEH',
+        'Music',
+        'Arts',
+        'PE',
+        'Health'
+      ];
+    } else {
+      dbSubjects.forEach((sub) => {
+        const name = sub.name || '';
+        const lowerName = name.toLowerCase();
+
+        if (lowerName.includes('music') || lowerName.includes('arts') || lowerName.includes('art') || lowerName === 'pe' || lowerName.includes('physical education') || lowerName === 'health') {
+          return;
+        }
+
+        if (lowerName.includes('mapeh')) {
+          expectedSubjectsList.push('MAPEH');
+          expectedSubjectsList.push('Music');
+          expectedSubjectsList.push('Arts');
+          expectedSubjectsList.push('PE');
+          expectedSubjectsList.push('Health');
+        } else {
+          expectedSubjectsList.push(name);
+        }
+      });
+    }
+
+    const subjectRowMap: Record<string, string> = {
+      'filipino': 'FILIPINO',
+      'english': 'ENGLISH',
+      'mathematics': 'MATH',
+      'math': 'MATH',
+      'science': 'SCIENCE',
+      'araling panlipunan': 'AP',
+      'ap': 'AP',
+      'edukasyon sa pagpapakatao': 'ESP',
+      'esp': 'ESP',
+      'values education': 'ESP',
+      'good manners': 'ESP',
+      'gmrc': 'ESP',
+      'good manners and right conduct (gmrc)': 'ESP',
+      'tle': 'TLE',
+      'epp': 'TLE',
+      'epp/tle': 'TLE',
+      'mapeh': 'MAPEH',
+      'music': 'MUSIC',
+      'arts': 'ARTS',
+      'art': 'ARTS',
+      'physical education': 'PE',
+      'pe': 'PE',
+      'health': 'HEALTH',
+      'language': 'LANGUAGE',
+      'reading and literacy': 'READING_AND_LITERACY',
+      'makabansa': 'MAKABANSA'
+    };
+
+    const computeCalculatedGrade = (
+      subjectData: any,
+      subjectCode: string,
+      standardCode: string,
+      quarterKey: 'q1' | 'q2' | 'q3'
+    ): number | null => {
+      if (!subjectData || typeof subjectData !== 'object') return null;
+
+      const directVal = subjectData[quarterKey];
+      if (directVal !== undefined && directVal !== null && directVal !== '') {
+        const parsed = parseFloat(directVal);
+        if (!isNaN(parsed)) return parsed;
+      }
+
+      const termAliases: Record<string, string[]> = {
+        q1: ['Term 1', '1st Quarter', 'Q1', 'q1', '1st Term'],
+        q2: ['Term 2', '2nd Quarter', 'Q2', 'q2', '2nd Term'],
+        q3: ['Term 3', 'Finals', '3rd Quarter', 'Q3', 'q3', '3rd Term']
+      };
+      const possibleTerms = termAliases[quarterKey] || [quarterKey];
+      const configs = gradeConfigurations || [];
+
+      for (const termName of possibleTerms) {
+        const cols = configs.filter(
+          c => (
+            c.subjectCode === subjectCode ||
+            c.subjectCode === standardCode ||
+            (c.subjectCode && subjectCode && c.subjectCode.toLowerCase() === subjectCode.toLowerCase()) ||
+            (c.subjectCode && standardCode && c.subjectCode.toLowerCase() === standardCode.toLowerCase())
+          ) &&
+            c.term === termName &&
+            c.type !== 'submission'
+        );
+
+        if (cols.length > 0) {
+          let termTotal = 0;
+          let hasGrade = false;
+          const termData = subjectData[termName] || {};
+          cols.forEach(col => {
+            const val = termData[col.id];
+            if (val !== undefined && val !== null && val !== '') {
+              const num = parseFloat(val);
+              if (!isNaN(num)) {
+                termTotal += (num * (col.weight / 100));
+                hasGrade = true;
+              }
+            }
+          });
+          if (hasGrade) {
+            return Math.round(termTotal * 10) / 10;
+          }
+        }
+      }
+
+      for (const termName of possibleTerms) {
+        const termData = subjectData[termName];
+        if (termData && typeof termData === 'object' && Object.keys(termData).length > 0) {
+          const cols = configs.filter(c => c.term === termName && c.type !== 'submission');
+          if (cols.length > 0) {
+            let termTotal = 0;
+            let hasGrade = false;
+            cols.forEach(col => {
+              const val = termData[col.id];
+              if (val !== undefined && val !== null && val !== '') {
+                const num = parseFloat(val);
+                if (!isNaN(num)) {
+                  termTotal += (num * (col.weight / 100));
+                  hasGrade = true;
+                }
+              }
+            });
+            if (hasGrade) {
+              return Math.round(termTotal * 10) / 10;
+            }
+          }
+        }
+      }
+
+      return null;
+    };
+
+    const getGradeVal = (student: any, colSubjectName: string, term: string) => {
+      const gLvl = student.gradeLevel || 'Grade 6';
+      const gradeKey = gLvl.toLowerCase().startsWith('grade') ? gLvl : `Grade ${gLvl}`;
+      const studentGrades = (student.grades?.[gradeKey] as any) || {};
+
+      const cleanColName = colSubjectName.toLowerCase().replace(/\(ap\)|\(esp\)/g, '').trim();
+      const standardCode = subjectRowMap[cleanColName] || subjectRowMap[colSubjectName.toLowerCase().trim()] || (colSubjectName.toUpperCase().replace(/\s+/g, '_'));
+      if (!standardCode) return null;
+
+      const matchingSub = (subjects || []).find(sub => {
+        const code = sub.code ?? sub.name;
+        const subNameLower = (sub.name || '').toLowerCase().trim();
+        const sc = subjectRowMap[subNameLower] || subjectRowMap[code.toLowerCase().trim()] || (code.toUpperCase().replace(/\s+/g, '_'));
+        return sc === standardCode;
+      });
+
+      const dbKey = matchingSub ? (matchingSub.code ?? matchingSub.name) : colSubjectName;
+      let gradeData = studentGrades[dbKey] ||
+        (matchingSub?.name ? studentGrades[matchingSub.name] : null) ||
+        (matchingSub?.code ? studentGrades[matchingSub.code] : null) ||
+        studentGrades[standardCode] ||
+        studentGrades[colSubjectName];
+
+      if (!gradeData) {
+        const keys = Object.keys(studentGrades);
+        for (const k of keys) {
+          const kClean = k.toLowerCase().trim();
+          const kStandard = subjectRowMap[kClean] || (k.toUpperCase().replace(/\s+/g, '_'));
+          if (kStandard === standardCode || kClean === dbKey.toLowerCase().trim()) {
+            gradeData = studentGrades[k];
+            break;
+          }
+        }
+      }
+
+      if (!gradeData) return null;
+
+      const quarterKey = term === '1st Term' ? 'q1' : term === '2nd Term' ? 'q2' : 'q3';
+      return computeCalculatedGrade(gradeData, dbKey, standardCode, quarterKey);
+    };
+
+    const getMAPEHGrade = (student: any, term: string) => {
+      const directMAPEH = getGradeVal(student, 'MAPEH', term);
+      if (directMAPEH !== null && directMAPEH !== undefined) return directMAPEH;
+
+      const music = getGradeVal(student, 'Music', term);
+      const arts = getGradeVal(student, 'Arts', term);
+      const pe = getGradeVal(student, 'PE', term);
+      const health = getGradeVal(student, 'Health', term);
+
+      const components = [music, arts, pe, health].filter(v => v !== null && v !== undefined) as number[];
+      if (components.length === 0) return null;
+      return Math.round(components.reduce((a, b) => a + b, 0) / components.length);
+    };
+
+    let allSubjectsAndTermsCompleted = true;
+    const finalGrades: number[] = [];
+    let passedCount = 0;
+    let failedCount = 0;
+
+    expectedSubjectsList.forEach(subjectName => {
+      const isComponent = ['music', 'arts', 'art', 'pe', 'health', 'physical education'].includes(subjectName.toLowerCase());
+      
+      const t1 = subjectName === 'MAPEH' ? getMAPEHGrade(s, '1st Term') : getGradeVal(s, subjectName, '1st Term');
+      const t2 = subjectName === 'MAPEH' ? getMAPEHGrade(s, '2nd Term') : getGradeVal(s, subjectName, '2nd Term');
+      const t3 = subjectName === 'MAPEH' ? getMAPEHGrade(s, '3rd Term') : getGradeVal(s, subjectName, '3rd Term');
+
+      if (t1 === null || t2 === null || t3 === null) {
+        if (!isComponent) {
+          allSubjectsAndTermsCompleted = false;
+        }
+      } else {
+        const finalGrade = Math.round((t1 + t2 + t3) / 3);
+        if (!isComponent) {
+          finalGrades.push(finalGrade);
+          if (finalGrade >= 75) {
+            passedCount++;
+          } else {
+            failedCount++;
+          }
+        }
+      }
+    });
+
+    if (!allSubjectsAndTermsCompleted || finalGrades.length === 0) {
+      return 'Enrolled';
+    }
+
+    const generalAverage = finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length;
+
+    if (failedCount === 0) {
+      return 'Promoted';
+    }
+
+    if (passedCount === 0) {
+      return 'Retained';
+    }
+
+    if (generalAverage >= 70 && generalAverage <= 74.9) {
+      return 'Conditional';
+    }
+
+    return 'Enrolled';
+  };
 
   if (loading) {
     return (
@@ -109,11 +368,11 @@ export function StudentsView() {
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#D8232A]/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#D8232A]/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
-      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white/70 backdrop-blur-md shrink-0 flex items-center justify-between">
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center justify-between">
         <div className="flex flex-row items-center justify-between gap-6 w-full">
           <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-6 flex-1 min-w-0">
             <div className="flex items-center gap-3 shrink-0">
-              <div className="p-2.5 bg-[#D8232A]/10 text-[#D8232A] border border-[#D8232A]/20 rounded-2xl shadow-sm">
+              <div className="p-2 bg-rose-50 rounded-xl text-[#D8232A] shrink-0 border border-rose-100/50 shadow-sm">
                 <Users className="w-5 h-5" />
               </div>
               <div className="flex flex-col justify-center">
@@ -125,31 +384,42 @@ export function StudentsView() {
               View and manage your enrolled students' profiles, physical health parameters, and BMI calculations.
             </p>
           </div>
-          
-          <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-slate-200 hover:border-[#D8232A]/30 shadow-sm transition-all md:self-center">
-            <Activity className="w-4 h-4 text-emerald-500 shrink-0" />
-            <div className="text-left">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Health Coverage</p>
-              <p className="text-sm font-bold text-slate-700 leading-tight mt-0.5">
-                {enrolled.filter(s => s.medical?.height && s.medical?.weight).length} / {enrolled.length} Records
-              </p>
-            </div>
-          </div>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 sm:p-8 lg:p-10 w-full relative">
         <Card className="bg-white border border-slate-200/60 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
           <div className="p-6 border-b border-slate-100 bg-white/50 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <h3 className="font-bold text-xl text-slate-900">Enrolled Students</h3>
-                <p className="text-xs text-slate-400 font-medium">Manage records and health metrics for this classroom section.</p>
-              </div>
-              <span className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-[#D8232A]/10 text-[#D8232A] uppercase tracking-wider border border-[#D8232A]/20">
-                {enrolled.length} {enrolled.length === 1 ? 'Record' : 'Records'}
-              </span>
-            </div>
+            {(() => {
+              const currentSectionAssignment = (allAssignments || []).find(a => a.sectionId === currentSection);
+              const currentSectionAdvisor = currentSectionAssignment 
+                ? (allTeachers || []).find(t => t.id === currentSectionAssignment.teacherId)
+                : null;
+              const advisorName = currentSectionAdvisor 
+                ? `${currentSectionAdvisor.firstName} ${currentSectionAdvisor.lastName}` 
+                : 'No Advisor Assigned';
+
+              return (
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2.5">
+                      <h3 className="font-bold text-xl text-slate-900">Enrolled Students</h3>
+                      {currentSectionName && (
+                        <Badge className="bg-[#D8232A]/5 text-[#D8232A] border border-[#D8232A]/15 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-lg select-none">
+                          Section: {currentGradeLevel} — {currentSectionName}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Adviser: <span className="font-bold text-slate-700">{advisorName}</span>
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-[#D8232A]/10 text-[#D8232A] uppercase tracking-wider border border-[#D8232A]/20 select-none">
+                    {enrolled.length} {enrolled.length === 1 ? 'Record' : 'Records'}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Filters Bar */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -188,16 +458,14 @@ export function StudentsView() {
                   <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider pl-6 py-4">Learner Name</TableHead>
                   <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider py-4">LRN</TableHead>
                   <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider py-4">Gender</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider py-4">Height</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider py-4">Weight</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider py-4">Health Status Summary</TableHead>
+                  <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider py-4">Status</TableHead>
                   <TableHead className="font-bold text-slate-700 text-xs uppercase tracking-wider text-right pr-6 py-4">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {enrolled.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-16 text-slate-400 font-medium">
+                    <TableCell colSpan={5} className="text-center py-16 text-slate-400 font-medium">
                       No enrolled students found.
                     </TableCell>
                   </TableRow>
@@ -228,7 +496,7 @@ export function StudentsView() {
                                 className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-full bg-blue-50/80 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-blue-100/80 uppercase">
+                              <div className="w-10 h-10 rounded-full bg-red-50/80 text-[#D8232A] font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-red-100/80 uppercase">
                                 {s.firstName?.charAt(0) || ''}{s.lastName?.charAt(0) || ''}
                               </div>
                             )}
@@ -247,60 +515,20 @@ export function StudentsView() {
                           {s.gender}
                         </Badge>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap font-semibold text-slate-600 text-sm py-4">
-                        {s.medical?.height ? `${s.medical.height} cm` : <span className="text-slate-400 font-normal">--</span>}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap font-semibold text-slate-600 text-sm py-4">
-                        {s.medical?.weight ? `${s.medical.weight} kg` : <span className="text-slate-400 font-normal">--</span>}
-                      </TableCell>
                       <TableCell className="py-4">
-                        <div className="flex flex-wrap gap-1.5 py-1">
-                          {/* BMI Badge */}
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 shadow-sm">
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">BMI</span>
-                            <span className="font-mono">{calcBmi(s.medical?.height, s.medical?.weight)}</span>
-                          </span>
-                          
-                          {/* Nutritional status badge */}
-                          {s.medical?.height && s.medical?.weight && (
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border text-xs font-bold shadow-sm ${
-                              (() => {
-                                const bmiVal = parseFloat(calcBmi(s.medical.height, s.medical.weight));
-                                const status = HealthAnalyticsService.getNutritionalStatus(bmiVal);
-                                if (status === 'Severely Wasted' || status === 'Wasted') return 'text-rose-700 bg-rose-50 border-rose-200/60';
-                                if (status === 'Normal') return 'text-emerald-700 bg-emerald-50 border-emerald-200/60';
-                                return 'text-blue-700 bg-blue-50 border-blue-200/60';
-                              })()
+                        {(() => {
+                          const status = getStudentStatusText(s);
+                          return (
+                            <Badge variant="outline" className={`font-semibold text-xs px-2.5 py-0.5 rounded-full border border-opacity-40 uppercase tracking-wider ${
+                              status === 'Promoted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              status === 'Retained' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                              status === 'Conditional' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              'bg-blue-50 text-blue-700 border-blue-200'
                             }`}>
-                              <span className="text-[10px] opacity-65 font-bold uppercase mr-0.5">Nutr</span>
-                              {(() => {
-                                const bmiVal = parseFloat(calcBmi(s.medical.height, s.medical.weight));
-                                return HealthAnalyticsService.getNutritionalStatus(bmiVal);
-                              })()}
-                            </span>
-                          )}
-
-                          {/* Height-for-Age badge */}
-                          {s.medical?.height && s.medical?.weight && s.birthDate && (
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border text-xs font-bold shadow-sm ${
-                              (() => {
-                                const h = parseFloat(s.medical.height);
-                                const ageMonths = HealthAnalyticsService.calculateAgeInMonths(s.birthDate);
-                                const status = HealthAnalyticsService.getHfaStatus(h, s.gender ?? 'Male', ageMonths);
-                                if (status === 'Severely Stunted' || status === 'Stunted') return 'text-rose-700 bg-rose-50 border-rose-200/60';
-                                if (status === 'Normal') return 'text-emerald-700 bg-emerald-50 border-emerald-200/60';
-                                return 'text-indigo-700 bg-indigo-50 border-indigo-200/60';
-                              })()
-                            }`}>
-                              <span className="text-[10px] opacity-65 font-bold uppercase mr-0.5">HFA</span>
-                              {(() => {
-                                const h = parseFloat(s.medical.height);
-                                const ageMonths = HealthAnalyticsService.calculateAgeInMonths(s.birthDate);
-                                return HealthAnalyticsService.getHfaStatus(h, s.gender ?? 'Male', ageMonths);
-                              })()}
-                            </span>
-                          )}
-                        </div>
+                              {status}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="pr-6 py-4 text-right whitespace-nowrap">
                         <Button

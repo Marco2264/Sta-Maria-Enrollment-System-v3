@@ -26,7 +26,7 @@ import { getCurrentSchoolYear } from '../../lib/utils';
 export function TeacherReportsView() {
   const { students, subjects, attendance, currentSection, currentGradeLevel, currentSectionName, academicYear: contextAcademicYear } = useTeacherData();
   const { userData } = useAuth();
-  
+
   // Try context academicYear first, then fallback to current year
   const academicYear = contextAcademicYear || getCurrentSchoolYear();
   const sectionDisplayName = currentSectionName ? `${currentGradeLevel} - ${currentSectionName}` : (currentGradeLevel && currentSection ? `${currentGradeLevel} - ${currentSection}` : 'Section');
@@ -84,7 +84,7 @@ export function TeacherReportsView() {
     try {
       const gradeLvl = currentGradeLevel || '';
       const sectId = currentSection;
-      
+
       if (id === 'sf1') {
         const data = await ReportDataService.getSF1Data(academicYear, gradeLvl, sectId);
         setViewingSF1(data);
@@ -251,11 +251,10 @@ export function TeacherReportsView() {
                       </Button>
                     )}
                     <Button
-                      className={`flex-1 rounded-xl h-11 font-semibold transition-all ${
-                        isSuccess
+                      className={`flex-1 rounded-xl h-11 font-semibold transition-all ${isSuccess
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                           : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
-                      }`}
+                        }`}
                       onClick={() => handleGenerate(report.id)}
                       disabled={isGenerating || isSuccess || viewingReportId === report.id}
                     >

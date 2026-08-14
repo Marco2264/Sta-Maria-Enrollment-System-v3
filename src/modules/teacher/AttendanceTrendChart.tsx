@@ -11,7 +11,19 @@ interface AttendanceTrendChartProps {
 
 export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = React.memo(({ data }) => {
   const gradientId = useMemo(() => "colorPresent_" + Math.random().toString(36).substr(2, 9), []);
-  const gradientIdAbsent = useMemo(() => "colorAbsent_" + Math.random().toString(36).substr(2, 9), []);
+
+  const chartData = useMemo(() => {
+    return (data || []).map(d => {
+      const p = d.present || 0;
+      const ab = d.absent || 0;
+      const total = p + ab;
+      const rate = total > 0 ? Math.round((p / total) * 100) : 100;
+      return {
+        dateStr: d.dateStr || 'Unknown',
+        rate
+      };
+    });
+  }, [data]);
 
   if (!data || data.length === 0) {
     return (
@@ -35,7 +47,7 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = React.m
     <div className="w-full h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
-          data={data}
+          data={chartData}
           margin={{
             top: 10,
             right: 10,
@@ -47,10 +59,6 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = React.m
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#D8232A" stopOpacity={0.3}/>
               <stop offset="95%" stopColor="#D8232A" stopOpacity={0}/>
-            </linearGradient>
-            <linearGradient id={gradientIdAbsent} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#F0555B" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#F0555B" stopOpacity={0}/>
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -65,31 +73,24 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = React.m
             axisLine={false} 
             tickLine={false} 
             tick={{ fill: '#64748b', fontSize: 12 }} 
+            domain={[0, 100]}
+            unit="%"
           />
           <Tooltip 
             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
             itemStyle={{ fontWeight: 'bold' }}
             cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }}
+            formatter={(value: any) => [`${value}%`, 'Attendance Rate']}
           />
           <Area 
             type="monotone" 
-            dataKey="present" 
-            name="Present"
+            dataKey="rate" 
+            name="Attendance Rate"
             stroke="#D8232A" 
             strokeWidth={3}
             fillOpacity={1} 
             fill={`url(#${gradientId})`} 
             activeDot={{ r: 6, fill: '#D8232A', stroke: '#fff', strokeWidth: 2 }}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="absent" 
-            name="Absent"
-            stroke="#F0555B" 
-            strokeWidth={3}
-            fillOpacity={1} 
-            fill={`url(#${gradientIdAbsent})`} 
-            activeDot={{ r: 6, fill: '#F0555B', stroke: '#fff', strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>

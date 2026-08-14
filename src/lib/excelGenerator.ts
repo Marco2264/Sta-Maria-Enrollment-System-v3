@@ -502,8 +502,8 @@ export async function generateSF8(
     }
 
     // Merge Row 7 columns M & N so Grade Level and Section are clearly visible
-    try { worksheet.unMergeCells('M7:N7'); } catch (e) {}
-    try { worksheet.mergeCells('M7:N7'); } catch (e) {}
+    try { worksheet.unMergeCells('M7:N7'); } catch (e) { }
+    try { worksheet.mergeCells('M7:N7'); } catch (e) { }
     const cellM7 = worksheet.getCell('M7');
     cellM7.value = fullGradeAndSection.toUpperCase();
     cellM7.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -542,7 +542,7 @@ export async function generateSF8(
         cell.value = null;
         cell.fill = { type: 'pattern', pattern: 'none' };
       });
-      try { worksheet.unMergeCells(`I${r}:K${r}`); } catch(e) {}
+      try { worksheet.unMergeCells(`I${r}:K${r}`); } catch (e) { }
       worksheet.mergeCells(`I${r}:K${r}`);
       const c = worksheet.getCell(`I${r}`);
       c.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -685,6 +685,25 @@ export async function generateSF9(
   gradeConfigurations: any[] = []
 ) {
   try {
+    let advisorId = '';
+    try {
+      const firstStudent = students[0];
+      if (firstStudent && firstStudent.sectionId) {
+        const assignSnap = await getDocs(
+          query(
+            collection(db, 'assignments'),
+            where('sectionId', '==', firstStudent.sectionId),
+            where('isAdvisor', '==', true)
+          )
+        );
+        if (!assignSnap.empty) {
+          advisorId = assignSnap.docs[0].data().teacherId || '';
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to resolve advisorId for SF9 attendance:', err);
+    }
+
     let activeGradeConfigs = gradeConfigurations;
     if (!activeGradeConfigs || activeGradeConfigs.length === 0) {
       try {
@@ -833,15 +852,15 @@ export async function generateSF9(
     drawLabel(4, 5, "School ID");      // Column D
     drawBox(5, 7, 5, "199006");        // Columns E to G
     drawLabel(9, 5, "Region");         // Column I
-    drawBox(10, 10, 5, "IX");          // Column J
+    drawBox(10, 10, 5, "REGION IX");   // Column J
     drawLabel(12, 5, "Division");      // Column L
-    drawBox(13, 15, 5, "Zamboanga");   // Columns M to O
+    drawBox(13, 15, 5, "ZAMBOANGA");   // Columns M to O
     drawLabel(17, 5, "District");      // Column Q
-    drawBox(18, 21, 5, "Sta. Maria Central"); // Columns R to U
+    drawBox(18, 21, 5, "STA. MARIA CENTRAL"); // Columns R to U
 
     // Draw row 7 inputs
     drawLabel(2, 7, "School Name");    // Column B
-    drawBox(3, 9, 7, "Sta. Maria CS SPED Center"); // Columns C to I
+    drawBox(3, 9, 7, "STA. MARIA CS SPED CENTER"); // Columns C to I
     drawLabel(11, 7, "School Year");   // Column K
     drawBox(12, 14, 7, academicYear);  // Columns L to N
     drawLabel(16, 7, "Grade & Section"); // Column P
@@ -1059,8 +1078,8 @@ export async function generateSF9(
             (c.subjectCode && subjectCode && c.subjectCode.toLowerCase() === subjectCode.toLowerCase()) ||
             (c.subjectCode && standardCode && c.subjectCode.toLowerCase() === standardCode.toLowerCase())
           ) &&
-          c.term === termName &&
-          c.type !== 'submission'
+            c.term === termName &&
+            c.type !== 'submission'
         );
 
         if (cols.length > 0) {
@@ -1129,10 +1148,10 @@ export async function generateSF9(
 
       const dbKey = matchingSub ? (matchingSub.code ?? matchingSub.name) : colSubjectName;
       let gradeData = studentGrades[dbKey] ||
-                        (matchingSub?.name ? studentGrades[matchingSub.name] : null) ||
-                        (matchingSub?.code ? studentGrades[matchingSub.code] : null) ||
-                        studentGrades[standardCode] ||
-                        studentGrades[colSubjectName];
+        (matchingSub?.name ? studentGrades[matchingSub.name] : null) ||
+        (matchingSub?.code ? studentGrades[matchingSub.code] : null) ||
+        studentGrades[standardCode] ||
+        studentGrades[colSubjectName];
 
       if (!gradeData) {
         const keys = Object.keys(studentGrades);
@@ -1176,6 +1195,10 @@ export async function generateSF9(
       const studentRecs = atts.filter(a => {
         const d = new Date(a.date);
         if (isNaN(d.getTime())) return false;
+        
+        const isAdviserLog = !advisorId || !a.teacherId || a.teacherId === advisorId;
+        if (!isAdviserLog) return false;
+
         return d.getMonth() === targetMonthIdx && a.studentId === studentId;
       });
 
@@ -1184,15 +1207,17 @@ export async function generateSF9(
           .filter(a => {
             const d = new Date(a.date);
             if (isNaN(d.getTime())) return false;
-            return d.getMonth() === targetMonthIdx;
+
+            const isAdviserLog = !advisorId || !a.teacherId || a.teacherId === advisorId;
+            return d.getMonth() === targetMonthIdx && isAdviserLog;
           })
           .map(a => a.date.split('T')[0])
       );
       const schoolDays = sectionDates.size;
 
-      const presentDays = studentRecs.filter(r => r.status === 'Present' || r.status === 'Late').length;
-      const absentDays = studentRecs.filter(r => r.status === 'Absent').length;
-      const tardyDays = studentRecs.filter(r => r.status === 'Late').length;
+      const presentDays = studentRecs.filter(r => r.status === 'Present' || r.status === 'Late' || (r as any).amStatus === 'Present' || (r as any).amStatus === 'Late').length;
+      const absentDays = studentRecs.filter(r => r.status === 'Absent' || (r as any).amStatus === 'Absent').length;
+      const tardyDays = studentRecs.filter(r => r.status === 'Late' || (r as any).amStatus === 'Late').length;
 
       return {
         schoolDays,
@@ -1488,7 +1513,7 @@ export async function generateSF2(data: any) {
     // School ID: Cell H4
     worksheet.getCell('H4').value = data.schoolId || '199006';
     // Name of School: Cell H5
-    worksheet.getCell('H5').value = data.schoolName || 'Sta. Maria CS SPED Center';
+    worksheet.getCell('H5').value = (data.schoolName || 'Sta. Maria CS SPED Center').toUpperCase();
     // School Year: Cell O4
     worksheet.getCell('O4').value = data.schoolYear;
     // Month of: Cell AF4
@@ -1817,14 +1842,14 @@ export async function generateAdminSF1(data: SF1Data) {
     };
 
     setHeaderValue('F4', '199006'); // School ID
-    setHeaderValue('J4', 'IX'); // Region
-    setHeaderValue('M4', 'Zamboanga'); // Division value
-    setHeaderValue('S4', 'Sta. Maria Central'); // District value
+    setHeaderValue('J4', 'REGION IX'); // Region
+    setHeaderValue('M4', 'ZAMBOANGA'); // Division value
+    setHeaderValue('S4', 'STA. MARIA CENTRAL'); // District value
 
-    setHeaderValue('F6', 'Sta. Maria CS SPED Center'); // School Name value
+    setHeaderValue('F6', 'STA. MARIA CS SPED CENTER'); // School Name value
     setHeaderValue('O6', data.schoolYear || ''); // School Year value
-    setHeaderValue('S6', data.gradeLevel || ''); // Grade Level value
-    setHeaderValue('V6', data.section || ''); // Section value
+    setHeaderValue('S6', (data.gradeLevel || '').toString().toUpperCase()); // Grade Level value
+    setHeaderValue('V6', (data.section || '').toString().toUpperCase()); // Section value
 
     // The default template has 15 blank slots for learners (Rows 11 to 25).
     const requiredRows = males.length + 2 + females.length; // +2 for space between males and females
@@ -2051,6 +2076,44 @@ export async function generateAdminSF1(data: SF1Data) {
       vertical: 'middle'
     };
 
+    // Apply font size 18 to all cells in the sheet
+    worksheet.eachRow({ includeEmpty: true }, (row) => {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        if (cell.font) {
+          cell.font = { ...cell.font, size: 18 };
+        } else {
+          cell.font = { size: 18 };
+        }
+      });
+    });
+
+    // Auto-adjust column widths based on student data (Rows 11 to currentRow - 1)
+    for (let colIdx = 1; colIdx <= 25; colIdx++) {
+      const column = worksheet.getColumn(colIdx);
+      let maxLen = 0;
+      for (let r = 11; r < currentRow; r++) {
+        const cell = worksheet.getCell(r, colIdx);
+        if (cell.value !== null && cell.value !== undefined) {
+          const valStr = String(cell.value);
+          let length = valStr.length;
+          if (colIdx >= 3 && colIdx <= 6) { // Name merged C:F
+            length = Math.ceil(valStr.length / 4);
+          } else if (colIdx === 18 || colIdx === 19) { // Father Name merged R:S
+            length = Math.ceil(valStr.length / 2);
+          } else if (colIdx === 20 || colIdx === 21) { // Mother Name merged T:U
+            length = Math.ceil(valStr.length / 2);
+          }
+          if (length > maxLen) {
+            maxLen = length;
+          }
+        }
+      }
+      if (maxLen > 0) {
+        const targetWidth = Math.ceil(maxLen * 1.5 + 5);
+        column.width = Math.max(column.width || 12, targetWidth);
+      }
+    }
+
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, `SF1_${data.gradeLevel}_${data.section}_${data.schoolYear}.xlsx`);
@@ -2102,10 +2165,10 @@ export async function generateAdminSF4(data: SF4Data, principalName?: string) {
 
     // Fill up the upper form fields in SF4
     worksheet.getCell('D5').value = '199006'; // School ID
-    worksheet.getCell('I5').value = 'IX'; // Region
-    worksheet.getCell('N5').value = 'Zamboanga'; // Division
-    worksheet.getCell('Y5').value = 'Sta. Maria Central'; // District
-    worksheet.getCell('C7').value = 'Sta. Maria CS SPED Center'; // School Name
+    worksheet.getCell('I5').value = 'REGION IX'; // Region
+    worksheet.getCell('N5').value = 'ZAMBOANGA'; // Division
+    worksheet.getCell('Y5').value = 'STA. MARIA CENTRAL'; // District
+    worksheet.getCell('C7').value = 'STA. MARIA CS SPED CENTER'; // School Name
     worksheet.getCell('Y7').value = data.schoolYear; // School Year
     worksheet.getCell('AJ7').value = data.reportMonth.toUpperCase(); // Report for the Month of
 
@@ -2206,8 +2269,8 @@ export async function generateAdminSF8(data: {
     }
 
     // Merge Row 7 columns M & N so Grade Level and Section are clearly visible
-    try { worksheet.unMergeCells('M7:N7'); } catch (e) {}
-    try { worksheet.mergeCells('M7:N7'); } catch (e) {}
+    try { worksheet.unMergeCells('M7:N7'); } catch (e) { }
+    try { worksheet.mergeCells('M7:N7'); } catch (e) { }
     const cellM7 = worksheet.getCell('M7');
     cellM7.value = fullGradeAndSection.toUpperCase();
     cellM7.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -2246,7 +2309,7 @@ export async function generateAdminSF8(data: {
         cell.value = null;
         cell.fill = { type: 'pattern', pattern: 'none' };
       });
-      try { worksheet.unMergeCells(`I${r}:K${r}`); } catch(e) {}
+      try { worksheet.unMergeCells(`I${r}:K${r}`); } catch (e) { }
       worksheet.mergeCells(`I${r}:K${r}`);
       const c = worksheet.getCell(`I${r}`);
       c.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -2258,7 +2321,7 @@ export async function generateAdminSF8(data: {
     // Helper to calculate and inject formulas and results safely
     const writeLearnerRow = (learner: HealthData, rowNum: number, genderSymbol: 'M' | 'F') => {
       worksheet.getCell(`C${rowNum}`).value = learner.name.toUpperCase();
-      
+
       let learnerAge: number | null = null;
       if (learner.birthDate) {
         const [yr, mo, dy] = learner.birthDate.split('-').map(Number);

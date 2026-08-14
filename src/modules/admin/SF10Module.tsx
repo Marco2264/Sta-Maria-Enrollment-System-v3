@@ -43,9 +43,9 @@ const validateSchoolYear = (sy: string): { isValid: boolean; error?: string } =>
   const endYear = parseInt(match[2], 10);
 
   if (endYear !== startYear + 1) {
-    return { 
-      isValid: false, 
-      error: `Invalid School Year range (${clean}). The second year must be exactly 1 year after the first year (e.g. ${startYear}-${startYear + 1}).` 
+    return {
+      isValid: false,
+      error: `Invalid School Year range (${clean}). The second year must be exactly 1 year after the first year (e.g. ${startYear}-${startYear + 1}).`
     };
   }
 
@@ -198,7 +198,7 @@ const getNormalizedSubjectCode = (nameOrCode: string): string => {
 const isSameSubject = (key: string, targetCode: string) => {
   const normKey = getNormalizedSubjectCode(key);
   const normTarget = getNormalizedSubjectCode(targetCode);
-  
+
   if (normKey === normTarget) return true;
   if ((normKey === 'AP' || normKey === 'MAKABANSA') && (normTarget === 'AP' || normTarget === 'MAKABANSA')) return true;
   if ((normKey === 'TLE' || normKey === 'EPP_TLE') && (normTarget === 'TLE' || normTarget === 'EPP_TLE')) return true;
@@ -223,7 +223,7 @@ interface SubjectRow {
 
 const resolveTermGrade = (subjectGrades: any, term: string, subjectCode: string, sectionId: string, gradeConfigs: any[]) => {
   if (!subjectGrades || typeof subjectGrades !== 'object') return '';
-  
+
   // 1. Direct manual inputs
   const termKeyMap: Record<string, string[]> = {
     'Term 1': ['t1', 'q1'],
@@ -234,14 +234,14 @@ const resolveTermGrade = (subjectGrades: any, term: string, subjectCode: string,
     'Quarter 3': ['q3', 't3'],
     'Quarter 4': ['q4']
   };
-  
+
   const keysToCheck = termKeyMap[term] || [];
   for (const k of keysToCheck) {
     if (subjectGrades[k] !== undefined && subjectGrades[k] !== null && subjectGrades[k] !== '') {
       return parseFloat(subjectGrades[k]);
     }
   }
-  
+
   return '';
 };
 
@@ -280,7 +280,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
       // For Teacher: fetch students strictly from ADVISORY sections ONLY
       const advisorySections = (sections || []).filter(s => s.isAdvisor === true || s.isAdvisor === 'true' || s.isAdvisor === 1);
       const advisorySectionIds = advisorySections.map(s => s.id || s.sectionId).filter(Boolean);
-      
+
       if (advisorySectionIds.length === 0) {
         if (students && students.length > 0) {
           const advisoryStudents = students.filter(s => advisorySectionIds.includes(s.sectionId));
@@ -590,7 +590,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
         q1: '', q2: '', q3: '', q4: '', final: ''
       }));
     }
-    
+
     // Support both manual flat structures and active enrollment nested structures
     let studentGrades = enrollment.grades || {};
     const gradeLevelKey = enrollment.gradeLevel;
@@ -615,10 +615,10 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
 
     entries.forEach(([subName, gd]: [string, any]) => {
       if (!subName.trim()) return;
-      
+
       const subNameUpper = subName.toUpperCase();
       const displayName = subjectDisplayNames[subNameUpper] || subName;
-      
+
       if (threeTerm) {
         const t1 = resolveTermGrade(gd, 'Term 1', subName, sectionId, gradeConfigs);
         const t2 = resolveTermGrade(gd, 'Term 2', subName, sectionId, gradeConfigs);
@@ -652,7 +652,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
   const visibleGradeLevels = useMemo(() => {
     const allGrades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
     if (!selectedStudent?.gradeLevel) return allGrades;
-    
+
     const currentGrade = String(selectedStudent.gradeLevel).toLowerCase();
     const match = currentGrade.match(/(?:grade|gr|g)?\s*([1-9]|1[0-2])\b/i) || currentGrade.match(/\b([1-9]|1[0-2])\b/);
     if (match) {
@@ -770,7 +770,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
     setFormGrades(prev => {
       const parentIdx = prev.findIndex(r => r.id === parentRowId);
       if (parentIdx === -1) return prev;
-      
+
       const newSubRow: SubjectGradeRow = {
         id: Math.random().toString(36).substring(7),
         subjectName: '',
@@ -778,7 +778,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
         q1: '', q2: '', q3: '', q4: '',
         t1: '', t2: '', t3: ''
       };
-      
+
       let insertIdx = parentIdx + 1;
       while (insertIdx < prev.length && prev[insertIdx].isSubSubject) {
         insertIdx++;
@@ -795,12 +795,12 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
     setFormGrades(prev => {
       const idx = prev.findIndex(r => r.id === id);
       if (idx === -1) return prev;
-      
+
       const rowToDelete = prev[idx];
       if (rowToDelete.isSubSubject) {
         return prev.filter(r => r.id !== id);
       }
-      
+
       const copy = [...prev];
       let deleteCount = 1;
       for (let i = idx + 1; i < copy.length; i++) {
@@ -852,7 +852,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
   // Launch Encoding Panel
   const handleStartEncode = (gradeLevelName: string, existingRecord?: any) => {
     setEditingGradeLevel(gradeLevelName);
-    
+
     if (!existingRecord) {
       setFormSchoolName('Sta. Maria CS SPED Center');
       setFormSchoolId('199006');
@@ -927,7 +927,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
         if (!subName.trim()) return;
         const subNameUpper = subName.toUpperCase();
         const displayName = subjectDisplayNames[subNameUpper] || subName;
-        
+
         const t1Val = resolveTermGrade(gd, 'Term 1', subName, sectionId, gradeConfigs);
         const t2Val = resolveTermGrade(gd, 'Term 2', subName, sectionId, gradeConfigs);
         const t3Val = resolveTermGrade(gd, 'Term 3', subName, sectionId, gradeConfigs);
@@ -1010,10 +1010,10 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
     try {
       const isThreeTerm = isThreeTermYear(formAcademicYear);
       const existingRecord = findBestRecordForGrade(history, editingGradeLevel || '');
-      
+
       // Determine if we are editing the active student's current enrollment document
-      const isEditingActiveDoc = existingRecord 
-        ? (existingRecord.id === selectedStudent.id) 
+      const isEditingActiveDoc = existingRecord
+        ? (existingRecord.id === selectedStudent.id)
         : isMatchingGrade(editingGradeLevel || '', selectedStudent.gradeLevel);
 
       const isManual = !isEditingActiveDoc;
@@ -1031,14 +1031,14 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
         if (!finalGrades[gradeLevelKey]) {
           finalGrades[gradeLevelKey] = {};
         }
-        
+
         computedFormGrades.forEach((row, rowIdx) => {
           if (!row.subjectName.trim()) return;
           const cleanName = row.subjectName.toLowerCase().trim();
           const code = subjectRowMap[cleanName] || row.subjectName.toUpperCase().replace(/\s+/g, '_');
-          
+
           const existingSubjectData = finalGrades[gradeLevelKey][code] || {};
-          
+
           if (isThreeTerm) {
             finalGrades[gradeLevelKey][code] = {
               ...existingSubjectData,
@@ -1144,890 +1144,884 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50/30">
-      <div className="p-6 max-w-7xl mx-auto w-full space-y-6">
-      
-      {/* Header Panel */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 border border-slate-200 rounded-3xl shadow-sm">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-indigo-900">
-            <FileText className="w-6 h-6 text-indigo-600" />
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Permanent Academic Record (SF10)</h1>
+    <div className="flex flex-col h-full bg-[#F4F7F9]">
+      {/* HEADER */}
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center justify-between z-10">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="p-2.5 bg-[#D8232A]/10 text-[#D8232A] border border-[#D8232A]/20 rounded-2xl shadow-sm">
+            <FileText className="w-5 h-5" />
           </div>
-          <p className="text-sm text-slate-500">
-            View student multi-year permanent cards and manually encode historical grade achievements.
-          </p>
+          <div className="flex flex-col justify-center">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-none mb-1">Admin Portal</span>
+            <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">Permanent Academic Record (SF10)</h1>
+          </div>
         </div>
-
         {selectedStudent && (
           <Button
             onClick={() => setIsViewingPreview(true)}
-            className="flex items-center gap-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700 font-semibold text-sm transition-all"
+            className="flex items-center gap-2 bg-[#D8232A] text-white rounded-xl shadow hover:bg-[#b91c22] font-semibold text-sm transition-all"
           >
             <FileText className="w-4 h-4" />
             <span>Preview SF10</span>
           </Button>
         )}
-      </div>
-      
-      {/* Roster & Selector Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Section Picker Card */}
-        {(isAdmin || sortedSections.length > 0) && (
-          <Card className="p-5 bg-white border border-slate-200/60 rounded-3xl shadow-sm space-y-3.5 !overflow-visible">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">1. Filter Section</h3>
-            <div className={`relative ${isSectionSelectorOpen ? 'z-50' : 'z-10'}`}>
-              <button
-                onClick={() => setIsSectionSelectorOpen(!isSectionSelectorOpen)}
-                className="flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:outline-none transition-all shadow-sm"
-              >
-                <span className="truncate">
-                  {selectedSectionId === 'all' 
-                    ? 'All Sections' 
-                    : (() => {
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+        <div className="max-w-7xl mx-auto w-full space-y-6">
+
+        {/* Roster & Selector Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Section Picker Card */}
+          {(isAdmin || sortedSections.length > 0) && (
+            <Card className="p-5 bg-white border border-slate-200/60 rounded-3xl shadow-sm hover:shadow-md transition-shadow space-y-3.5 !overflow-visible">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">1. Filter Section</h3>
+              <div className={`relative ${isSectionSelectorOpen ? 'z-50' : 'z-10'}`}>
+                <button
+                  onClick={() => setIsSectionSelectorOpen(!isSectionSelectorOpen)}
+                  className="flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:outline-none transition-all shadow-sm"
+                >
+                  <span className="truncate">
+                    {selectedSectionId === 'all'
+                      ? 'All Sections'
+                      : (() => {
                         const sec = sortedSections.find(s => s.id === selectedSectionId);
                         return sec ? `${sec.gradeLevel} - ${sec.name}` : 'Select Section';
                       })()
-                  }
+                    }
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                </button>
+
+                {isSectionSelectorOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-transparent"
+                      onClick={() => setIsSectionSelectorOpen(false)}
+                    />
+                    <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                      <div className="p-3 border-b border-slate-100 flex items-center gap-2">
+                        <Search className="w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search sections..."
+                          value={sectionSearchQuery}
+                          onChange={(e) => setSectionSearchQuery(e.target.value)}
+                          className="w-full text-xs font-medium border-none outline-none focus:ring-0 bg-transparent text-slate-700"
+                        />
+                      </div>
+                      <div className="max-h-60 overflow-y-auto">
+                        <button
+                          onClick={() => {
+                            setSelectedSectionId('all');
+                            setSelectedStudentId('');
+                            setIsSectionSelectorOpen(false);
+                            setSectionSearchQuery('');
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 border-b border-slate-50 last:border-0 ${selectedSectionId === 'all' ? 'text-[#D8232A] bg-red-50/50' : 'text-slate-700'
+                            }`}
+                        >
+                          All Sections
+                        </button>
+                        {sortedSections
+                          .filter(s => {
+                            const q = sectionSearchQuery.toLowerCase();
+                            return s.name.toLowerCase().includes(q) || s.gradeLevel.toLowerCase().includes(q);
+                          })
+                          .map(s => (
+                            <button
+                              key={s.id}
+                              onClick={() => {
+                                setSelectedSectionId(s.id);
+                                setSelectedStudentId('');
+                                setIsSectionSelectorOpen(false);
+                                setSectionSearchQuery('');
+                              }}
+                              className={`w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 border-b border-slate-50 last:border-0 ${s.id === selectedSectionId ? 'text-[#D8232A] bg-red-50/50' : 'text-slate-700'
+                                }`}
+                            >
+                              {s.gradeLevel} - {s.name}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* Student Custom Search Selector Card */}
+          <Card className={`${(isAdmin || sortedSections.length > 0) ? 'col-span-2' : 'col-span-3'} p-5 bg-white border border-slate-200/60 rounded-3xl shadow-sm hover:shadow-md transition-shadow space-y-3.5 !overflow-visible`}>
+            <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+              {isAdmin ? '2. Select Learner' : 'Select Learner'}
+            </h3>
+            <div className={`relative ${isSelectorOpen ? 'z-50' : 'z-10'}`}>
+              <button
+                onClick={() => setIsSelectorOpen(!isSelectorOpen)}
+                className="flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:outline-none transition-all shadow-sm"
+              >
+                <span className="truncate">
+                  {selectedStudent ? `${selectedStudent.lastName}, ${selectedStudent.firstName} (LRN: ${selectedStudent.lrn})` : 'Select Student'}
                 </span>
                 <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
               </button>
 
-              {isSectionSelectorOpen && (
+              {isSelectorOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40 bg-transparent" 
-                    onClick={() => setIsSectionSelectorOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setIsSelectorOpen(false)}
                   />
                   <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
                     <div className="p-3 border-b border-slate-100 flex items-center gap-2">
                       <Search className="w-4 h-4 text-slate-400" />
                       <input
                         type="text"
-                        placeholder="Search sections..."
-                        value={sectionSearchQuery}
-                        onChange={(e) => setSectionSearchQuery(e.target.value)}
+                        placeholder="Search student or LRN..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full text-xs font-medium border-none outline-none focus:ring-0 bg-transparent text-slate-700"
                       />
                     </div>
                     <div className="max-h-60 overflow-y-auto">
-                      <button
-                        onClick={() => {
-                          setSelectedSectionId('all');
-                          setSelectedStudentId('');
-                          setIsSectionSelectorOpen(false);
-                          setSectionSearchQuery('');
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 border-b border-slate-50 last:border-0 ${
-                          selectedSectionId === 'all' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-700'
-                        }`}
-                      >
-                        All Sections
-                      </button>
-                      {sortedSections
-                        .filter(s => {
-                          const q = sectionSearchQuery.toLowerCase();
-                          return s.name.toLowerCase().includes(q) || s.gradeLevel.toLowerCase().includes(q);
-                        })
-                        .map(s => (
+                      {filteredStudents.length > 0 ? (
+                        filteredStudents.map((st) => (
                           <button
-                            key={s.id}
+                            key={st.id}
                             onClick={() => {
-                              setSelectedSectionId(s.id);
-                              setSelectedStudentId('');
-                              setIsSectionSelectorOpen(false);
-                              setSectionSearchQuery('');
+                              setSelectedStudentId(st.id);
+                              setIsSelectorOpen(false);
+                              setSearchQuery('');
+                              setEditingGradeLevel(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 border-b border-slate-50 last:border-0 ${
-                              s.id === selectedSectionId ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-700'
-                            }`}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 border-b border-slate-50 last:border-0 ${st.id === selectedStudentId ? 'text-[#D8232A] bg-red-50/50' : 'text-slate-700'
+                              }`}
                           >
-                            {s.gradeLevel} - {s.name}
+                            <div className="flex justify-between items-center">
+                              <span>{st.lastName}, {st.firstName} {st.middleName || ''}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">{st.lrn}</span>
+                            </div>
                           </button>
-                        ))}
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                          No matching students.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
               )}
             </div>
           </Card>
-        )}
 
-        {/* Student Custom Search Selector Card */}
-        <Card className={`${(isAdmin || sortedSections.length > 0) ? 'col-span-2' : 'col-span-3'} p-5 bg-white border border-slate-200/60 rounded-3xl shadow-sm space-y-3.5 !overflow-visible`}>
-          <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">
-            {isAdmin ? '2. Select Learner' : 'Select Learner'}
-          </h3>
-          <div className={`relative ${isSelectorOpen ? 'z-50' : 'z-10'}`}>
-            <button
-              onClick={() => setIsSelectorOpen(!isSelectorOpen)}
-              className="flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:outline-none transition-all shadow-sm"
-            >
-              <span className="truncate">
-                {selectedStudent ? `${selectedStudent.lastName}, ${selectedStudent.firstName} (LRN: ${selectedStudent.lrn})` : 'Select Student'}
-              </span>
-              <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-            </button>
+        </div>
 
-            {isSelectorOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40 bg-transparent" 
-                  onClick={() => setIsSelectorOpen(false)} 
-                />
-                <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
-                  <div className="p-3 border-b border-slate-100 flex items-center gap-2">
-                    <Search className="w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search student or LRN..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full text-xs font-medium border-none outline-none focus:ring-0 bg-transparent text-slate-700"
-                    />
+        {/* Main content grid */}
+        {selectedStudent ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            {/* Sidebar Student Summary Card */}
+            <div className="lg:col-span-4 space-y-6">
+              <Card className="p-6 bg-white border border-slate-200/60 rounded-3xl shadow-sm space-y-6">
+                <div className="flex flex-col items-center text-center pb-4 border-b border-slate-100">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#D8232A] via-[#c41e25] to-[#a01920] text-white flex items-center justify-center font-black text-xl shadow-md mb-3">
+                    {selectedStudent.firstName?.[0] || ''}{selectedStudent.lastName?.[0] || ''}
                   </div>
-                  <div className="max-h-60 overflow-y-auto">
-                    {filteredStudents.length > 0 ? (
-                      filteredStudents.map((st) => (
-                        <button
-                          key={st.id}
-                          onClick={() => {
-                            setSelectedStudentId(st.id);
-                            setIsSelectorOpen(false);
-                            setSearchQuery('');
-                            setEditingGradeLevel(null);
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 border-b border-slate-50 last:border-0 ${
-                            st.id === selectedStudentId ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-700'
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span>{st.lastName}, {st.firstName} {st.middleName || ''}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">{st.lrn}</span>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-xs text-slate-400 font-medium">
-                        No matching students.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </Card>
-
-      </div>
-
-      {/* Main content grid */}
-      {selectedStudent ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Sidebar Student Summary Card */}
-          <div className="lg:col-span-4 space-y-6">
-            <Card className="p-6 bg-white border border-slate-200/60 rounded-3xl shadow-sm space-y-6">
-              <div className="flex flex-col items-center text-center pb-4 border-b border-slate-100">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-black text-xl shadow-md mb-3">
-                  {selectedStudent.firstName?.[0] || ''}{selectedStudent.lastName?.[0] || ''}
-                </div>
-                <h3 className="font-extrabold text-sm text-slate-800 uppercase tracking-wide">
-                  {selectedStudent.lastName}, {selectedStudent.firstName} {selectedStudent.middleName?.[0] ? `${selectedStudent.middleName[0]}.` : ''}
-                </h3>
-                <span className="text-[10px] font-bold font-mono text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full mt-1.5 shadow-sm">
-                  LRN: {selectedStudent.lrn}
-                </span>
-              </div>
-
-              <div className="space-y-4 text-xs">
-                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
-                  <label className="text-[9px] uppercase font-black text-slate-400 block tracking-wider">Gender</label>
-                  <span className="font-bold text-slate-700 block mt-1 capitalize">{selectedStudent.gender || '—'}</span>
-                </div>
-                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
-                  <label className="text-[9px] uppercase font-black text-slate-400 block tracking-wider">Advisory Grade & Section</label>
-                  <span className="font-bold text-slate-800 block mt-1">
-                    {selectedStudent.gradeLevel || '—'} - {studentSectionName}
+                  <h3 className="font-extrabold text-sm text-slate-800 uppercase tracking-wide">
+                    {selectedStudent.lastName}, {selectedStudent.firstName} {selectedStudent.middleName?.[0] ? `${selectedStudent.middleName[0]}.` : ''}
+                  </h3>
+                  <span className="text-[10px] font-bold font-mono text-[#D8232A] bg-red-50 px-2.5 py-0.5 rounded-full mt-1.5 shadow-sm">
+                    LRN: {selectedStudent.lrn}
                   </span>
                 </div>
-              </div>
-            </Card>
-          </div>
 
-          {/* Academic Timeline / Encoding Panels */}
-          <div className="lg:col-span-8 space-y-6">
-            {loadingHistory ? (
-              <div className="flex flex-col items-center justify-center p-12 space-y-3 bg-white border rounded-3xl">
-                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-bold text-slate-500">Loading student history blocks...</span>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {visibleGradeLevels.map((gradeLvl) => {
-                  const record = findBestRecordForGrade(history, gradeLvl);
-                  const hasRecord = record ? (record.isManualHistory === true || hasGradesData(record, gradeLvl)) : false;
-                  const isCurrentEditing = editingGradeLevel === gradeLvl;
-                  const isCurrentGradeLevel = isMatchingGrade(selectedStudent.gradeLevel, gradeLvl);
-                  const canEditBlock = true;
+                <div className="space-y-4 text-xs">
+                  <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
+                    <label className="text-[9px] uppercase font-black text-slate-400 block tracking-wider">Gender</label>
+                    <span className="font-bold text-slate-700 block mt-1 capitalize">{selectedStudent.gender || '—'}</span>
+                  </div>
+                  <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
+                    <label className="text-[9px] uppercase font-black text-slate-400 block tracking-wider">Advisory Grade & Section</label>
+                    <span className="font-bold text-slate-800 block mt-1">
+                      {selectedStudent.gradeLevel || '—'} - {studentSectionName}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </div>
 
-                  return (
-                    <Card key={gradeLvl} className="p-6 bg-white border border-slate-200/60 rounded-3xl shadow-sm space-y-4">
-                      
-                      {/* Block Header */}
-                      <div className="flex justify-between items-center pb-2 border-b">
-                        <div className="flex items-center gap-2">
-                          <span className="bg-indigo-50 text-indigo-700 font-black px-3 py-1 rounded-xl text-xs uppercase">
-                            {gradeLvl}
-                          </span>
-                          {hasRecord && (
-                            <span className="text-xs font-bold text-slate-400">
-                              SY {record.academicYear || '—'}
+            {/* Academic Timeline / Encoding Panels */}
+            <div className="lg:col-span-8 space-y-6">
+              {loadingHistory ? (
+                <div className="flex flex-col items-center justify-center p-12 space-y-3 bg-white border rounded-3xl">
+                  <div className="w-8 h-8 border-4 border-[#D8232A] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-bold text-slate-500">Loading student history blocks...</span>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {visibleGradeLevels.map((gradeLvl) => {
+                    const record = findBestRecordForGrade(history, gradeLvl);
+                    const hasRecord = record ? (record.isManualHistory === true || hasGradesData(record, gradeLvl)) : false;
+                    const isCurrentEditing = editingGradeLevel === gradeLvl;
+                    const isCurrentGradeLevel = isMatchingGrade(selectedStudent.gradeLevel, gradeLvl);
+                    const canEditBlock = true;
+
+                    return (
+                      <Card key={gradeLvl} className="p-6 bg-white border border-slate-200/60 rounded-3xl shadow-sm space-y-4">
+
+                        {/* Block Header */}
+                        <div className="flex justify-between items-center pb-2 border-b">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-red-50 text-[#D8232A] font-black px-3 py-1 rounded-xl text-xs uppercase">
+                              {gradeLvl}
                             </span>
+                            {hasRecord && (
+                              <span className="text-xs font-bold text-slate-400">
+                                SY {record.academicYear || '—'}
+                              </span>
+                            )}
+                          </div>
+
+                          {!isCurrentEditing && canEditBlock && (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleStartEncode(gradeLvl, hasRecord ? record : undefined)}
+                                variant="outline"
+                                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold"
+                              >
+                                {hasRecord ? <Edit className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                                <span>{hasRecord ? 'Edit Record' : 'Encode History'}</span>
+                              </Button>
+                              {hasRecord && (
+                                <Button
+                                  onClick={() => handleDeleteRecordBlock(record.id, gradeLvl, record.isManualHistory === true)}
+                                  variant="outline"
+                                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Delete</span>
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
 
-                        {!isCurrentEditing && canEditBlock && (
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => handleStartEncode(gradeLvl, hasRecord ? record : undefined)}
-                              variant="outline"
-                              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold"
-                            >
-                              {hasRecord ? <Edit className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                              <span>{hasRecord ? 'Edit Record' : 'Encode History'}</span>
-                            </Button>
-                            {hasRecord && (
-                              <Button
-                                onClick={() => handleDeleteRecordBlock(record.id, gradeLvl, record.isManualHistory === true)}
-                                variant="outline"
-                                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Delete</span>
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                        {/* Display Mode / Encoding Form Mode */}
+                        {isCurrentEditing ? (
+                          <div className="space-y-6 pt-2">
 
-                      {/* Display Mode / Encoding Form Mode */}
-                      {isCurrentEditing ? (
-                        <div className="space-y-6 pt-2">
-                          
-                          {/* Metadata Fields Grouped Container */}
-                          <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/50 space-y-4">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-0.5">School & Section Information</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">School Name</label>
-                                <Input
-                                  value={formSchoolName}
-                                  onChange={(e) => setFormSchoolName(e.target.value)}
-                                  className="h-9 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-150 transition-all bg-white"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">School ID</label>
-                                <Input
-                                  value={formSchoolId}
-                                  onChange={(e) => setFormSchoolId(e.target.value)}
-                                  className="h-9 rounded-lg text-xs font-medium font-mono focus:ring-1 focus:ring-indigo-150 transition-all bg-white"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">Division</label>
-                                <Input
-                                  value={formDivision}
-                                  onChange={(e) => setFormDivision(e.target.value)}
-                                  className="h-9 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-150 transition-all bg-white"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">
-                                  School Year <span className="text-rose-500 font-bold ml-0.5">*</span>
-                                </label>
-                                <Input
-                                  value={formAcademicYear}
-                                  onChange={(e) => {
-                                    const inputType = (e.nativeEvent as any).inputType;
-                                    const numbers = e.target.value.replace(/\D/g, '');
-                                    let formatted = '';
-                                    if (numbers.length > 0) {
-                                      formatted += numbers.substring(0, 4);
-                                    }
-                                    if (numbers.length > 4) {
-                                      formatted += '-' + numbers.substring(4, 8);
-                                    } else if (numbers.length === 4 && inputType !== 'deleteContentBackward') {
-                                      formatted += '-';
-                                    }
-                                    setFormAcademicYear(formatted);
-                                  }}
-                                  placeholder="e.g. 2024-2025"
-                                  className="h-9 rounded-lg text-xs font-medium font-mono focus:ring-1 focus:ring-indigo-150 transition-all bg-white"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">Section Name</label>
-                                <Input
-                                  value={formSectionName}
-                                  onChange={(e) => setFormSectionName(e.target.value)}
-                                  placeholder="e.g. Section 1"
-                                  className="h-9 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-150 transition-all bg-white"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">Adviser Name</label>
-                                <Input
-                                  value={formAdviserName}
-                                  onChange={(e) => setFormAdviserName(e.target.value)}
-                                  placeholder="Adviser Name"
-                                  className="h-9 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-150 transition-all bg-white"
-                                />
-                              </div>
-                              <div className="space-y-1 sm:col-span-2 md:col-span-3">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">Action Taken</label>
-                                <Select value={formStatus} onValueChange={setFormStatus}>
-                                  <SelectTrigger className="h-9 rounded-lg text-xs font-medium bg-white focus:ring-1 focus:ring-indigo-150 transition-all">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="PROMOTED">PROMOTED</SelectItem>
-                                    <SelectItem value="RETAINED">RETAINED</SelectItem>
-                                    <SelectItem value="IRREGULAR">IRREGULAR</SelectItem>
-                                    <SelectItem value="DROPPED">DROPPED</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                            {/* Metadata Fields Grouped Container */}
+                            <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/50 space-y-4">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-0.5">School & Section Information</h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">School Name</label>
+                                  <Input
+                                    value={formSchoolName}
+                                    onChange={(e) => setFormSchoolName(e.target.value)}
+                                    className="h-9 rounded-lg text-xs font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">School ID</label>
+                                  <Input
+                                    value={formSchoolId}
+                                    onChange={(e) => setFormSchoolId(e.target.value)}
+                                    className="h-9 rounded-lg text-xs font-medium font-mono focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Division</label>
+                                  <Input
+                                    value={formDivision}
+                                    onChange={(e) => setFormDivision(e.target.value)}
+                                    className="h-9 rounded-lg text-xs font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">
+                                    School Year <span className="text-rose-500 font-bold ml-0.5">*</span>
+                                  </label>
+                                  <Input
+                                    value={formAcademicYear}
+                                    onChange={(e) => {
+                                      const inputType = (e.nativeEvent as any).inputType;
+                                      const numbers = e.target.value.replace(/\D/g, '');
+                                      let formatted = '';
+                                      if (numbers.length > 0) {
+                                        formatted += numbers.substring(0, 4);
+                                      }
+                                      if (numbers.length > 4) {
+                                        formatted += '-' + numbers.substring(4, 8);
+                                      } else if (numbers.length === 4 && inputType !== 'deleteContentBackward') {
+                                        formatted += '-';
+                                      }
+                                      setFormAcademicYear(formatted);
+                                    }}
+                                    placeholder="e.g. 2024-2025"
+                                    className="h-9 rounded-lg text-xs font-medium font-mono focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Section Name</label>
+                                  <Input
+                                    value={formSectionName}
+                                    onChange={(e) => setFormSectionName(e.target.value)}
+                                    placeholder="e.g. Section 1"
+                                    className="h-9 rounded-lg text-xs font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Adviser Name</label>
+                                  <Input
+                                    value={formAdviserName}
+                                    onChange={(e) => setFormAdviserName(e.target.value)}
+                                    placeholder="Adviser Name"
+                                    className="h-9 rounded-lg text-xs font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Action Taken</label>
+                                  <Select value={formStatus} onValueChange={setFormStatus}>
+                                    <SelectTrigger className="h-9 rounded-lg text-xs font-medium bg-white focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="PROMOTED">PROMOTED</SelectItem>
+                                      <SelectItem value="RETAINED">RETAINED</SelectItem>
+                                      <SelectItem value="IRREGULAR">IRREGULAR</SelectItem>
+                                      <SelectItem value="DROPPED">DROPPED</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                           {/* Grades Table */}
-                           {(() => {
-                             const isThreeTerm = isThreeTermYear(formAcademicYear);
-                             return (
-                               <div className="space-y-3.5">
-                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-0.5">Academic Grades & Subjects</h4>
-                                 <div className="overflow-hidden border border-slate-200 rounded-2xl shadow-sm bg-white">
-                                   <table className="w-full text-center border-collapse text-xs">
-                                     <thead>
-                                       <tr className="bg-indigo-50/50 font-bold text-slate-600 border-b border-slate-200">
-                                         <th className="p-3 text-left font-extrabold text-[10px] uppercase tracking-wide">Learning Area</th>
-                                         {isThreeTerm ? (
-                                           <>
-                                             <th className="p-3 w-20 font-extrabold text-[10px]">T1</th>
-                                             <th className="p-3 w-20 font-extrabold text-[10px]">T2</th>
-                                             <th className="p-3 w-20 font-extrabold text-[10px]">T3</th>
-                                           </>
-                                         ) : (
-                                           <>
-                                             <th className="p-3 w-20 font-extrabold text-[10px]">Q1</th>
-                                             <th className="p-3 w-20 font-extrabold text-[10px]">Q2</th>
-                                             <th className="p-3 w-20 font-extrabold text-[10px]">Q3</th>
-                                             <th className="p-3 w-20 font-extrabold text-[10px]">Q4</th>
-                                           </>
-                                         )}
-                                         <th className="p-3 w-24 font-extrabold text-[10px]">Action</th>
-                                       </tr>
-                                     </thead>
-                                     <tbody>
-                                       {computedFormGrades.map((row, idx) => {
-                                         const hasChildren = !row.isSubSubject && computedFormGrades[idx + 1]?.isSubSubject === true;
-
-                                         return (
-                                           <tr key={row.id} className="border-b last:border-b-0 hover:bg-slate-50/50">
-                                             <td className="p-2 text-left">
-                                               <div className="flex items-center gap-1.5">
-                                                 {row.isSubSubject && (
-                                                   <CornerDownRight className="w-4 h-4 text-slate-400 shrink-0 ml-1.5" />
-                                                 )}
-                                                 <input
-                                                   type="text"
-                                                   value={row.subjectName}
-                                                   onChange={(e) => handleRowChange(row.id, 'subjectName', e.target.value)}
-                                                   placeholder={row.isSubSubject ? "Component (e.g. Music)" : "Subject Name (e.g. MAPEH)"}
-                                                   className={`w-full h-8 px-2 text-xs font-semibold border border-slate-200 rounded-lg outline-none focus:border-indigo-500 bg-white ${
-                                                     row.isSubSubject ? 'italic font-medium text-slate-500 pl-2 bg-slate-50/30 border-dashed border-indigo-200' : 'text-slate-800'
-                                                   }`}
-                                                 />
-                                               </div>
-                                             </td>
-                                             {isThreeTerm ? (
-                                               ['t1', 't2', 't3'].map((term) => (
-                                                 <td key={term} className="p-1">
-                                                   <input
-                                                     type="number"
-                                                     value={row[term as 't1' | 't2' | 't3'] || ''}
-                                                     onChange={(e) => handleRowChange(row.id, term as 't1' | 't2' | 't3', e.target.value)}
-                                                     disabled={hasChildren}
-                                                     className={`w-12 h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500 ${
-                                                       hasChildren ? 'bg-indigo-50/40 text-indigo-700 border-indigo-150 cursor-not-allowed select-none font-extrabold' : ''
-                                                     }`}
-                                                     min="50"
-                                                     max="100"
-                                                     title={hasChildren ? "Averaged from sub-subjects" : undefined}
-                                                   />
-                                                 </td>
-                                               ))
-                                             ) : (
-                                               ['q1', 'q2', 'q3', 'q4'].map((quarter) => (
-                                                 <td key={quarter} className="p-1">
-                                                   <input
-                                                     type="number"
-                                                     value={row[quarter as 'q1' | 'q2' | 'q3' | 'q4'] || ''}
-                                                     onChange={(e) => handleRowChange(row.id, quarter as 'q1' | 'q2' | 'q3' | 'q4', e.target.value)}
-                                                     disabled={hasChildren}
-                                                     className={`w-12 h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500 ${
-                                                       hasChildren ? 'bg-indigo-50/40 text-indigo-700 border-indigo-150 cursor-not-allowed select-none font-extrabold' : ''
-                                                     }`}
-                                                     min="50"
-                                                     max="100"
-                                                     title={hasChildren ? "Averaged from sub-subjects" : undefined}
-                                                   />
-                                                 </td>
-                                               ))
-                                             )}
-                                             <td className="p-1 text-center whitespace-nowrap">
-                                               {!row.isSubSubject && (
-                                                 <button
-                                                   type="button"
-                                                   onClick={() => handleAddSubSubjectRow(row.id)}
-                                                   className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all inline-block mr-1"
-                                                   title="Add Sub-subject"
-                                                 >
-                                                   <Plus className="w-3.5 h-3.5" />
-                                                 </button>
-                                               )}
-                                               <button
-                                                 type="button"
-                                                 onClick={() => handleRemoveSubjectRow(row.id)}
-                                                 className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all inline-block"
-                                                 title="Delete Row"
-                                               >
-                                                 <X className="w-4 h-4" />
-                                               </button>
-                                             </td>
-                                           </tr>
-                                         );
-                                       })}
-                                       {computedFormGrades.length > 0 && (
-                                         <tr className="bg-indigo-50/40 font-bold border-t border-indigo-100">
-                                           <td className="p-2 text-left text-indigo-900 font-extrabold text-[11px] uppercase tracking-wide">
-                                             Calculated General Average
-                                           </td>
-                                           <td colSpan={isThreeTerm ? 3 : 4} className="p-2"></td>
-                                           <td className="p-2 text-center text-indigo-900 font-black text-sm bg-indigo-100/50">
-                                             {formGeneralAverage || '—'}
-                                           </td>
-                                         </tr>
-                                       )}
-                                       {computedFormGrades.length === 0 && (
-                                         <tr>
-                                           <td colSpan={isThreeTerm ? 5 : 6} className="p-6 text-center text-slate-400 font-semibold italic">
-                                             No subjects added yet. Click "Add Subject Row" below to start encoding grades.
-                                           </td>
-                                         </tr>
-                                       )}
-                                     </tbody>
-                                   </table>
-                                 </div>
-                                 <div className="flex justify-start">
-                                   <Button
-                                     type="button"
-                                     onClick={handleAddSubjectRow}
-                                     variant="outline"
-                                     className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold text-indigo-600 border-indigo-200 hover:bg-indigo-50/50"
-                                   >
-                                     <Plus className="w-3.5 h-3.5" />
-                                     <span>Add Subject Row</span>
-                                   </Button>
-                                 </div>
-
-                                 {/* Remedial Classes Section */}
-                                 <div className="border border-slate-200 rounded-3xl p-5 bg-white space-y-4">
-                                   <div className="flex items-center gap-2">
-                                     <input
-                                       type="checkbox"
-                                       id={`has-remedial-${gradeLvl}`}
-                                       checked={formHasRemedial}
-                                       onChange={(e) => setFormHasRemedial(e.target.checked)}
-                                       className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
-                                     />
-                                     <label htmlFor={`has-remedial-${gradeLvl}`} className="text-xs font-bold text-slate-700 uppercase cursor-pointer select-none">
-                                       Has Remedial Classes Record
-                                     </label>
-                                   </div>
-
-                                   {formHasRemedial && (
-                                     <div className="space-y-4 pt-1">
-                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                         <div className="space-y-1">
-                                           <label className="text-[10px] font-bold text-slate-400 uppercase">Conducted From</label>
-                                           <Input
-                                             value={formRemedialFrom}
-                                             onChange={(e) => setFormRemedialFrom(e.target.value)}
-                                             placeholder="e.g. June 1, 2025"
-                                             className="h-9 rounded-lg text-xs font-medium"
-                                           />
-                                         </div>
-                                         <div className="space-y-1">
-                                           <label className="text-[10px] font-bold text-slate-400 uppercase">Conducted To</label>
-                                           <Input
-                                             value={formRemedialTo}
-                                             onChange={(e) => setFormRemedialTo(e.target.value)}
-                                             placeholder="e.g. July 15, 2025"
-                                             className="h-9 rounded-lg text-xs font-medium"
-                                           />
-                                         </div>
-                                       </div>
-
-                                       <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-                                         <table className="w-full text-center border-collapse text-xs">
-                                           <thead>
-                                             <tr className="bg-slate-50 font-bold text-slate-500 border-b">
-                                               <th className="p-2 text-left">Learning Area</th>
-                                               <th className="p-2 w-24">Final Rating</th>
-                                               <th className="p-2 w-28">Remedial Class Mark</th>
-                                               <th className="p-2 w-32">Recomputed Final Grade</th>
-                                               <th className="p-2 w-28">Remarks</th>
-                                             </tr>
-                                           </thead>
-                                           <tbody>
-                                             {formRemedialRows.map((row, rIdx) => {
-                                               const updateRowField = (field: string, val: string) => {
-                                                 setFormRemedialRows(prev =>
-                                                   prev.map((r, i) => i === rIdx ? { ...r, [field]: val } : r)
-                                                 );
-                                               };
-
-                                               return (
-                                                 <tr key={row.id} className="border-b last:border-b-0">
-                                                   <td className="p-1.5">
-                                                     <input
-                                                       type="text"
-                                                       value={row.subjectName}
-                                                       onChange={(e) => updateRowField('subjectName', e.target.value)}
-                                                       placeholder="e.g. Mathematics"
-                                                       className="w-full h-8 px-2 text-xs font-semibold border border-slate-200 rounded-lg outline-none focus:border-indigo-500 bg-white text-slate-800"
-                                                     />
-                                                   </td>
-                                                   <td className="p-1.5">
-                                                     <input
-                                                       type="number"
-                                                       value={row.finalRating}
-                                                       onChange={(e) => updateRowField('finalRating', e.target.value)}
-                                                       className="w-full h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
-                                                     />
-                                                   </td>
-                                                   <td className="p-1.5">
-                                                     <input
-                                                       type="number"
-                                                       value={row.remedialMark}
-                                                       onChange={(e) => updateRowField('remedialMark', e.target.value)}
-                                                       className="w-full h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
-                                                     />
-                                                   </td>
-                                                   <td className="p-1.5">
-                                                     <input
-                                                       type="number"
-                                                       value={row.recomputedGrade}
-                                                       onChange={(e) => updateRowField('recomputedGrade', e.target.value)}
-                                                       className="w-full h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
-                                                     />
-                                                   </td>
-                                                   <td className="p-1.5">
-                                                     <input
-                                                       type="text"
-                                                       value={row.remarks}
-                                                       onChange={(e) => updateRowField('remarks', e.target.value)}
-                                                       placeholder="e.g. PASSED"
-                                                       className="w-full h-8 text-center text-xs font-semibold border border-slate-200 rounded-lg outline-none focus:border-indigo-500 bg-white text-slate-800"
-                                                     />
-                                                   </td>
-                                                 </tr>
-                                               );
-                                             })}
-                                           </tbody>
-                                         </table>
-                                       </div>
-                                     </div>
-                                   )}
-                                 </div>
-                               </div>
-                             );
-                           })()}
-
-                          {/* Footer Action buttons */}
-                          <div className="flex gap-2.5 justify-end pt-2">
-                            <Button
-                              onClick={() => setEditingGradeLevel(null)}
-                              variant="outline"
-                              className="h-9 px-4 rounded-xl text-xs font-semibold border-slate-200"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              onClick={handleSaveBlock}
-                              className="h-9 px-4 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow"
-                            >
-                              Save Record
-                            </Button>
-                          </div>
-
-                        </div>
-                      ) : hasRecord ? (
-                        /* Record Summary Display Mode */
-                        (() => {
-                          const isThree = isThreeTermYear(record.academicYear || record.schoolYear || activeSchoolYearName);
-                          let recordGrades = record.grades || {};
-                          const gradeKey = record.gradeLevel;
-                          const matchedGradeKey = Object.keys(recordGrades).find(k => isMatchingGrade(k, gradeKey || gradeLvl));
-                          if (matchedGradeKey) {
-                            recordGrades = recordGrades[matchedGradeKey];
-                          }
-                          if (!recordGrades || typeof recordGrades !== 'object') {
-                            recordGrades = {};
-                          }
-
-                          // Compute dynamic Adviser Name, Section Name, School Year
-                          const resolvedSY = record.academicYear || record.schoolYear || activeSchoolYearName || '—';
-                          const resolvedSection = record.sectionName || studentSectionName;
-                          const resolvedAdviser = record.adviserName || getAdviserNameForSection(record.sectionId || selectedStudent?.sectionId) || '—';
-                          const resolvedSchool = record.schoolName || 'Sta. Maria CS SPED Center';
-                          const resolvedDivision = record.division || 'Zamboanga City';
-
-                          const statusValue = (() => {
-                            const rawStatus = record.status || '';
-                            if (rawStatus && rawStatus.toUpperCase() !== 'ENROLLED') {
-                              return rawStatus;
-                            }
-                            const grades = Object.entries(recordGrades);
-                            if (grades.length === 0) return 'ENROLLED';
-                            
-                            let failedCount = 0;
-                            let completedCount = 0;
-                            grades.forEach(([_, subGrades]: [string, any]) => {
-                              if (subGrades?.isSubSubject) return;
-                              let finalVal: number | null = null;
-                              if (isThree) {
-                                const t1 = subGrades?.t1 !== undefined && subGrades?.t1 !== null ? parseFloat(subGrades.t1) : '';
-                                const t2 = subGrades?.t2 !== undefined && subGrades?.t2 !== null ? parseFloat(subGrades.t2) : '';
-                                const t3 = subGrades?.t3 !== undefined && subGrades?.t3 !== null ? parseFloat(subGrades.t3) : '';
-                                const active = [t1, t2, t3].filter(v => v !== '' && !isNaN(Number(v))) as number[];
-                                if (active.length === 3) finalVal = Math.round(active.reduce((a, b) => a + b, 0) / 3);
-                              } else {
-                                const q1 = subGrades?.q1 !== undefined && subGrades?.q1 !== null ? parseFloat(subGrades.q1) : '';
-                                const q2 = subGrades?.q2 !== undefined && subGrades?.q2 !== null ? parseFloat(subGrades.q2) : '';
-                                const q3 = subGrades?.q3 !== undefined && subGrades?.q3 !== null ? parseFloat(subGrades.q3) : '';
-                                const q4 = subGrades?.q4 !== undefined && subGrades?.q4 !== null ? parseFloat(subGrades.q4) : '';
-                                const active = [q1, q2, q3, q4].filter(v => v !== '' && !isNaN(Number(v))) as number[];
-                                if (active.length === 4) finalVal = Math.round(active.reduce((a, b) => a + b, 0) / 4);
-                              }
-                              if (finalVal !== null && !isNaN(finalVal)) {
-                                completedCount++;
-                                if (finalVal < 75) {
-                                  failedCount++;
-                                }
-                              }
-                            });
-                            if (completedCount === 0) return 'ENROLLED';
-                            if (failedCount === 0) return 'PROMOTED';
-                            if (failedCount <= 2) return 'IRREGULAR';
-                            return 'RETAINED';
-                          })();
-
-                          return (
-                            <div className="space-y-3.5 pt-1 text-xs">
-                              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-slate-600">
-                                <div>
-                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">School</span>
-                                  <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedSchool}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Section</span>
-                                  <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedSection}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Adviser</span>
-                                  <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedAdviser}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Division</span>
-                                  <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedDivision}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Action Taken</span>
-                                  <span className={`inline-block mt-1 px-2 py-0.5 rounded font-black text-[9px] uppercase ${
-                                    statusValue === 'PROMOTED' ? 'bg-emerald-100 text-emerald-800' :
-                                    statusValue === 'RETAINED' ? 'bg-rose-100 text-rose-800' :
-                                    statusValue === 'IRREGULAR' ? 'bg-amber-100 text-amber-800' :
-                                    'bg-slate-100 text-slate-600'
-                                  }`}>
-                                    {statusValue}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Structured view of all quarterly ratings */}
-                              <div className="space-y-4">
-                                <div className="overflow-hidden border border-slate-100 rounded-2xl mt-3.5 bg-slate-50/20">
-                                  <table className="w-full text-center border-collapse text-xs">
-                                    <thead>
-                                      <tr className="bg-slate-50 font-bold text-slate-500 border-b border-slate-150">
-                                        <th className="p-2.5 text-left font-bold text-[10px] text-slate-400 uppercase tracking-wide">Learning Area</th>
-                                        {isThree ? (
-                                          <>
-                                            <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">T1</th>
-                                            <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">T2</th>
-                                            <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">T3</th>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q1</th>
-                                            <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q2</th>
-                                            <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q3</th>
-                                            <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q4</th>
-                                          </>
-                                        )}
-                                        <th className="p-2.5 w-20 font-extrabold text-indigo-700 bg-indigo-50/30 text-[10px] uppercase tracking-wide">Final</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {getSubjectRows(record, gradeLvl).map((subj, sIdx) => {
-                                        return (
-                                          <tr key={`${subj.name}-${sIdx}`} className="border-b border-slate-100 hover:bg-slate-50/50 last:border-b-0">
-                                            <td className={`p-2.5 text-left ${subj.isSubSubject ? 'pl-6 text-slate-500 italic font-semibold' : 'text-slate-800 font-extrabold'}`}>
-                                              <div className="flex items-center gap-1.5">
-                                                {subj.isSubSubject && (
-                                                  <CornerDownRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                                                )}
-                                                <span>{subj.name || <>&nbsp;</>}</span>
-                                              </div>
-                                            </td>
-                                            {isThree ? (
-                                              <>
-                                                <td className="p-2 text-slate-600 font-bold font-mono">{subj.q1 !== '' ? subj.q1 : '—'}</td>
-                                                <td className="p-2 text-slate-600 font-bold font-mono">{subj.q2 !== '' ? subj.q2 : '—'}</td>
-                                                <td className="p-2 text-slate-600 font-bold font-mono">{subj.q3 !== '' ? subj.q3 : '—'}</td>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <td className="p-2 text-slate-600 font-bold font-mono">{subj.q1 !== '' ? subj.q1 : '—'}</td>
-                                                <td className="p-2 text-slate-600 font-bold font-mono">{subj.q2 !== '' ? subj.q2 : '—'}</td>
-                                                <td className="p-2 text-slate-600 font-bold font-mono">{subj.q3 !== '' ? subj.q3 : '—'}</td>
-                                                <td className="p-2 text-slate-600 font-bold font-mono">{subj.q4 !== '' ? subj.q4 : '—'}</td>
-                                              </>
-                                            )}
-                                            <td className="p-2 font-black text-indigo-700 bg-indigo-50/20 font-mono">{subj.final !== '' ? subj.final : '—'}</td>
-                                          </tr>
-                                        );
-                                      })}
-
-                                      {/* Dynamic General Average Row */}
-                                      {(() => {
-                                        const subjectRows = getSubjectRows(record, gradeLvl);
-                                        const mainFinals = subjectRows
-                                          .filter(r => !r.isSubSubject && typeof r.final === 'number' && !isNaN(r.final))
-                                          .map(r => r.final as number);
-                                        if (mainFinals.length > 0) {
-                                          const avg = Math.round(mainFinals.reduce((a, b) => a + b, 0) / mainFinals.length);
-                                          return (
-                                            <tr className="bg-indigo-50/50 font-bold border-t border-indigo-100/80">
-                                              <td className="p-2.5 text-left text-indigo-900 font-extrabold text-[10px] uppercase tracking-wider">
-                                                General Average
-                                              </td>
-                                              <td colSpan={isThree ? 3 : 4} className="p-2"></td>
-                                              <td className="p-2.5 text-center text-indigo-900 font-black bg-indigo-100/40 font-mono text-sm">
-                                                {avg}
-                                              </td>
-                                            </tr>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
-                                    </tbody>
-                                  </table>
-                                </div>
-
-                                {/* Remedial Classes Summary block */}
-                                {record.remedial && record.remedial.classes && record.remedial.classes.some((c: any) => c.subjectName) && (
-                                  <div className="border border-amber-100 rounded-2xl overflow-hidden bg-amber-50/10">
-                                    <div className="bg-amber-50/50 px-3 py-2 border-b border-amber-100 flex justify-between items-center text-[9px] font-black text-amber-800 uppercase tracking-wider">
-                                      <span>Remedial Classes Record</span>
-                                      <span className="font-bold text-slate-500 lowercase normal-case">
-                                        conducted: {record.remedial.from || '—'} to {record.remedial.to || '—'}
-                                      </span>
-                                    </div>
+                            {/* Grades Table */}
+                            {(() => {
+                              const isThreeTerm = isThreeTermYear(formAcademicYear);
+                              return (
+                                <div className="space-y-3.5">
+                                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-0.5">Academic Grades & Subjects</h4>
+                                  <div className="overflow-hidden border border-slate-200 rounded-2xl shadow-sm bg-white">
                                     <table className="w-full text-center border-collapse text-xs">
                                       <thead>
-                                        <tr className="bg-amber-50/20 font-bold text-amber-700/80 border-b border-amber-100/50">
-                                          <th className="p-2 text-left font-bold text-[9px] uppercase tracking-wide">Learning Area</th>
-                                          <th className="p-2 w-20 font-bold text-[9px]">Final</th>
-                                          <th className="p-2 w-24 font-bold text-[9px]">Remedial Mark</th>
-                                          <th className="p-2 w-28 font-bold text-[9px]">Recomputed</th>
-                                          <th className="p-2 w-24 font-black text-emerald-800 bg-emerald-50/20 text-[9px] uppercase tracking-wide">Remarks</th>
+                                        <tr className="bg-red-50/50 font-bold text-slate-600 border-b border-slate-200">
+                                          <th className="p-3 text-left font-extrabold text-[10px] uppercase tracking-wide">Learning Area</th>
+                                          {isThreeTerm ? (
+                                            <>
+                                              <th className="p-3 w-20 font-extrabold text-[10px]">T1</th>
+                                              <th className="p-3 w-20 font-extrabold text-[10px]">T2</th>
+                                              <th className="p-3 w-20 font-extrabold text-[10px]">T3</th>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <th className="p-3 w-20 font-extrabold text-[10px]">Q1</th>
+                                              <th className="p-3 w-20 font-extrabold text-[10px]">Q2</th>
+                                              <th className="p-3 w-20 font-extrabold text-[10px]">Q3</th>
+                                              <th className="p-3 w-20 font-extrabold text-[10px]">Q4</th>
+                                            </>
+                                          )}
+                                          <th className="p-3 w-24 font-extrabold text-[10px]">Action</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {record.remedial.classes.map((row: any, rIdx: number) => {
-                                          if (!row.subjectName) return null;
+                                        {computedFormGrades.map((row, idx) => {
+                                          const hasChildren = !row.isSubSubject && computedFormGrades[idx + 1]?.isSubSubject === true;
+
                                           return (
-                                            <tr key={rIdx} className="border-b border-amber-100/30 hover:bg-amber-50/20 last:border-b-0">
-                                              <td className="p-2 text-left font-bold text-slate-700">{row.subjectName}</td>
-                                              <td className="p-2 text-slate-600 font-bold font-mono">{row.finalRating || '—'}</td>
-                                              <td className="p-2 text-slate-600 font-bold font-mono">{row.remedialMark || '—'}</td>
-                                              <td className="p-2 text-slate-600 font-bold font-mono">{row.recomputedGrade || '—'}</td>
-                                              <td className="p-2 font-black text-emerald-800 bg-emerald-50/15">{row.remarks || '—'}</td>
+                                            <tr key={row.id} className="border-b last:border-b-0 hover:bg-slate-50/50">
+                                              <td className="p-2 text-left">
+                                                <div className="flex items-center gap-1.5">
+                                                  {row.isSubSubject && (
+                                                    <CornerDownRight className="w-4 h-4 text-slate-400 shrink-0 ml-1.5" />
+                                                  )}
+                                                  <input
+                                                    type="text"
+                                                    value={row.subjectName}
+                                                    onChange={(e) => handleRowChange(row.id, 'subjectName', e.target.value)}
+                                                    placeholder={row.isSubSubject ? "Component (e.g. Music)" : "Subject Name (e.g. MAPEH)"}
+                                                    className={`w-full h-8 px-2 text-xs font-semibold border border-slate-200 rounded-lg outline-none focus:border-[#D8232A] bg-white ${row.isSubSubject ? 'italic font-medium text-slate-500 pl-2 bg-slate-50/30 border-dashed border-red-200' : 'text-slate-800'
+                                                      }`}
+                                                  />
+                                                </div>
+                                              </td>
+                                              {isThreeTerm ? (
+                                                ['t1', 't2', 't3'].map((term) => (
+                                                  <td key={term} className="p-1">
+                                                    <input
+                                                      type="number"
+                                                      value={row[term as 't1' | 't2' | 't3'] || ''}
+                                                      onChange={(e) => handleRowChange(row.id, term as 't1' | 't2' | 't3', e.target.value)}
+                                                      disabled={hasChildren}
+                                                      className={`w-12 h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-[#D8232A] ${hasChildren ? 'bg-red-50/40 text-[#D8232A] border-red-200 cursor-not-allowed select-none font-extrabold' : ''
+                                                        }`}
+                                                      min="50"
+                                                      max="100"
+                                                      title={hasChildren ? "Averaged from sub-subjects" : undefined}
+                                                    />
+                                                  </td>
+                                                ))
+                                              ) : (
+                                                ['q1', 'q2', 'q3', 'q4'].map((quarter) => (
+                                                  <td key={quarter} className="p-1">
+                                                    <input
+                                                      type="number"
+                                                      value={row[quarter as 'q1' | 'q2' | 'q3' | 'q4'] || ''}
+                                                      onChange={(e) => handleRowChange(row.id, quarter as 'q1' | 'q2' | 'q3' | 'q4', e.target.value)}
+                                                      disabled={hasChildren}
+                                                      className={`w-12 h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-[#D8232A] ${hasChildren ? 'bg-red-50/40 text-[#D8232A] border-red-200 cursor-not-allowed select-none font-extrabold' : ''
+                                                        }`}
+                                                      min="50"
+                                                      max="100"
+                                                      title={hasChildren ? "Averaged from sub-subjects" : undefined}
+                                                    />
+                                                  </td>
+                                                ))
+                                              )}
+                                              <td className="p-1 text-center whitespace-nowrap">
+                                                {!row.isSubSubject && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleAddSubSubjectRow(row.id)}
+                                                    className="p-1.5 text-[#D8232A] hover:bg-red-50 rounded-lg transition-all inline-block mr-1"
+                                                    title="Add Sub-subject"
+                                                  >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                  </button>
+                                                )}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleRemoveSubjectRow(row.id)}
+                                                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all inline-block"
+                                                  title="Delete Row"
+                                                >
+                                                  <X className="w-4 h-4" />
+                                                </button>
+                                              </td>
                                             </tr>
                                           );
                                         })}
+                                        {computedFormGrades.length > 0 && (
+                                          <tr className="bg-red-50/40 font-bold border-t border-red-100">
+                                            <td className="p-2 text-left text-[#D8232A] font-extrabold text-[11px] uppercase tracking-wide">
+                                              Calculated General Average
+                                            </td>
+                                            <td colSpan={isThreeTerm ? 3 : 4} className="p-2"></td>
+                                            <td className="p-2 text-center text-[#D8232A] font-black text-sm bg-red-100/50">
+                                              {formGeneralAverage || '—'}
+                                            </td>
+                                          </tr>
+                                        )}
+                                        {computedFormGrades.length === 0 && (
+                                          <tr>
+                                            <td colSpan={isThreeTerm ? 5 : 6} className="p-6 text-center text-slate-400 font-semibold italic">
+                                              No subjects added yet. Click "Add Subject Row" below to start encoding grades.
+                                            </td>
+                                          </tr>
+                                        )}
                                       </tbody>
                                     </table>
                                   </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        /* Empty State Display Mode */
-                        <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-slate-400 font-semibold">
-                          <FileText className="w-7 h-7 text-slate-300 mb-1" />
-                          <span className="text-[10px]">No historical record encoded in this system for {gradeLvl}.</span>
-                        </div>
-                      )}
+                                  <div className="flex justify-start">
+                                    <Button
+                                      type="button"
+                                      onClick={handleAddSubjectRow}
+                                      variant="outline"
+                                      className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold text-[#D8232A] border-red-200 hover:bg-red-50/50"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      <span>Add Subject Row</span>
+                                    </Button>
+                                  </div>
 
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+                                  {/* Remedial Classes Section */}
+                                  <div className="border border-slate-200 rounded-3xl p-5 bg-white space-y-4">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        id={`has-remedial-${gradeLvl}`}
+                                        checked={formHasRemedial}
+                                        onChange={(e) => setFormHasRemedial(e.target.checked)}
+                                        className="w-4 h-4 text-[#D8232A] border-slate-300 rounded focus:ring-red-500 cursor-pointer accent-[#D8232A]"
+                                      />
+                                      <label htmlFor={`has-remedial-${gradeLvl}`} className="text-xs font-bold text-slate-700 uppercase cursor-pointer select-none">
+                                        Has Remedial Classes Record
+                                      </label>
+                                    </div>
+
+                                    {formHasRemedial && (
+                                      <div className="space-y-4 pt-1">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">Conducted From</label>
+                                            <Input
+                                              value={formRemedialFrom}
+                                              onChange={(e) => setFormRemedialFrom(e.target.value)}
+                                              placeholder="e.g. June 1, 2025"
+                                              className="h-9 rounded-lg text-xs font-medium"
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">Conducted To</label>
+                                            <Input
+                                              value={formRemedialTo}
+                                              onChange={(e) => setFormRemedialTo(e.target.value)}
+                                              placeholder="e.g. July 15, 2025"
+                                              className="h-9 rounded-lg text-xs font-medium"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                                          <table className="w-full text-center border-collapse text-xs">
+                                            <thead>
+                                              <tr className="bg-slate-50 font-bold text-slate-500 border-b">
+                                                <th className="p-2 text-left">Learning Area</th>
+                                                <th className="p-2 w-24">Final Rating</th>
+                                                <th className="p-2 w-28">Remedial Class Mark</th>
+                                                <th className="p-2 w-32">Recomputed Final Grade</th>
+                                                <th className="p-2 w-28">Remarks</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {formRemedialRows.map((row, rIdx) => {
+                                                const updateRowField = (field: string, val: string) => {
+                                                  setFormRemedialRows(prev =>
+                                                    prev.map((r, i) => i === rIdx ? { ...r, [field]: val } : r)
+                                                  );
+                                                };
+
+                                                return (
+                                                  <tr key={row.id} className="border-b last:border-b-0">
+                                                    <td className="p-1.5">
+                                                      <input
+                                                        type="text"
+                                                        value={row.subjectName}
+                                                        onChange={(e) => updateRowField('subjectName', e.target.value)}
+                                                        placeholder="e.g. Mathematics"
+                                                        className="w-full h-8 px-2 text-xs font-semibold border border-slate-200 rounded-lg outline-none focus:border-[#D8232A] bg-white text-slate-800"
+                                                      />
+                                                    </td>
+                                                    <td className="p-1.5">
+                                                      <input
+                                                        type="number"
+                                                        value={row.finalRating}
+                                                        onChange={(e) => updateRowField('finalRating', e.target.value)}
+                                                        className="w-full h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                                                      />
+                                                    </td>
+                                                    <td className="p-1.5">
+                                                      <input
+                                                        type="number"
+                                                        value={row.remedialMark}
+                                                        onChange={(e) => updateRowField('remedialMark', e.target.value)}
+                                                        className="w-full h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                                                      />
+                                                    </td>
+                                                    <td className="p-1.5">
+                                                      <input
+                                                        type="number"
+                                                        value={row.recomputedGrade}
+                                                        onChange={(e) => updateRowField('recomputedGrade', e.target.value)}
+                                                        className="w-full h-8 text-center text-xs font-bold border border-slate-200 rounded-lg outline-none focus:border-indigo-500"
+                                                      />
+                                                    </td>
+                                                    <td className="p-1.5">
+                                                      <input
+                                                        type="text"
+                                                        value={row.remarks}
+                                                        onChange={(e) => updateRowField('remarks', e.target.value)}
+                                                        placeholder="e.g. PASSED"
+                                                        className="w-full h-8 text-center text-xs font-semibold border border-slate-200 rounded-lg outline-none focus:border-indigo-500 bg-white text-slate-800"
+                                                      />
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Footer Action buttons */}
+                            <div className="flex gap-2.5 justify-end pt-2">
+                              <Button
+                                onClick={() => setEditingGradeLevel(null)}
+                                variant="outline"
+                                className="h-9 px-4 rounded-xl text-xs font-semibold border-slate-200"
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={handleSaveBlock}
+                                className="h-9 px-4 rounded-xl text-xs font-bold bg-[#D8232A] hover:bg-[#b91c22] text-white shadow"
+                              >
+                                Save Record
+                              </Button>
+                            </div>
+
+                          </div>
+                        ) : hasRecord ? (
+                          /* Record Summary Display Mode */
+                          (() => {
+                            const isThree = isThreeTermYear(record.academicYear || record.schoolYear || activeSchoolYearName);
+                            let recordGrades = record.grades || {};
+                            const gradeKey = record.gradeLevel;
+                            const matchedGradeKey = Object.keys(recordGrades).find(k => isMatchingGrade(k, gradeKey || gradeLvl));
+                            if (matchedGradeKey) {
+                              recordGrades = recordGrades[matchedGradeKey];
+                            }
+                            if (!recordGrades || typeof recordGrades !== 'object') {
+                              recordGrades = {};
+                            }
+
+                            // Compute dynamic Adviser Name, Section Name, School Year
+                            const resolvedSY = record.academicYear || record.schoolYear || activeSchoolYearName || '—';
+                            const resolvedSection = record.sectionName || studentSectionName;
+                            const resolvedAdviser = record.adviserName || getAdviserNameForSection(record.sectionId || selectedStudent?.sectionId) || '—';
+                            const resolvedSchool = record.schoolName || 'Sta. Maria CS SPED Center';
+                            const resolvedDivision = record.division || 'Zamboanga City';
+
+                            const statusValue = (() => {
+                              const rawStatus = record.status || '';
+                              if (rawStatus && rawStatus.toUpperCase() !== 'ENROLLED') {
+                                return rawStatus;
+                              }
+                              const grades = Object.entries(recordGrades);
+                              if (grades.length === 0) return 'ENROLLED';
+
+                              let failedCount = 0;
+                              let completedCount = 0;
+                              grades.forEach(([_, subGrades]: [string, any]) => {
+                                if (subGrades?.isSubSubject) return;
+                                let finalVal: number | null = null;
+                                if (isThree) {
+                                  const t1 = subGrades?.t1 !== undefined && subGrades?.t1 !== null ? parseFloat(subGrades.t1) : '';
+                                  const t2 = subGrades?.t2 !== undefined && subGrades?.t2 !== null ? parseFloat(subGrades.t2) : '';
+                                  const t3 = subGrades?.t3 !== undefined && subGrades?.t3 !== null ? parseFloat(subGrades.t3) : '';
+                                  const active = [t1, t2, t3].filter(v => v !== '' && !isNaN(Number(v))) as number[];
+                                  if (active.length === 3) finalVal = Math.round(active.reduce((a, b) => a + b, 0) / 3);
+                                } else {
+                                  const q1 = subGrades?.q1 !== undefined && subGrades?.q1 !== null ? parseFloat(subGrades.q1) : '';
+                                  const q2 = subGrades?.q2 !== undefined && subGrades?.q2 !== null ? parseFloat(subGrades.q2) : '';
+                                  const q3 = subGrades?.q3 !== undefined && subGrades?.q3 !== null ? parseFloat(subGrades.q3) : '';
+                                  const q4 = subGrades?.q4 !== undefined && subGrades?.q4 !== null ? parseFloat(subGrades.q4) : '';
+                                  const active = [q1, q2, q3, q4].filter(v => v !== '' && !isNaN(Number(v))) as number[];
+                                  if (active.length === 4) finalVal = Math.round(active.reduce((a, b) => a + b, 0) / 4);
+                                }
+                                if (finalVal !== null && !isNaN(finalVal)) {
+                                  completedCount++;
+                                  if (finalVal < 75) {
+                                    failedCount++;
+                                  }
+                                }
+                              });
+                              if (completedCount === 0) return 'ENROLLED';
+                              if (failedCount === 0) return 'PROMOTED';
+                              if (failedCount <= 2) return 'IRREGULAR';
+                              return 'RETAINED';
+                            })();
+
+                            return (
+                              <div className="space-y-3.5 pt-1 text-xs">
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-slate-600">
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">School</span>
+                                    <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedSchool}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Section</span>
+                                    <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedSection}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Adviser</span>
+                                    <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedAdviser}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Division</span>
+                                    <span className="font-bold text-slate-800 block mt-0.5 truncate uppercase">{resolvedDivision}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Action Taken</span>
+                                    <span className={`inline-block mt-1 px-2 py-0.5 rounded font-black text-[9px] uppercase ${statusValue === 'PROMOTED' ? 'bg-emerald-100 text-emerald-800' :
+                                        statusValue === 'RETAINED' ? 'bg-rose-100 text-rose-800' :
+                                          statusValue === 'IRREGULAR' ? 'bg-amber-100 text-amber-800' :
+                                            'bg-slate-100 text-slate-600'
+                                      }`}>
+                                      {statusValue}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Structured view of all quarterly ratings */}
+                                <div className="space-y-4">
+                                  <div className="overflow-hidden border border-slate-100 rounded-2xl mt-3.5 bg-slate-50/20">
+                                    <table className="w-full text-center border-collapse text-xs">
+                                      <thead>
+                                        <tr className="bg-slate-50 font-bold text-slate-500 border-b border-slate-150">
+                                          <th className="p-2.5 text-left font-bold text-[10px] text-slate-400 uppercase tracking-wide">Learning Area</th>
+                                          {isThree ? (
+                                            <>
+                                              <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">T1</th>
+                                              <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">T2</th>
+                                              <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">T3</th>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q1</th>
+                                              <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q2</th>
+                                              <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q3</th>
+                                              <th className="p-2.5 w-14 font-bold text-[10px] text-slate-400">Q4</th>
+                                            </>
+                                          )}
+                                          <th className="p-2.5 w-20 font-extrabold text-[#D8232A] bg-red-50/30 text-[10px] uppercase tracking-wide">Final</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {getSubjectRows(record, gradeLvl).map((subj, sIdx) => {
+                                          return (
+                                            <tr key={`${subj.name}-${sIdx}`} className="border-b border-slate-100 hover:bg-slate-50/50 last:border-b-0">
+                                              <td className={`p-2.5 text-left ${subj.isSubSubject ? 'pl-6 text-slate-500 italic font-semibold' : 'text-slate-800 font-extrabold'}`}>
+                                                <div className="flex items-center gap-1.5">
+                                                  {subj.isSubSubject && (
+                                                    <CornerDownRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                                                  )}
+                                                  <span>{subj.name || <>&nbsp;</>}</span>
+                                                </div>
+                                              </td>
+                                              {isThree ? (
+                                                <>
+                                                  <td className="p-2 text-slate-600 font-bold font-mono">{subj.q1 !== '' ? subj.q1 : '—'}</td>
+                                                  <td className="p-2 text-slate-600 font-bold font-mono">{subj.q2 !== '' ? subj.q2 : '—'}</td>
+                                                  <td className="p-2 text-slate-600 font-bold font-mono">{subj.q3 !== '' ? subj.q3 : '—'}</td>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <td className="p-2 text-slate-600 font-bold font-mono">{subj.q1 !== '' ? subj.q1 : '—'}</td>
+                                                  <td className="p-2 text-slate-600 font-bold font-mono">{subj.q2 !== '' ? subj.q2 : '—'}</td>
+                                                  <td className="p-2 text-slate-600 font-bold font-mono">{subj.q3 !== '' ? subj.q3 : '—'}</td>
+                                                  <td className="p-2 text-slate-600 font-bold font-mono">{subj.q4 !== '' ? subj.q4 : '—'}</td>
+                                                </>
+                                              )}
+                                              <td className="p-2 font-black text-[#D8232A] bg-red-50/20 font-mono">{subj.final !== '' ? subj.final : '—'}</td>
+                                            </tr>
+                                          );
+                                        })}
+
+                                        {/* Dynamic General Average Row */}
+                                        {(() => {
+                                          const subjectRows = getSubjectRows(record, gradeLvl);
+                                          const mainFinals = subjectRows
+                                            .filter(r => !r.isSubSubject && typeof r.final === 'number' && !isNaN(r.final))
+                                            .map(r => r.final as number);
+                                          if (mainFinals.length > 0) {
+                                            const avg = Math.round(mainFinals.reduce((a, b) => a + b, 0) / mainFinals.length);
+                                            return (
+                                              <tr className="bg-red-50/50 font-bold border-t border-red-100/80">
+                                                <td className="p-2.5 text-left text-[#D8232A] font-extrabold text-[10px] uppercase tracking-wider">
+                                                  General Average
+                                                </td>
+                                                <td colSpan={isThree ? 3 : 4} className="p-2"></td>
+                                                <td className="p-2.5 text-center text-[#D8232A] font-black bg-red-100/40 font-mono text-sm">
+                                                  {avg}
+                                                </td>
+                                              </tr>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  {/* Remedial Classes Summary block */}
+                                  {record.remedial && record.remedial.classes && record.remedial.classes.some((c: any) => c.subjectName) && (
+                                    <div className="border border-amber-100 rounded-2xl overflow-hidden bg-amber-50/10">
+                                      <div className="bg-amber-50/50 px-3 py-2 border-b border-amber-100 flex justify-between items-center text-[9px] font-black text-amber-800 uppercase tracking-wider">
+                                        <span>Remedial Classes Record</span>
+                                        <span className="font-bold text-slate-500 lowercase normal-case">
+                                          conducted: {record.remedial.from || '—'} to {record.remedial.to || '—'}
+                                        </span>
+                                      </div>
+                                      <table className="w-full text-center border-collapse text-xs">
+                                        <thead>
+                                          <tr className="bg-amber-50/20 font-bold text-amber-700/80 border-b border-amber-100/50">
+                                            <th className="p-2 text-left font-bold text-[9px] uppercase tracking-wide">Learning Area</th>
+                                            <th className="p-2 w-20 font-bold text-[9px]">Final</th>
+                                            <th className="p-2 w-24 font-bold text-[9px]">Remedial Mark</th>
+                                            <th className="p-2 w-28 font-bold text-[9px]">Recomputed</th>
+                                            <th className="p-2 w-24 font-black text-emerald-800 bg-emerald-50/20 text-[9px] uppercase tracking-wide">Remarks</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {record.remedial.classes.map((row: any, rIdx: number) => {
+                                            if (!row.subjectName) return null;
+                                            return (
+                                              <tr key={rIdx} className="border-b border-amber-100/30 hover:bg-amber-50/20 last:border-b-0">
+                                                <td className="p-2 text-left font-bold text-slate-700">{row.subjectName}</td>
+                                                <td className="p-2 text-slate-600 font-bold font-mono">{row.finalRating || '—'}</td>
+                                                <td className="p-2 text-slate-600 font-bold font-mono">{row.remedialMark || '—'}</td>
+                                                <td className="p-2 text-slate-600 font-bold font-mono">{row.recomputedGrade || '—'}</td>
+                                                <td className="p-2 font-black text-emerald-800 bg-emerald-50/15">{row.remarks || '—'}</td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          /* Empty State Display Mode */
+                          <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-slate-400 font-semibold">
+                            <FileText className="w-7 h-7 text-slate-300 mb-1" />
+                            <span className="text-[10px]">No historical record encoded in this system for {gradeLvl}.</span>
+                          </div>
+                        )}
+
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
+        ) : (
+          <Card className="flex flex-col items-center justify-center p-20 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-300 rounded-3xl">
+            <FileText className="w-12 h-12 text-slate-300 mb-2" />
+            <span>Please select a learner above to manage, encode, or view their SF10 permanent academic record.</span>
+          </Card>
+        )}
+
+        {/* Renders SF10 preview sheet */}
+        {isViewingPreview && selectedStudent && (
+          <SF10ReportDocument
+            onClose={() => setIsViewingPreview(false)}
+            data={{
+              schoolYear: '',
+              gradeLevel: selectedStudent.gradeLevel || '',
+              section: studentSectionName === '—' ? '' : studentSectionName,
+              students: sectionStudents.length > 0 ? sectionStudents : [selectedStudent],
+              initialStudentId: selectedStudent.id,
+              adviserName: selectedStudent.adviserName
+            }}
+          />
+        )}
 
         </div>
-      ) : (
-        <Card className="flex flex-col items-center justify-center p-20 text-slate-400 font-semibold bg-slate-50 border border-dashed border-slate-300 rounded-3xl">
-          <FileText className="w-12 h-12 text-slate-300 mb-2" />
-          <span>Please select a learner above to manage, encode, or view their SF10 permanent academic record.</span>
-        </Card>
-      )}
-
-      {/* Renders SF10 preview sheet */}
-      {isViewingPreview && selectedStudent && (
-        <SF10ReportDocument
-          onClose={() => setIsViewingPreview(false)}
-          data={{
-            schoolYear: '',
-            gradeLevel: selectedStudent.gradeLevel || '',
-            section: studentSectionName === '—' ? '' : studentSectionName,
-            students: sectionStudents.length > 0 ? sectionStudents : [selectedStudent],
-            initialStudentId: selectedStudent.id,
-            adviserName: selectedStudent.adviserName
-          }}
-        />
-      )}
-
       </div>
     </div>
   );

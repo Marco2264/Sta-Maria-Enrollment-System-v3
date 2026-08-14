@@ -103,8 +103,8 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
           </div>
         )}
         {(childStatus === "Enrolled" || childStatus === "Approved") && (
-          <div className="bg-blue-50/80 border border-blue-100 text-blue-900 p-4 rounded-2xl flex items-center gap-3 text-xs font-medium">
-            <ShieldCheck className="w-5 h-5 text-[#2563eb] shrink-0" />
+          <div className="bg-red-50/80 border border-red-100 text-[#D8232A] p-4 rounded-2xl flex items-center gap-3 text-xs font-medium">
+            <ShieldCheck className="w-5 h-5 text-[#D8232A] shrink-0" />
             <span><strong className="font-bold">Official Enrolled Record:</strong> This student is officially enrolled for Academic Year 2026-2027.</span>
           </div>
         )}
@@ -125,7 +125,7 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
               </div>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full border border-slate-200/60">Grade {child.gradeLevel}</span>
-                <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-100">SY 2026-2027</span>
+                <span className="px-3 py-1 bg-red-50 text-[#D8232A] text-xs font-medium rounded-full border border-red-100">SY 2026-2027</span>
               </div>
             </div>
 
@@ -156,7 +156,7 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
               <TabsContent value="personal" className="mt-0 outline-none space-y-6">
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-6">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]"><User className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]"><User className="w-5 h-5" /></div>
                     <div><h3 className="text-lg font-bold text-slate-900">Personal Information</h3><p className="text-xs text-slate-400 font-medium">Basic student details</p></div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-6 gap-x-8">
@@ -172,7 +172,7 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-6">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#2563eb]"><MapPin className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]"><MapPin className="w-5 h-5" /></div>
                     <div><h3 className="text-lg font-bold text-slate-900">Address &amp; Contact</h3><p className="text-xs text-slate-400 font-medium">Primary residence details</p></div>
                   </div>
                   <div>
@@ -188,7 +188,7 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-6">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600"><Users className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]"><Users className="w-5 h-5" /></div>
                     <div><h3 className="text-lg font-bold text-slate-900">Guardian &amp; Emergency Contact</h3><p className="text-xs text-slate-400 font-medium">Primary guardian details</p></div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
@@ -221,7 +221,7 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
               <TabsContent value="documents" className="mt-0 outline-none space-y-6">
                 <Card className="p-6 sm:p-8 rounded-3xl border border-slate-200/60 shadow-sm space-y-6 bg-white">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 text-sky-600"><FileText className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0 text-[#D8232A]"><FileText className="w-5 h-5" /></div>
                     <div><h3 className="text-lg font-bold text-slate-900">Uploaded Documents</h3><p className="text-xs text-slate-500 font-medium">Verification files and requirements</p></div>
                   </div>
                   {(() => {
@@ -252,7 +252,7 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
                               <h4 className="text-sm font-bold text-slate-900 truncate capitalize">{(docInfo.documentType || "Document").replace(/_/g, " ")}</h4>
                               <p className="text-xs text-slate-500 font-medium truncate">{docInfo.fileName || "Document"}</p>
                             </div>
-                            {docInfo.fileUrl && <a href={docInfo.fileUrl} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Search className="w-4 h-4" /></a>}
+                            {docInfo.fileUrl && <a href={docInfo.fileUrl} target="_blank" rel="noopener noreferrer" className="p-2 text-[#D8232A] hover:bg-red-50 rounded-lg transition-colors"><Search className="w-4 h-4" /></a>}
                           </div>
                         ))}
                       </div>

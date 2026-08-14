@@ -396,13 +396,13 @@ export function ChildDetailView({
     let presentCount = 0;
     let totalCount = 0;
     c.attendance.forEach((rec: any) => {
-      totalCount += 2;
-      if (rec.amStatus === 'Present' || rec.status === 'Present') presentCount += 1;
-      if (rec.pmStatus === 'Present' || rec.status === 'Present') presentCount += 1;
+      totalCount += 1;
+      const stat = rec.status || rec.amStatus;
+      if (stat === 'Present' || stat === 'Late') presentCount += 1;
     });
     const pct = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(1) : '98.4';
-    const totalDays = Math.ceil(totalCount / 2) || 100;
-    const presentDays = Math.ceil(presentCount / 2) || 98;
+    const totalDays = totalCount || 100;
+    const presentDays = presentCount || 98;
     return {
       percentage: `${pct}%`,
       detail: `${presentDays} / ${totalDays} Days Present`

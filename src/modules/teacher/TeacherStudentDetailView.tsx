@@ -277,13 +277,13 @@ export function TeacherStudentDetailView({
     let presentCount = 0;
     let totalCount = 0;
     c.attendance.forEach((rec: any) => {
-      totalCount += 2;
-      if (rec.amStatus === 'Present' || rec.status === 'Present') presentCount += 1;
-      if (rec.pmStatus === 'Present' || rec.status === 'Present') presentCount += 1;
+      totalCount += 1;
+      const stat = rec.status || rec.amStatus;
+      if (stat === 'Present' || stat === 'Late') presentCount += 1;
     });
     const pct = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(1) : '98.4';
-    const totalDays = Math.ceil(totalCount / 2) || 100;
-    const presentDays = Math.ceil(presentCount / 2) || 98;
+    const totalDays = totalCount || 100;
+    const presentDays = presentCount || 98;
     return { percentage: `${pct}%`, detail: `${presentDays} / ${totalDays} Days Present` };
   };
 
@@ -427,7 +427,7 @@ export function TeacherStudentDetailView({
                 {/* Address & Contact */}
                 <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
                   <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 text-indigo-600">
+                    <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0 text-[#D8232A]">
                       <MapPin className="w-6 h-6" />
                     </div>
                     <div>
@@ -478,7 +478,7 @@ export function TeacherStudentDetailView({
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">CONTACT NUMBER</p>
-                      <p className="text-[15px] text-indigo-700 font-bold font-mono">{child.medical?.emergencyPhone || (child as any).guardianDetails?.contactNumber || '--'}</p>
+                      <p className="text-[15px] text-[#D8232A] font-bold font-mono">{child.medical?.emergencyPhone || (child as any).guardianDetails?.contactNumber || '--'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">EMAIL ADDRESS</p>
@@ -863,7 +863,7 @@ export function TeacherStudentDetailView({
 
                   <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600"><Users className="w-5 h-5" /></div>
+                      <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]"><Users className="w-5 h-5" /></div>
                       <div>
                         <h3 className="text-lg font-bold text-slate-900 tracking-tight">Guardian & Emergency Contact</h3>
                         <p className="text-xs text-slate-400 font-medium">Primary guardian and emergency details</p>
@@ -872,7 +872,7 @@ export function TeacherStudentDetailView({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                       <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">EMERGENCY CONTACT NAME</p><p className="text-[16px] text-slate-900 font-semibold">{child.medical?.emergencyContact || (child as any).guardianDetails?.fullName || '--'}</p></div>
                       <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">RELATIONSHIP</p><p className="text-[16px] text-slate-900 font-semibold">{(child as any).guardianDetails?.relationship || '--'}</p></div>
-                      <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">CONTACT NUMBER</p><p className="text-[16px] text-indigo-700 font-semibold font-mono">{child.medical?.emergencyPhone || (child as any).guardianDetails?.contactNumber || '--'}</p></div>
+                      <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">CONTACT NUMBER</p><p className="text-[16px] text-[#D8232A] font-semibold font-mono">{child.medical?.emergencyPhone || (child as any).guardianDetails?.contactNumber || '--'}</p></div>
                       <div><p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">EMAIL ADDRESS</p><p className="text-[16px] text-slate-900 font-semibold">{(child as any).guardianDetails?.email || '--'}</p></div>
                     </div>
                   </div>
@@ -944,8 +944,7 @@ export function TeacherStudentDetailView({
                           <TableHeader className="bg-slate-50/80 border-b border-slate-200">
                             <TableRow className="hover:bg-transparent border-none">
                               <TableHead className="font-bold text-slate-700 pl-6 sm:pl-8 py-4 whitespace-nowrap">Date</TableHead>
-                              <TableHead className="font-bold text-slate-700 py-4 whitespace-nowrap">Morning (AM)</TableHead>
-                              <TableHead className="font-bold text-slate-700 py-4 whitespace-nowrap">Afternoon (PM)</TableHead>
+                              <TableHead className="font-bold text-slate-700 py-4 whitespace-nowrap">Status</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -954,8 +953,7 @@ export function TeacherStudentDetailView({
                                 <TableCell className="font-bold text-slate-800 pl-6 sm:pl-8 py-4 whitespace-nowrap text-sm">
                                   {new Date(record.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                                 </TableCell>
-                                <TableCell className="py-4 whitespace-nowrap text-sm">{getAttendanceBadge(record.amStatus || record.status || 'Unmarked')}</TableCell>
-                                <TableCell className="py-4 whitespace-nowrap text-sm">{getAttendanceBadge(record.pmStatus || record.status || 'Unmarked')}</TableCell>
+                                <TableCell className="py-4 whitespace-nowrap text-sm">{getAttendanceBadge(record.status || record.amStatus || 'Unmarked')}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -1063,21 +1061,22 @@ export function TeacherStudentDetailView({
                                       <div className="text-center min-w-[2.5rem]"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T2</p><p className="text-sm font-semibold text-slate-700">{t2}</p></div>
                                       <div className="text-center min-w-[2.5rem]"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T3</p><p className="text-sm font-semibold text-slate-700">{t3}</p></div>
                                       <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-6"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p><p className="text-base font-black text-[#2563eb]">{displayGrade}</p></div>
+                                      <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-6"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p><p className="text-base font-black text-[#D8232A]">{displayGrade}</p></div>
                                       <div className="text-slate-400 group-open:rotate-180 transition-transform duration-200 ml-1"><ChevronDown className="w-5 h-5" /></div>
                                     </div>
                                   </summary>
                                   <div className="px-5 py-5 border-t border-slate-100 bg-white space-y-4">
                                     <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Grade Breakdown Components</h5>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                      <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex justify-between items-center">
+                                      <div className="p-3 bg-red-50/50 rounded-xl border border-red-100/50 flex justify-between items-center">
                                         <div><p className="text-xs font-bold text-slate-700">Written Work</p><p className="text-[10px] font-medium text-slate-400">Weight: 30%</p></div>
-                                        <p className="text-sm font-semibold text-indigo-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 5)) : '--'}/100</p>
+                                        <p className="text-sm font-semibold text-[#D8232A]">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 5)) : '--'}/100</p>
                                       </div>
-                                      <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/50 flex justify-between items-center">
+                                      <div className="p-3 bg-red-50/50 rounded-xl border border-red-100/50 flex justify-between items-center">
                                         <div><p className="text-xs font-bold text-slate-700">Performance Task</p><p className="text-[10px] font-medium text-slate-400">Weight: 50%</p></div>
-                                        <p className="text-sm font-semibold text-emerald-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : '--'}/100</p>
+                                        <p className="text-sm font-semibold text-[#D8232A]">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : '--'}/100</p>
                                       </div>
-                                      <div className="p-3 bg-rose-50/50 rounded-xl border border-rose-100/50 flex justify-between items-center">
+                                      <div className="p-3 bg-red-50/50 rounded-xl border border-red-100/50 flex justify-between items-center">
                                         <div><p className="text-xs font-bold text-slate-700">Term Exams</p><p className="text-[10px] font-medium text-slate-400">Weight: 20%</p></div>
                                         <p className="text-sm font-semibold text-rose-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 4)) : '--'}/100</p>
                                       </div>
@@ -1090,9 +1089,9 @@ export function TeacherStudentDetailView({
                         )}
                       </Card>
 
-                      <Card className="p-6 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 border border-blue-100 shadow-sm rounded-3xl">
+                      <Card className="p-6 bg-gradient-to-r from-red-50/80 to-red-100/40 border border-red-100 shadow-sm rounded-3xl">
                         <div className="flex items-start gap-3.5">
-                          <div className="w-9 h-9 rounded-xl bg-white text-[#2563eb] border border-blue-200 flex items-center justify-center shrink-0 shadow-xs">
+                          <div className="w-9 h-9 rounded-xl bg-white text-[#D8232A] border border-red-200 flex items-center justify-center shrink-0 shadow-xs">
                             <BarChart3 className="w-5 h-5" />
                           </div>
                           <div className="space-y-1">

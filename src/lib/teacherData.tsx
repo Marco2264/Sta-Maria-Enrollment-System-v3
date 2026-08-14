@@ -62,10 +62,9 @@ export type AttendanceEntry = {
   id: string;
   studentId: string;
   date: string;
-  status?: 'Present' | 'Absent' | 'Late';
-  amStatus?: 'Present' | 'Absent' | 'Late' | 'Unmarked';
-  pmStatus?: 'Present' | 'Absent' | 'Late' | 'Unmarked';
+  status?: 'Present' | 'Absent' | 'Late' | 'Unmarked';
   sectionId: string;
+  teacherId?: string;
 };
 
 export type TeacherSubject = {
@@ -87,7 +86,7 @@ export type AssignedSection = {
   gradeLevel?: string;
 };
 
-type TeacherContextType = {
+export interface TeacherContextType {
   students: Student[];
   subjects: TeacherSubject[];
   attendance: AttendanceEntry[];
@@ -96,15 +95,29 @@ type TeacherContextType = {
   assignedSections: AssignedSection[];
   isAdvisorForCurrentSection: boolean;
   assignedSubjectCodes: string[];
-  updateAttendance: (studentId: string, date: string, amStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked', pmStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked') => Promise<void>;
+  updateAttendance: (studentId: string, date: string, status: 'Present' | 'Absent' | 'Late' | 'Unmarked') => Promise<void>;
   deleteAttendance: (studentId: string, date: string) => Promise<void>;
   updateStudentStatus: (id: string, status: 'Enrolled' | 'Rejected') => Promise<void>;
   updateStudentGrade: (id: string, subjectCode: string, quarter: string, grade: number | null) => Promise<void>;
   updateStudentObservedValue: (id: string, statementKey: string, quarter: string, value: string | null) => Promise<void>;
   updateStudentBmi: (id: string, height: string, weight: string) => Promise<void>;
   gradeConfigurations: any[];
-  addGradeColumn: (subjectCode: string, term: string, name: string, weight: number) => Promise<void>;
-  editGradeColumn: (id: string, name: string, weight: number) => Promise<void>;
+  addGradeColumn: (
+    subjectCode: string, 
+    term: string, 
+    name: string, 
+    weight: number,
+    isAttendance?: boolean,
+    startDate?: string,
+    endDate?: string
+  ) => Promise<void>;
+  editGradeColumn: (
+    id: string, 
+    name: string, 
+    weight: number,
+    startDate?: string,
+    endDate?: string
+  ) => Promise<void>;
   deleteGradeColumn: (id: string) => Promise<void>;
   submitGradesToAdviser: (subjectCode: string, term: string) => Promise<void>;
   requestUnlockGrades: (subjectCode: string, term: string) => Promise<void>;
@@ -116,7 +129,8 @@ type TeacherContextType = {
   academicYear: string;
   advisorSectionSchedules: any[];
   allTeachers: any[];
-};
+  allAssignments: any[];
+}
 
 const TeacherContext = createContext<TeacherContextType | undefined>(undefined);
 
@@ -165,16 +179,23 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
       setAllTeachers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
+    const qAllAssign = query(collection(db, 'assignments'));
+    const unsubAllAssign = onSnapshot(qAllAssign, (snap) => {
+      setAllAssignments(snap.docs.map(d => d.data()));
+    });
+
     return () => {
       unsubAssign();
       unsubSubjAssign();
       unsubSubjects();
       unsubTeachers();
+      unsubAllAssign();
     };
   }, [user]);
 
   const [advisorSectionSchedules, setAdvisorSectionSchedules] = useState<any[]>([]);
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
+  const [allAssignments, setAllAssignments] = useState<any[]>([]);
 
   useEffect(() => {
     if (advisorAssignments.length === 0) {
@@ -406,20 +427,20 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     };
   }, [currentSection]);
 
-  const updateAttendance = async (studentId: string, date: string, amStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked', pmStatus: 'Present' | 'Absent' | 'Late' | 'Unmarked') => {
+  const updateAttendance = async (studentId: string, date: string, status: 'Present' | 'Absent' | 'Late' | 'Unmarked') => {
     if (!currentSection) return;
 
     const existing = attendance.find(a => a.studentId === studentId && a.date === date);
     
     if (existing) {
-      await updateDoc(doc(db, 'attendance', existing.id), { amStatus, pmStatus });
+      await updateDoc(doc(db, 'attendance', existing.id), { status });
     } else {
       await addDoc(collection(db, 'attendance'), {
         studentId,
         date,
-        amStatus,
-        pmStatus,
+        status,
         sectionId: currentSection,
+        teacherId: user?.uid || userData?.id || "",
         createdAt: serverTimestamp()
       });
     }
@@ -521,7 +542,15 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addGradeColumn = async (subjectCode: string, term: string, name: string, weight: number) => {
+  const addGradeColumn = async (
+    subjectCode: string, 
+    term: string, 
+    name: string, 
+    weight: number,
+    isAttendance?: boolean,
+    startDate?: string,
+    endDate?: string
+  ) => {
     if (!currentSection) return;
     await addDoc(collection(db, 'gradeConfigurations'), {
       sectionId: currentSection,
@@ -529,6 +558,9 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
       term,
       name,
       weight,
+      isAttendance: isAttendance || false,
+      startDate: startDate || null,
+      endDate: endDate || null,
       createdAt: serverTimestamp()
     });
   };
@@ -537,10 +569,18 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     await deleteDoc(doc(db, 'gradeConfigurations', id));
   };
 
-  const editGradeColumn = async (id: string, name: string, weight: number) => {
+  const editGradeColumn = async (
+    id: string, 
+    name: string, 
+    weight: number,
+    startDate?: string,
+    endDate?: string
+  ) => {
     await updateDoc(doc(db, 'gradeConfigurations', id), {
       name,
-      weight
+      weight,
+      startDate: startDate || null,
+      endDate: endDate || null
     });
   };
 
@@ -619,7 +659,8 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     currentSectionName,
     academicYear,
     advisorSectionSchedules,
-    allTeachers
+    allTeachers,
+    allAssignments
   };
 
   return (

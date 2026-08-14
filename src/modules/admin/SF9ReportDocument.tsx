@@ -3,7 +3,7 @@ import { ReportLayout } from './reports/ReportLayout';
 import { useAuth } from '../../lib/AuthContext';
 import { ChevronDown, Search } from 'lucide-react';
 import { db } from '../../lib/firebase';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 interface SF9ReportDocumentProps {
   onClose: () => void;
@@ -24,6 +24,25 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
   const { userData } = useAuth();
 
   const [loadedGradeConfigs, setLoadedGradeConfigs] = useState<any[]>([]);
+  const [advisorId, setAdvisorId] = useState('');
+
+  useEffect(() => {
+    const firstStudent = students[0];
+    if (firstStudent && firstStudent.sectionId) {
+      const qAssign = query(
+        collection(db, 'assignments'),
+        where('sectionId', '==', firstStudent.sectionId),
+        where('isAdvisor', '==', true)
+      );
+      getDocs(qAssign).then((snap) => {
+        if (!snap.empty) {
+          setAdvisorId(snap.docs[0].data().teacherId || '');
+        }
+      }).catch((err) => {
+        console.warn('Failed to load advisor assignment for SF9 preview:', err);
+      });
+    }
+  }, [students]);
 
   useEffect(() => {
     if (passedGradeConfigs && passedGradeConfigs.length > 0) {
@@ -89,7 +108,8 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
 
   // --- ATTENDANCE SUMMARY DATA ---
   const getAttendanceSummary = (studentId: string) => {
-    const studentAtt = attendance.filter((a) => a.studentId === studentId);
+    const filteredAttendance = attendance.filter(a => !advisorId || !a.teacherId || a.teacherId === advisorId);
+    const studentAtt = filteredAttendance.filter((a) => a.studentId === studentId);
     const monthsDef = [
       { name: 'June', index: 5 },
       { name: 'July', index: 6 },
@@ -108,7 +128,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
     const absentDays: Record<number, number> = {};
     const sectionDatesPerMonth: Record<number, Set<string>> = {};
 
-    attendance.forEach((a) => {
+    filteredAttendance.forEach((a) => {
       const d = new Date(a.date);
       if (isNaN(d.getTime())) return;
       const m = d.getMonth();
@@ -124,8 +144,8 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
       if (isNaN(d.getTime())) return;
       const m = d.getMonth();
 
-      const amPres = a.amStatus === 'Present' || a.amStatus === 'Late';
-      const pmPres = a.pmStatus === 'Present' || a.pmStatus === 'Late';
+      const amPres = (a as any).amStatus === 'Present' || (a as any).amStatus === 'Late';
+      const pmPres = (a as any).pmStatus === 'Present' || (a as any).pmStatus === 'Late';
 
       let presentWeight = 0;
       let absentWeight = 0;

@@ -54,7 +54,7 @@ export function ObservedValuesView() {
   const enrolled = useMemo(() => students.filter((s) => s.status === 'Enrolled'), [students]);
   
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
-  const [selectedQuarter, setSelectedQuarter] = useState<'q1' | 'q2' | 'q3' | 'q4'>('q1');
+  const [selectedQuarter, setSelectedQuarter] = useState<'q1' | 'q2' | 'q3'>('q1');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(true);
 
@@ -169,7 +169,7 @@ export function ObservedValuesView() {
           </div>
 
           <div className="flex items-center gap-2 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/50 shrink-0 self-start md:self-auto shadow-inner">
-            {(['q1', 'q2', 'q3', 'q4'] as const).map((q) => (
+            {(['q1', 'q2', 'q3'] as const).map((q) => (
               <button
                 key={q}
                 onClick={() => setSelectedQuarter(q)}
@@ -179,7 +179,7 @@ export function ObservedValuesView() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {q === 'q1' ? '1st Term' : q === 'q2' ? '2nd Term' : q === 'q3' ? '3rd Term' : '4th Term'}
+                {q === 'q1' ? '1st Term' : q === 'q2' ? '2nd Term' : '3rd Term'}
               </button>
             ))}
           </div>

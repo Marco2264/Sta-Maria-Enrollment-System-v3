@@ -7,7 +7,8 @@ import { useTeacherData } from '../../lib/teacherData';
 import { AttendanceTrendChart } from './AttendanceTrendChart';
 
 export function TeacherDashboardView() {
-  const { students, attendance, loading, currentGradeLevel } = useTeacherData();
+  const { students, attendance, loading, currentGradeLevel, assignedSections } = useTeacherData();
+  const advisorySection = (assignedSections || []).find(s => s.isAdvisor);
   const todayDate = new Date().toISOString().split('T')[0];
 
   if (loading) {
@@ -23,11 +24,7 @@ export function TeacherDashboardView() {
   const todayAttendance = attendance.filter((a) => a.date === todayDate);
 
   const getDayStatus = (a: any) => {
-    const am = a.amStatus || a.status || 'Present';
-    const pm = a.pmStatus || a.status || 'Present';
-    if (am === 'Absent' || pm === 'Absent') return 'Absent';
-    if (am === 'Late' || pm === 'Late') return 'Late';
-    return 'Present';
+    return a.status || a.amStatus || 'Present';
   };
 
   const presentToday = todayAttendance.filter(
@@ -168,10 +165,9 @@ export function TeacherDashboardView() {
             </div>
           
           <div className="flex items-center gap-3 md:self-center">
-            {pending.length > 0 && (
-              <Badge className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-4 py-2 shadow-sm rounded-2xl cursor-pointer flex items-center gap-2 transition-all font-semibold text-xs active:scale-95 duration-100">
-                <Bell className="w-4 h-4 text-amber-500 animate-bounce shrink-0" />
-                {pending.length} Pending Approvals
+            {advisorySection && (
+              <Badge className="bg-rose-50 text-[#D8232A] border border-rose-200 text-xs font-black uppercase tracking-wider py-1.5 px-4 shadow-sm rounded-2xl select-none shrink-0">
+                Advisory: {advisorySection.gradeLevel} — {advisorySection.name}
               </Badge>
             )}
           </div>

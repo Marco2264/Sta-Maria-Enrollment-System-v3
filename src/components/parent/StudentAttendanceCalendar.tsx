@@ -140,14 +140,7 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
                 
                 {record ? (
                   <div className="flex flex-col gap-1.5 mt-auto">
-                    <div className="flex items-center gap-1.5 bg-slate-50/50 rounded p-1">
-                      <span className="text-[10px] font-bold text-slate-500 w-4">AM</span>
-                      <div className="flex-1">{renderStatusBadge(record.amStatus || record.status)}</div>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-slate-50/50 rounded p-1">
-                      <span className="text-[10px] font-bold text-slate-500 w-4">PM</span>
-                      <div className="flex-1">{renderStatusBadge(record.pmStatus || record.status)}</div>
-                    </div>
+                    <div className="flex-1">{renderStatusBadge(record.status || record.amStatus)}</div>
                   </div>
                 ) : null}
               </div>

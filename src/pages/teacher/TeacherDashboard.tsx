@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -36,12 +36,22 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
 import { Heart } from 'lucide-react';
+import { HealthDashboardView } from '../../components/admin/HealthDashboardView';
 
 function TeacherDashboardContent() {
   const navigate = useNavigate();
-  const { students, assignedSections } = useTeacherData();
+  const { students, assignedSections, currentSection, setCurrentSection } = useTeacherData();
   const { userData } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
+
+  useEffect(() => {
+    if (['students', 'enrollments', 'observed-values', 'reports', 'sf10'].includes(activeView)) {
+      const advisorySec = assignedSections.find(s => s.isAdvisor);
+      if (advisorySec && currentSection !== advisorySec.sectionId) {
+        setCurrentSection(advisorySec.sectionId);
+      }
+    }
+  }, [activeView, assignedSections, currentSection, setCurrentSection]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -83,6 +93,7 @@ function TeacherDashboardContent() {
     { id: 'students', label: 'Students', icon: Users, category: 'Classroom' },
     { id: 'grades', label: 'Grades', icon: ClipboardList, category: 'Classroom' },
     { id: 'observed-values', label: 'Observed Values', icon: Heart, category: 'Classroom' },
+    { id: 'health', label: 'Health & Nutrition', icon: Heart, category: 'Classroom' },
 
     // Documents
     { id: 'reports', label: 'School Forms', icon: FileText, category: 'Documents' },
@@ -102,6 +113,7 @@ function TeacherDashboardContent() {
       case 'reports': return <TeacherReportsView />;
       case 'sf10': return <SF10Module students={students} sections={assignedSections} isAdmin={false} />;
       case 'settings': return <TeacherSettingsView />;
+      case 'health': return <HealthDashboardView />;
       default: return <TeacherDashboardView />;
     }
   };
