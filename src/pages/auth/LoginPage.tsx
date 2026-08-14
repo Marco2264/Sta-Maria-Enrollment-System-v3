@@ -54,7 +54,7 @@ function FloatInput({
           w-full h-14 bg-slate-50 border rounded-xl text-sm text-slate-900 font-medium
           outline-none transition-all duration-200 ${icon ? 'pl-11' : 'pl-4'} ${suffix ? 'pr-11' : 'pr-4'}
           ${focused
-            ? 'border-blue-500 ring-2 ring-blue-500/15 bg-white'
+            ? 'border-slate-900 ring-2 ring-slate-900/10 bg-white'
             : 'border-slate-200 hover:border-slate-300'
           }
         `}
@@ -66,7 +66,7 @@ function FloatInput({
         style={{
           top: lifted ? '6px' : '50%',
           transform: lifted ? 'translateY(0) scale(0.75)' : 'translateY(-50%) scale(1)',
-          color: focused ? '#2563eb' : '#94a3b8',
+          color: focused ? '#0f172a' : '#94a3b8',
           fontWeight: 700,
           fontSize: '0.75rem',
           letterSpacing: '0.05em',
@@ -167,12 +167,13 @@ export function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center"
-      style={{ backgroundImage: "url('/images/sta_maria_bulding.png')" }}
-    >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" />
+    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-50">
+      {/* Dynamic 3D Mesh Background (Navy, Red, Gold) */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-[-5%] w-[40%] h-[50%] rounded-full bg-[#0f172a] blur-[140px] opacity-40 mix-blend-multiply" />
+        <div className="absolute top-[30%] right-[-5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[140px] opacity-30 mix-blend-multiply" />
+        <div className="absolute bottom-[-5%] left-[20%] w-[50%] h-[40%] rounded-full bg-[#F59E0B] blur-[140px] opacity-30 mix-blend-multiply" />
+      </div>
 
       {/* Card */}
       <motion.div
@@ -182,14 +183,14 @@ export function LoginPage() {
         className="relative z-10 w-full max-w-4xl overflow-hidden flex flex-col md:flex-row"
         style={{ borderRadius: '28px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}
       >
-        {/* ── LEFT PANEL ── modern deep royal blue gradient with ambient lighting ── */}
+        {/* ── LEFT PANEL ── modern deep crimson to red gradient with ambient lighting ── */}
         <div
           className="hidden md:flex md:w-[42%] flex-col justify-between p-10 text-white relative overflow-hidden"
-          style={{ background: 'linear-gradient(145deg, #0a192f 0%, #003078 50%, #004ac6 100%)' }}
+          style={{ background: 'linear-gradient(145deg, #2a0202 0%, #6b0f12 50%, #991b1e 100%)' }}
         >
           {/* Ambient lighting & sleek visual accents */}
-          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-red-400/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
 
           {/* TOP: Both logos + school name */}
@@ -206,7 +207,7 @@ export function LoginPage() {
               <div className="flex flex-col leading-tight">
                 <span className="font-black text-sm text-white uppercase tracking-wide">STA. MARIA</span>
                 <span className="font-black text-sm text-white uppercase tracking-wide">CENTRAL SCHOOL</span>
-                <span className="text-[11px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">SPED Center</span>
+                <span className="text-[11px] font-bold text-red-200 uppercase tracking-widest mt-0.5">SPED Center</span>
               </div>
             </div>
             <div className="h-px bg-white/15 w-full" />
@@ -223,11 +224,11 @@ export function LoginPage() {
             {/* Motto */}
             <h3 className="text-3xl font-black leading-tight tracking-tight text-white">
               Believe, Educate,<br />
-              <span className="text-blue-200">and Transform</span>
+              <span className="text-red-200">and Transform</span>
             </h3>
 
-            <p className="text-sm text-blue-100/90 font-medium leading-relaxed max-w-[220px]">
-              Access school modules, encoding dashboards, child records, and attendance logs.
+            <p className="text-sm text-red-100/90 font-medium leading-relaxed max-w-[220px]">
+              Sign in to easily manage student records, check grades, and stay connected with the school.
             </p>
           </div>
 
@@ -303,7 +304,7 @@ export function LoginPage() {
               <Button
                 type="submit"
                 className="w-full h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none mt-1"
-                style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
+                style={{ background: 'linear-gradient(135deg, #991b1e 0%, #D8232A 100%)', boxShadow: '0 4px 20px rgba(216,35,42,0.35)' }}
                 disabled={isLoggingIn}
               >
                 {isLoggingIn ? (
@@ -326,7 +327,7 @@ export function LoginPage() {
               <Button
                 variant="outline"
                 type="button"
-                className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#1040a0] hover:bg-blue-50 hover:border-blue-200 transition-all active:scale-[0.98]"
+                className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#D8232A] hover:bg-red-50 hover:border-red-200 transition-all active:scale-[0.98]"
                 onClick={() => navigate('/signup')}
               >
                 Create parent account

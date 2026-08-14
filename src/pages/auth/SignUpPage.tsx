@@ -100,7 +100,7 @@ function FloatInput({
           w-full h-14 bg-slate-50 border rounded-xl text-sm text-slate-900 font-medium
           outline-none transition-all duration-200 ${icon ? 'pl-11' : 'pl-4'} ${suffix ? 'pr-11' : 'pr-4'}
           ${focused
-            ? 'border-blue-500 ring-2 ring-blue-500/15 bg-white'
+            ? 'border-slate-900 ring-2 ring-slate-900/10 bg-white'
             : 'border-slate-200 hover:border-slate-300'
           }
         `}
@@ -112,7 +112,7 @@ function FloatInput({
         style={{
           top: lifted ? '6px' : '50%',
           transform: lifted ? 'translateY(0) scale(0.75)' : 'translateY(-50%) scale(1)',
-          color: focused ? '#2563eb' : '#94a3b8',
+          color: focused ? '#0f172a' : '#94a3b8',
           fontWeight: 700,
           fontSize: '0.75rem',
           letterSpacing: '0.05em',
@@ -351,12 +351,13 @@ export function SignUpPage() {
   };
 
   return (
-    <div
-      className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center"
-      style={{ backgroundImage: "url('/images/sta_maria_bulding.png')" }}
-    >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" />
+    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-50">
+      {/* Dynamic 3D Mesh Background (Navy, Red, Gold) */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-[-5%] w-[40%] h-[50%] rounded-full bg-[#0f172a] blur-[140px] opacity-40 mix-blend-multiply" />
+        <div className="absolute top-[30%] right-[-5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[140px] opacity-30 mix-blend-multiply" />
+        <div className="absolute bottom-[-5%] left-[20%] w-[50%] h-[40%] rounded-full bg-[#F59E0B] blur-[140px] opacity-30 mix-blend-multiply" />
+      </div>
 
       {/* Floating Centered Split-Card */}
       <motion.div
@@ -369,11 +370,11 @@ export function SignUpPage() {
         {/* ── LEFT PANEL (EXACTLY PRESERVED BRANDING) ── */}
         <div
           className="hidden md:flex md:w-[38%] flex-col justify-between p-10 text-white relative overflow-hidden shrink-0"
-          style={{ background: 'linear-gradient(145deg, #0a192f 0%, #003078 50%, #004ac6 100%)' }}
+          style={{ background: 'linear-gradient(145deg, #2a0202 0%, #6b0f12 50%, #991b1e 100%)' }}
         >
           {/* Ambient lighting & sleek visual accents */}
-          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-red-400/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
 
           {/* TOP: Both logos + school name */}
@@ -389,7 +390,7 @@ export function SignUpPage() {
               <div className="flex flex-col leading-tight">
                 <span className="font-black text-sm text-white uppercase tracking-wide">STA. MARIA</span>
                 <span className="font-black text-sm text-white uppercase tracking-wide">CENTRAL SCHOOL</span>
-                <span className="text-[11px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">SPED Center</span>
+                <span className="text-[11px] font-bold text-red-200 uppercase tracking-widest mt-0.5">SPED Center</span>
               </div>
             </div>
             <div className="h-px bg-white/15 w-full" />
@@ -403,9 +404,9 @@ export function SignUpPage() {
             </span>
             <h3 className="text-3xl font-black leading-tight tracking-tight text-white">
               Create Parent<br />
-              <span className="text-blue-200">Account</span>
+              <span className="text-red-200">Account</span>
             </h3>
-            <p className="text-sm text-blue-100/90 font-medium leading-relaxed max-w-[260px]">
+            <p className="text-sm text-red-100/90 font-medium leading-relaxed max-w-[260px]">
               Join the portal to register students, monitor academic progress, track attendance, and receive school announcements.
             </p>
           </div>
@@ -432,7 +433,7 @@ export function SignUpPage() {
             {/* ── PROGRESS BAR & ESTIMATED TIME ── */}
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#1040a0]">
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#D8232A]">
                   STEP {step} OF 8
                 </span>
                 <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
@@ -444,7 +445,7 @@ export function SignUpPage() {
               {/* Smooth Progress Bar */}
               <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-[#1040a0] rounded-full"
+                  className="h-full bg-[#D8232A] rounded-full"
                   initial={{ width: '12.5%' }}
                   animate={{ width: `${(step / 8) * 100}%` }}
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
@@ -850,7 +851,7 @@ export function SignUpPage() {
                       {/* Personal Info */}
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
-                          <UserCheck className="w-3.5 h-3.5 text-[#1040a0]" />
+                          <UserCheck className="w-3.5 h-3.5 text-[#D8232A]" />
                           Personal Information
                         </div>
                         <div className="pl-5 text-slate-600 leading-relaxed">
@@ -864,7 +865,7 @@ export function SignUpPage() {
                       {/* Contact Info */}
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
-                          <Phone className="w-3.5 h-3.5 text-[#1040a0]" />
+                          <Phone className="w-3.5 h-3.5 text-[#D8232A]" />
                           Contact Information
                         </div>
                         <div className="pl-5 text-slate-600 leading-relaxed">
@@ -878,7 +879,7 @@ export function SignUpPage() {
                       {/* Address Info */}
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
-                          <MapPin className="w-3.5 h-3.5 text-[#1040a0]" />
+                          <MapPin className="w-3.5 h-3.5 text-[#D8232A]" />
                           Address Information
                         </div>
                         <div className="pl-5 text-slate-600 leading-relaxed">
@@ -892,7 +893,7 @@ export function SignUpPage() {
                       {/* Account Info */}
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
-                          <Building className="w-3.5 h-3.5 text-[#1040a0]" />
+                          <Building className="w-3.5 h-3.5 text-[#D8232A]" />
                           Account Information
                         </div>
                         <div className="pl-5 text-slate-600 leading-relaxed">
@@ -937,7 +938,7 @@ export function SignUpPage() {
                       type="button"
                       onClick={handleNext}
                       className={`${step === 1 ? 'w-full' : 'w-2/3'} h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none`}
-                      style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
+                      style={{ background: 'linear-gradient(135deg, #991b1e 0%, #D8232A 100%)', boxShadow: '0 4px 20px rgba(216,35,42,0.35)' }}
                     >
                       <span>Continue</span>
                       <ArrowRight className="w-4 h-4" />
@@ -947,7 +948,7 @@ export function SignUpPage() {
                       type="button"
                       onClick={handleSubmit}
                       className="w-2/3 h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none"
-                      style={{ background: 'linear-gradient(135deg, #1040a0 0%, #1a56c8 100%)', boxShadow: '0 4px 20px rgba(26,86,200,0.35)' }}
+                      style={{ background: 'linear-gradient(135deg, #991b1e 0%, #D8232A 100%)', boxShadow: '0 4px 20px rgba(216,35,42,0.35)' }}
                       disabled={isRegistering}
                     >
                       {isRegistering ? (
@@ -968,7 +969,7 @@ export function SignUpPage() {
                 <Button
                   variant="outline"
                   type="button"
-                  className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#1040a0] hover:bg-blue-50 hover:border-blue-200 transition-all active:scale-[0.98]"
+                  className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#D8232A] hover:bg-red-50 hover:border-red-200 transition-all active:scale-[0.98]"
                   onClick={() => navigate('/login')}
                 >
                   Already have an account? Sign In
