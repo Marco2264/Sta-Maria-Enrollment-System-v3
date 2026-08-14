@@ -35,6 +35,7 @@ import { StudentsView } from '../../modules/admin/StudentsView';
 import { AttendanceView } from '../../modules/admin/AttendanceView';
 import { SchedulesView } from '../../modules/admin/SchedulesView';
 import { AdminGradesView } from '../../components/admin/AdminGradesView';
+import { AdminSettingsView } from '../../modules/admin/AdminSettingsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -109,6 +110,7 @@ function AdminDashboardContent() {
       case 'announcements': return <ManageAnnouncementsView teachers={users.filter(u => u.role?.toLowerCase() === 'teacher')} sections={sections} />;
       case 'reports': return <ReportsView />;
       case 'sf10': return <SF10Module isAdmin={true} />;
+      case 'settings': return <AdminSettingsView />;
       default: return <DashboardView />;
     }
   };
@@ -129,7 +131,7 @@ function AdminDashboardContent() {
 
           <div className={`ml-3 flex flex-col text-left overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-36 opacity-100'}`}>
             <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none">Sta. Maria</span>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest leading-none mt-1 truncate">Admin Portal</span>
+            <span className="text-[10px] font-bold text-[#D8232A] uppercase tracking-widest leading-none mt-1 truncate">Admin Portal</span>
           </div>
         </div>
 
@@ -204,7 +206,10 @@ function AdminDashboardContent() {
         <div className="h-20 border-t border-slate-100 px-3 flex items-center shrink-0 relative bg-white">
           {showUserMenu && (
             <div className={`absolute ${collapsed ? 'left-full ml-3 bottom-2 w-48' : 'bottom-20 left-3 right-3'} bg-white border border-slate-200/60 p-2 rounded-2xl shadow-xl space-y-1 animate-in fade-in-50 duration-200 z-50 backdrop-blur-md`}>
-              <button className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-xl transition-all">
+              <button 
+                onClick={() => { setActiveView('settings'); setShowUserMenu(false); }}
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-xl transition-all"
+              >
                 <Settings className="w-4 h-4 text-slate-400" />
                 Settings
               </button>

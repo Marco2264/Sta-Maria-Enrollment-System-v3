@@ -651,37 +651,41 @@ export function RequirementsView() {
                                   >
                                     VIEW
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => fileInputRefs.current[req.key]?.click()}
-                                    className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 hover:text-slate-800 border-0 bg-transparent p-0 cursor-pointer outline-none transition-colors"
-                                  >
-                                    REPLACE
-                                  </button>
-                                  {(() => {
-                                    const isEnrolled = selectedChild?.status === 'Enrolled' || selectedChild?.status === 'Approved';
-                                    return (
+                                  {statusKey !== 'APPROVED' && (
+                                    <>
                                       <button
                                         type="button"
-                                        disabled={isEnrolled}
-                                        onClick={() => {
-                                          if (isEnrolled) return;
-                                          setDeleteConfirmDoc({
-                                            docRecordId: docRec.id,
-                                            docType: req.key,
-                                            docName: req.title
-                                          });
-                                        }}
-                                        className={`text-[10px] font-extrabold tracking-widest uppercase border-0 bg-transparent p-0 transition-colors outline-none ${
-                                          isEnrolled
-                                            ? 'text-slate-200 cursor-not-allowed'
-                                            : 'text-rose-600 hover:text-rose-700 cursor-pointer'
-                                        }`}
+                                        onClick={() => fileInputRefs.current[req.key]?.click()}
+                                        className="text-[10px] font-extrabold tracking-widest uppercase text-slate-400 hover:text-slate-800 border-0 bg-transparent p-0 cursor-pointer outline-none transition-colors"
                                       >
-                                        DELETE
+                                        REPLACE
                                       </button>
-                                    );
-                                  })()}
+                                      {(() => {
+                                        const isEnrolled = selectedChild?.status === 'Enrolled' || selectedChild?.status === 'Approved';
+                                        return (
+                                          <button
+                                            type="button"
+                                            disabled={isEnrolled}
+                                            onClick={() => {
+                                              if (isEnrolled) return;
+                                              setDeleteConfirmDoc({
+                                                docRecordId: docRec.id,
+                                                docType: req.key,
+                                                docName: req.title
+                                              });
+                                            }}
+                                            className={`text-[10px] font-extrabold tracking-widest uppercase border-0 bg-transparent p-0 transition-colors outline-none ${
+                                              isEnrolled
+                                                ? 'text-slate-200 cursor-not-allowed'
+                                                : 'text-rose-600 hover:text-rose-700 cursor-pointer'
+                                            }`}
+                                          >
+                                            DELETE
+                                          </button>
+                                        );
+                                      })()}
+                                    </>
+                                  )}
                                 </>
                               ) : (
                                 <button

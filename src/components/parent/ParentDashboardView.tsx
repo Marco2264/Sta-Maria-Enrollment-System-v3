@@ -34,6 +34,7 @@ import { useParentData } from '../../lib/parentData';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
+import { documentTypeToRequirementKey } from '../../lib/services/enrollmentDocumentsService';
 import { subscribeParentActivityLogs, ActivityLog } from '../../lib/services/activityLogService';
 
 interface AnnouncementItem {
@@ -253,8 +254,11 @@ export function ParentDashboardView({
       ];
     }
 
-    const childDocs = documents.filter((d) => d.enrollmentId === child.id || (d.studentName && child.firstName && d.studentName.toLowerCase().includes(child.firstName.toLowerCase())));
-    const uploadedRequiredTypes = requiredTypes.filter((reqType) => childDocs.some((d) => d.documentType === reqType));
+    const requirementUploads = (child as any).requirementUploads || {};
+    const uploadedRequiredTypes = requiredTypes.filter((reqType) => {
+        const key = documentTypeToRequirementKey(reqType);
+        return !!requirementUploads[key];
+    });
     
     if (uploadedRequiredTypes.length < requiredTypes.length) {
       return { 
@@ -265,8 +269,8 @@ export function ParentDashboardView({
     }
 
     const allApproved = requiredTypes.every((reqType) => {
-      const docMatch = childDocs.find((d) => d.documentType === reqType);
-      return docMatch && docMatch.status === 'APPROVED';
+      const key = documentTypeToRequirementKey(reqType);
+      return requirementUploads[key]?.status === 'APPROVED';
     });
 
     if (allApproved || child.requirements === 'Complete') {
@@ -404,49 +408,8 @@ export function ParentDashboardView({
       }
     });
 
-    documents.forEach((d) => {
-      const docTs = toEpochMs(d.updatedAt || d.createdAt || Date.now());
-      if (d.status === 'APPROVED') {
-        updates.push({
-          id: `doc-appr-${d.id}`,
-          title: `Document Approved`,
-          subtitle: `${d.fileName} for ${d.studentName} has been verified by admin.`,
-          date: formatDate(d.updatedAt || 'Recent'),
-          monthGroup: currentMonthLabel,
-          type: 'document',
-          badgeText: 'APPROVED',
-          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          dotColor: 'bg-emerald-500',
-          timestamp: docTs
-        });
-      } else if (d.status === 'REJECTED') {
-        updates.push({
-          id: `doc-rej-${d.id}`,
-          title: `Document Rejected`,
-          subtitle: `${d.fileName} for ${d.studentName} requires re-upload.`,
-          date: formatDate(d.updatedAt || 'Recent'),
-          monthGroup: currentMonthLabel,
-          type: 'document',
-          badgeText: 'REJECTED',
-          badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
-          dotColor: 'bg-rose-500',
-          timestamp: docTs
-        });
-      } else {
-        updates.push({
-          id: `doc-up-${d.id}`,
-          title: `Document Uploaded`,
-          subtitle: `${d.fileName} uploaded for ${d.studentName}.`,
-          date: formatDate(d.createdAt || 'Recent'),
-          monthGroup: currentMonthLabel,
-          type: 'document',
-          badgeText: 'UNDER REVIEW',
-          badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-          dotColor: 'bg-amber-500',
-          timestamp: docTs
-        });
-      }
-    });
+    // 3. Document events are handled natively via activityLogs (uploaded / verified / rejected)
+    // No need to manually compute fake activities from documents here.
 
     if (updates.length === 0) {
       updates.push({
@@ -496,10 +459,12 @@ export function ParentDashboardView({
         );
       }
 
-      const childDocs = documents.filter((d) => d.enrollmentId === c.id || (d.studentName && c.firstName && d.studentName.toLowerCase().includes(c.firstName.toLowerCase())));
+      const reqUploads = (c as any).requirementUploads || {};
 
       requiredList.forEach((req) => {
-        const docMatch = childDocs.find((d) => d.documentType === req.key);
+        const reqKey = documentTypeToRequirementKey(req.key);
+        const docMatch = reqUploads[reqKey];
+
         if (!docMatch) {
           records.push({
             id: `${c.id}-${req.key}`,
@@ -537,7 +502,7 @@ export function ParentDashboardView({
     });
 
     return records;
-  }, [children, documents]);
+  }, [children]);
 
   if (loading) {
     return (

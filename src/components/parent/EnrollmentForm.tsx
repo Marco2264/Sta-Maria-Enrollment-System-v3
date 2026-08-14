@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -49,10 +49,14 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import {
   uploadToCloudinary,
   addEnrollmentDocumentRecord,
+  deleteFromCloudinary
+} from '../../lib/services/cloudinaryService';
+import { getGlobalSettings, GlobalSettings } from '../../lib/services/settingsService';
+import {
   validateRequirementUpload
 } from '../../lib/services/enrollmentDocumentsService';
 
-interface EnrollmentFormProps {
+export interface EnrollmentFormProps {
   onComplete: () => void;
   onNavigateToRequirements?: () => void;
 }
@@ -124,6 +128,20 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     mimeType: string;
     sizeBytes: number;
   }>>({});
+  
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settings = await getGlobalSettings();
+        setGlobalSettings(settings);
+      } catch (err) {
+        console.error("Failed to load global settings:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleStep5DocSelect = (docType: DocumentType, file: File) => {
     const valErr = validateRequirementUpload(file);
@@ -661,8 +679,23 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
   const activeAddrDetails = getSelectedAddressDetails();
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans text-slate-900 w-full overflow-hidden text-left">
+    <div className="relative flex flex-col h-full bg-white font-sans text-slate-900 w-full overflow-hidden text-left">
       
+      {/* ENROLLMENT CLOSED OVERLAY */}
+      {globalSettings && globalSettings.enrollmentOpen === false && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-white/70">
+          <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center max-w-md mx-4 animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-red-50 text-[#D8232A] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-black text-slate-900 mb-2">Registration Closed</h2>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed">
+              Student registration for the active school year is currently closed. Please check back later or contact the school administration for more information.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* HEADER CARD WITH PROGRESS BAR */}
       <header className="px-6 sm:px-8 bg-white border-b border-slate-100 lg:h-28 flex items-center shrink-0">
         <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">

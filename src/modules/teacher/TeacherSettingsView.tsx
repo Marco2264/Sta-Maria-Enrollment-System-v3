@@ -7,7 +7,7 @@ import { logActivity } from '../../lib/services/activityLogService';
 import { uploadToImageKit, validateImageFile } from '../../lib/services/imageUploadService';
 import { Input } from '../../components/ui/Input';
 import {
-  Loader2, Camera, Briefcase, Mail, User, MapPin, Shield, Lock, X, Upload
+  Loader2, Camera, Briefcase, Mail, User, MapPin, Shield, Lock, X, Upload, Eye, EyeOff
 } from 'lucide-react';
 
 export function TeacherSettingsView() {
@@ -37,6 +37,12 @@ export function TeacherSettingsView() {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
+  });
+
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
   });
 
   const [editingSection, setEditingSection] = useState<'personal' | 'address' | 'security' | null>(null);
@@ -527,33 +533,60 @@ export function TeacherSettingsView() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Current Password</label>
-                  <Input 
-                    type="password" 
-                    placeholder="********" 
-                    value={passwordData.currentPassword} 
-                    onChange={(e) => setPasswordData(p => ({...p, currentPassword: e.target.value}))} 
-                    className="h-11 bg-slate-50/50 border-slate-100/60 text-sm font-medium rounded-[1rem] shadow-none focus:bg-white"
-                  />
+                  <div className="relative">
+                    <Input 
+                      type={showPasswords.current ? "text" : "password"} 
+                      placeholder="********" 
+                      value={passwordData.currentPassword} 
+                      onChange={(e) => setPasswordData(p => ({...p, currentPassword: e.target.value}))} 
+                      className="h-11 bg-slate-50/50 border-slate-100/60 text-sm font-medium rounded-[1rem] shadow-none focus:bg-white pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(p => ({...p, current: !p.current}))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center"
+                    >
+                      {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">New Password</label>
-                  <Input 
-                    type="password" 
-                    placeholder="Min. 8 characters" 
-                    value={passwordData.newPassword} 
-                    onChange={(e) => setPasswordData(p => ({...p, newPassword: e.target.value}))} 
-                    className="h-11 bg-slate-50/50 border-slate-100/60 text-sm font-medium rounded-[1rem] shadow-none focus:bg-white"
-                  />
+                  <div className="relative">
+                    <Input 
+                      type={showPasswords.new ? "text" : "password"} 
+                      placeholder="Min. 8 characters" 
+                      value={passwordData.newPassword} 
+                      onChange={(e) => setPasswordData(p => ({...p, newPassword: e.target.value}))} 
+                      className="h-11 bg-slate-50/50 border-slate-100/60 text-sm font-medium rounded-[1rem] shadow-none focus:bg-white pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(p => ({...p, new: !p.new}))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center"
+                    >
+                      {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Confirm Password</label>
-                  <Input 
-                    type="password" 
-                    placeholder="Confirm your choice" 
-                    value={passwordData.confirmPassword} 
-                    onChange={(e) => setPasswordData(p => ({...p, confirmPassword: e.target.value}))} 
-                    className="h-11 bg-slate-50/50 border-slate-100/60 text-sm font-medium rounded-[1rem] shadow-none focus:bg-white"
-                  />
+                  <div className="relative">
+                    <Input 
+                      type={showPasswords.confirm ? "text" : "password"} 
+                      placeholder="Confirm your choice" 
+                      value={passwordData.confirmPassword} 
+                      onChange={(e) => setPasswordData(p => ({...p, confirmPassword: e.target.value}))} 
+                      className="h-11 bg-slate-50/50 border-slate-100/60 text-sm font-medium rounded-[1rem] shadow-none focus:bg-white pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(p => ({...p, confirm: !p.confirm}))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center"
+                    >
+                      {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
               
