@@ -17,7 +17,7 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = React.m
       const p = d.present || 0;
       const ab = d.absent || 0;
       const total = p + ab;
-      const rate = total > 0 ? Math.round((p / total) * 100) : 100;
+      const rate = total > 0 ? Math.round((p / total) * 100) : 0;
       return {
         dateStr: d.dateStr || 'Unknown',
         rate

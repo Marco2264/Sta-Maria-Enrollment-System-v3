@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -51,7 +51,7 @@ import {
 import { useAuth } from '../../lib/AuthContext';
 import { useTeacherData } from '../../lib/teacherData';
 import { db } from '../../lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
 import { logActivity } from '../../lib/services/activityLogService';
 
@@ -63,7 +63,7 @@ export function TeacherStudentDetailView({
   onBack: () => void;
 }) {
   const { user } = useAuth();
-  const { students, updateStudentStatus } = useTeacherData();
+  const { students, updateStudentStatus, currentSection } = useTeacherData();
   const child = students.find((s) => s.id === studentId)!;
 
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -76,11 +76,75 @@ export function TeacherStudentDetailView({
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
 
-  const handleApprove = async () => {
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [allSections, setAllSections] = useState<any[]>([]);
+  const [sectionCounts, setSectionCounts] = useState<Record<string, number>>({});
+  const [selectedSectionId, setSelectedSectionId] = useState<string>('');
+
+  useEffect(() => {
+    const unsubSections = onSnapshot(collection(db, 'sections'), (snap) => {
+      setAllSections(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const qEnrolled = query(
+      collection(db, 'enrollments'),
+      where('status', 'in', ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR'])
+    );
+    const unsubEnrolled = onSnapshot(qEnrolled, (snap) => {
+      const counts: Record<string, number> = {};
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        const sId = data.sectionId;
+        if (sId) {
+          counts[sId] = (counts[sId] || 0) + 1;
+        }
+      });
+      setSectionCounts(counts);
+    });
+
+    return () => {
+      unsubSections();
+      unsubEnrolled();
+    };
+  }, []);
+
+  const matchingSections = useMemo(() => {
+    if (!child || !child.gradeLevel) return [];
+    const normalizedGrade = child.gradeLevel.toString().toLowerCase().replace(/grade\s*/g, '').trim();
+    return allSections.filter(sec => {
+      const secGrade = (sec.gradeLevel || '').toString().toLowerCase().replace(/grade\s*/g, '').trim();
+      return secGrade === normalizedGrade;
+    });
+  }, [child, allSections]);
+
+  const mostVacantSectionId = useMemo(() => {
+    if (matchingSections.length === 0) return '';
+    let minCount = Infinity;
+    let minId = '';
+    matchingSections.forEach(sec => {
+      const count = sectionCounts[sec.id] || 0;
+      if (count < minCount) {
+        minCount = count;
+        minId = sec.id;
+      }
+    });
+    return minId;
+  }, [matchingSections, sectionCounts]);
+
+  useEffect(() => {
+    if (showApproveDialog) {
+      setSelectedSectionId(mostVacantSectionId || currentSection || '');
+    } else {
+      setSelectedSectionId('');
+    }
+  }, [showApproveDialog, mostVacantSectionId, currentSection]);
+
+  const handleApprove = async (sectionId?: string) => {
     if (!child) return;
     setIsApproving(true);
     try {
-      await updateStudentStatus(child.id, 'Enrolled');
+      await updateStudentStatus(child.id, 'Enrolled', sectionId);
+      setShowApproveDialog(false);
       onBack();
     } catch (e) {
       console.error(e);
@@ -214,20 +278,64 @@ export function TeacherStudentDetailView({
   // Performance calculations
   const getStudentAverage = (c: any): string => {
     if (!c.grades) return 'N/A';
-    const gradesValues: number[] = [];
-    Object.values(c.grades).forEach((subjectGrades: any) => {
-      if (typeof subjectGrades === 'object' && subjectGrades !== null) {
-        Object.values(subjectGrades).forEach((g: any) => {
-          const num = parseFloat(g);
-          if (!isNaN(num)) gradesValues.push(num);
-        });
-      } else {
-        const num = parseFloat(subjectGrades);
-        if (!isNaN(num)) gradesValues.push(num);
+    const gLvl = c.gradeLevel || 'Grade 6';
+    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '') === `grade${gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '')}`);
+    if (!matchedKey) return 'N/A';
+    const studentGrades = c.grades[matchedKey];
+    if (!studentGrades || typeof studentGrades !== 'object') return 'N/A';
+
+    const subjectFinalGrades: number[] = [];
+    Object.entries(studentGrades).forEach(([subjCode, subjVal]: [string, any]) => {
+      if (!subjVal || typeof subjVal !== 'object') return;
+      
+      // 1. Direct override
+      if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
+        const parsed = parseFloat(subjVal.finalGradeOverride);
+        if (!isNaN(parsed)) {
+          subjectFinalGrades.push(parsed);
+          return;
+        }
+      }
+
+      // 2. Resolve term grades
+      const termAverages: number[] = [];
+      const isThreeTerm = ['4', '5', '6', 'grade 4', 'grade 5', 'grade 6'].includes(gLvl.toString().toLowerCase().replace(/grade/i, '').trim());
+      const terms = isThreeTerm ? ['Term 1', 'Term 2', 'Finals'] : ['Quarter 1', 'Quarter 2', 'Quarter 3', 'Quarter 4'];
+
+      terms.forEach(term => {
+        const directKeys = term === 'Term 1' || term === 'Quarter 1' ? ['t1', 'q1'] :
+                           term === 'Term 2' || term === 'Quarter 2' ? ['t2', 'q2'] :
+                           term === 'Term 3' || term === 'Quarter 3' ? ['t3', 'q3'] : ['q4'];
+        for (const key of directKeys) {
+          if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
+            const parsed = parseFloat(subjVal[key]);
+            if (!isNaN(parsed)) {
+              termAverages.push(parsed);
+              return;
+            }
+          }
+        }
+
+        const termData = subjVal[term];
+        if (termData && typeof termData === 'object') {
+          const values: number[] = [];
+          Object.values(termData).forEach((v: any) => {
+            const num = parseFloat(v);
+            if (!isNaN(num)) values.push(num);
+          });
+          if (values.length > 0) {
+            termAverages.push(values.reduce((a, b) => a + b, 0) / values.length);
+          }
+        }
+      });
+
+      if (termAverages.length > 0) {
+        subjectFinalGrades.push(termAverages.reduce((a, b) => a + b, 0) / termAverages.length);
       }
     });
-    if (gradesValues.length === 0) return 'N/A';
-    return (gradesValues.reduce((a, b) => a + b, 0) / gradesValues.length).toFixed(1);
+
+    if (subjectFinalGrades.length === 0) return 'N/A';
+    return (subjectFinalGrades.reduce((a, b) => a + b, 0) / subjectFinalGrades.length).toFixed(1);
   };
 
   const getAcademicStandingBadge = (avgStr: string) => {
@@ -314,7 +422,7 @@ export function TeacherStudentDetailView({
               Reject
             </Button>
             <Button 
-              onClick={handleApprove}
+              onClick={() => setShowApproveDialog(true)}
               disabled={isRejecting || isApproving}
               className="bg-[#001D3D] hover:bg-[#001529] text-white rounded-lg px-4 gap-2 font-bold border-none shadow-sm transition-all hover:scale-105 cursor-pointer"
             >
@@ -1185,6 +1293,103 @@ export function TeacherStudentDetailView({
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation & Section Selection Dialog */}
+      <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+        <DialogContent className="sm:max-w-[450px] p-6 rounded-3xl border-none shadow-2xl bg-white">
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              Confirm Enrollment Approval
+            </DialogTitle>
+            <p className="text-xs text-slate-500 leading-relaxed text-left font-medium">
+              Please verify the student details below and assign a section before approving.
+            </p>
+          </DialogHeader>
+
+          {child && (
+            <div className="space-y-4 my-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3.5 text-left">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Student Name</span>
+                  <span className="text-sm font-bold text-slate-800">
+                    {child.lastName}, {child.firstName} {child.middleName || ''}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">LRN</span>
+                    <span className="text-sm font-mono font-bold text-slate-700">{child.lrn}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Gender</span>
+                    <span className="text-sm font-semibold text-slate-700">{child.gender}</span>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200/60 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Grade</span>
+                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100 font-bold px-2 py-0.5 rounded-lg shadow-sm">
+                      Grade {child.gradeLevel || currentSection}
+                    </Badge>
+                  </div>
+                  
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Assign Section</label>
+                    <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+                      <SelectTrigger className="w-full h-11 border-slate-200 rounded-xl bg-white focus:ring-primary/20 text-slate-800 font-medium text-left">
+                        <SelectValue placeholder="Select section...">
+                          {(() => {
+                            const sel = matchingSections.find(s => s.id === selectedSectionId);
+                            if (!sel) return 'Select section...';
+                            const count = sectionCounts[sel.id] || 0;
+                            return `${sel.name || sel.sectionName} (${count} student${count !== 1 ? 's' : ''})`;
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px] overflow-y-auto">
+                        {matchingSections.map(sec => {
+                          const count = sectionCounts[sec.id] || 0;
+                          const isMostVacant = sec.id === mostVacantSectionId;
+                          return (
+                            <SelectItem key={sec.id} value={sec.id}>
+                              <span className="font-semibold text-slate-800">{sec.name || sec.sectionName}</span>
+                              <span className="text-slate-400 text-xs ml-2">({count} student{count !== 1 ? 's' : ''})</span>
+                              {isMostVacant && <span className="text-emerald-600 font-bold text-[10px] ml-2 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-wider">Most Vacant</span>}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-1/2 rounded-xl border-slate-200 text-slate-500 hover:bg-slate-50 h-11"
+              onClick={() => setShowApproveDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-1/2 rounded-xl bg-[#001D3D] hover:bg-[#001529] text-white shadow-sm h-11 border-none active:scale-98"
+              onClick={() => handleApprove(selectedSectionId)}
+            >
+              Confirm & Approve
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

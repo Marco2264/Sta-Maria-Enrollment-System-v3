@@ -14,9 +14,10 @@ import {
   TableRow
 } from '../ui/Table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Search, GraduationCap, FileEdit, Users, Loader2 } from 'lucide-react';
+import { Search, GraduationCap, FileEdit, Users, Loader2, Filter, Download } from 'lucide-react';
 import { AdminEditStudentModal } from './AdminEditStudentModal';
 import { useAdminData } from '../../lib/adminData';
+import { generateAdminSF1 } from '../../lib/excelGenerator';
 
 export function StudentsView() {
   const { sections } = useAdminData();
@@ -82,6 +83,105 @@ export function StudentsView() {
   const handleEditClick = (student: any) => {
     setSelectedStudentId(student.id);
     setIsModalOpen(true);
+  };
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (filteredStudents.length === 0) {
+      alert("No student records available to export.");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const toDate = (timestamp: any): Date | null => {
+        if (!timestamp) return null;
+        if (timestamp instanceof Date) return timestamp;
+        if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+        if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+        const parsed = new Date(timestamp);
+        return isNaN(parsed.getTime()) ? null : parsed;
+      };
+
+      const calcAge = (birthDateStr?: string): number | undefined => {
+        if (!birthDateStr) return undefined;
+        const birthDate = new Date(birthDateStr);
+        if (isNaN(birthDate.getTime())) return undefined;
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
+      };
+
+      const formatBirthDate = (dateStr?: string): string => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      };
+
+      const learners = filteredStudents.map(s => {
+        const bdate: string | undefined =
+          typeof s.birthDate === 'string'
+            ? s.birthDate
+            : toDate(s.birthDate)?.toISOString().split('T')[0];
+
+        return {
+          id: s.id,
+          lrn: s.lrn ?? '',
+          lastName: s.lastName ?? s.familyName ?? '',
+          firstName: s.firstName ?? s.givenName ?? '',
+          middleName: s.middleName ?? '',
+          gender: s.gender ?? '',
+          birthDate: formatBirthDate(bdate),
+          age: calcAge(bdate),
+          birthCity: s.address?.birthCity ?? s.birthCity ?? '',
+          birthProvince: s.address?.birthProvince ?? s.birthProvince ?? '',
+          motherTongue: s.additional?.motherTongue ?? s.motherTongue ?? '',
+          indigenousGroup:
+            s.additional?.isIndigenous
+              ? (s.additional?.indigenousGroup ?? '')
+              : '',
+          religion: s.additional?.religion ?? s.religion ?? '',
+          addressStreet: s.address?.street ?? '',
+          addressBarangay: s.address?.barangay ?? '',
+          addressCity: s.address?.city ?? '',
+          addressProvince: s.address?.province ?? '',
+          fatherName: s.fatherName ?? '',
+          motherName: s.motherName ?? '',
+          guardianName: s.medical?.emergencyContact ?? s.guardianName ?? '',
+          guardianRelationship: s.guardianRelationship ?? 'Parent',
+          contactNumber: s.medical?.emergencyPhone ?? s.contactNumber ?? '',
+          remarks: s.remarks ?? '',
+        };
+      });
+
+      let gradeLevel = "All Grades";
+      if (gradeFilter !== 'All Grades') {
+        gradeLevel = `Grade ${gradeFilter}`;
+      } else if (filteredStudents[0]?.gradeLevel) {
+        gradeLevel = filteredStudents[0].gradeLevel;
+      }
+
+      const section = filteredStudents[0]?.sectionName || "All Sections";
+      const schoolYear = filteredStudents[0]?.schoolYear || "2025-2026";
+
+      await generateAdminSF1({
+        schoolYear,
+        gradeLevel,
+        section,
+        learners
+      });
+    } catch (err) {
+      console.error("Failed to export SF1:", err);
+      alert("An error occurred while exporting SF1 Excel sheet. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -152,6 +252,15 @@ export function StudentsView() {
                   <SelectItem value="Pending">Pending</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                className="h-9 px-4 bg-[#D8232A] hover:bg-[#b01c22] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 duration-100 border-none disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {isExporting ? 'Exporting...' : 'Export Excel'}
+              </Button>
             </div>
           </div>
         </div>

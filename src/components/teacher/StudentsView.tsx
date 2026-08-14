@@ -14,15 +14,18 @@ import {
 } from '../ui/Table';
 import { TeacherEditStudentModal } from './TeacherEditStudentModal';
 import { TeacherStudentDetailView } from '../../modules/teacher/TeacherStudentDetailView';
-import { Eye, Users, Activity, Scale, Ruler, Trash2, FileEdit, Search, Filter, CalendarDays, AlertTriangle } from 'lucide-react';
+import { Eye, Users, Activity, Scale, Ruler, Trash2, FileEdit, Search, Filter, CalendarDays, AlertTriangle, Download } from 'lucide-react';
 import { useTeacherData } from '../../lib/teacherData';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { HealthAnalyticsService } from '../../lib/services/healthAnalyticsService';
+import { useAuth } from '../../lib/AuthContext';
+import { generateAdminSF1 } from '../../lib/excelGenerator';
 
 export function StudentsView() {
   const { students, updateStudentBmi, loading, currentGradeLevel, currentSectionName, currentSection, allAssignments, allTeachers, gradeConfigurations, subjects } = useTeacherData();
+  const { userData } = useAuth();
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [editBmi, setEditBmi] = useState({ height: '', weight: '' });
   const [searchTerm, setSearchTerm] = useState('');
@@ -395,6 +398,101 @@ export function StudentsView() {
     return '--';
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (enrolled.length === 0) {
+      alert("No student records available to export.");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const toDate = (timestamp: any): Date | null => {
+        if (!timestamp) return null;
+        if (timestamp instanceof Date) return timestamp;
+        if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+        if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+        const parsed = new Date(timestamp);
+        return isNaN(parsed.getTime()) ? null : parsed;
+      };
+
+      const calcAge = (birthDateStr?: string): number | undefined => {
+        if (!birthDateStr) return undefined;
+        const birthDate = new Date(birthDateStr);
+        if (isNaN(birthDate.getTime())) return undefined;
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
+      };
+
+      const formatBirthDate = (dateStr?: string): string => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      };
+
+      const learners = enrolled.map(studentItem => {
+        const s = studentItem as any;
+        const bdate: string | undefined =
+          typeof s.birthDate === 'string'
+            ? s.birthDate
+            : toDate(s.birthDate)?.toISOString().split('T')[0];
+
+        return {
+          id: s.id,
+          lrn: s.lrn ?? '',
+          lastName: s.lastName ?? s.familyName ?? '',
+          firstName: s.firstName ?? s.givenName ?? '',
+          middleName: s.middleName ?? '',
+          gender: s.gender ?? '',
+          birthDate: formatBirthDate(bdate),
+          age: calcAge(bdate),
+          birthCity: s.address?.birthCity ?? s.birthCity ?? '',
+          birthProvince: s.address?.birthProvince ?? s.birthProvince ?? '',
+          motherTongue: s.additional?.motherTongue ?? s.motherTongue ?? '',
+          indigenousGroup:
+            s.additional?.isIndigenous
+              ? (s.additional?.indigenousGroup ?? '')
+              : '',
+          religion: s.additional?.religion ?? s.religion ?? '',
+          addressStreet: s.address?.street ?? '',
+          addressBarangay: s.address?.barangay ?? '',
+          addressCity: s.address?.city ?? '',
+          addressProvince: s.address?.province ?? '',
+          fatherName: s.fatherName ?? '',
+          motherName: s.motherName ?? '',
+          guardianName: s.medical?.emergencyContact ?? s.guardianName ?? '',
+          guardianRelationship: s.guardianRelationship ?? 'Parent',
+          contactNumber: s.medical?.emergencyPhone ?? s.contactNumber ?? '',
+          remarks: s.remarks ?? '',
+        };
+      });
+
+      const schoolYear = (enrolled[0] as any)?.schoolYear || "2025-2026";
+      const u = userData as any;
+      const adviserName = `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.displayName || u?.fullName || "";
+
+      await generateAdminSF1({
+        schoolYear,
+        gradeLevel: currentGradeLevel || "All Grades",
+        section: currentSectionName || "All Sections",
+        advisorName: adviserName || undefined,
+        learners
+      });
+    } catch (err) {
+      console.error("Failed to export SF1:", err);
+      alert("An error occurred while exporting SF1 Excel sheet. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[400px]">
@@ -498,6 +596,15 @@ export function StudentsView() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <Button
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                className="h-11 px-4 bg-[#D8232A] hover:bg-[#b01c22] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 duration-100 border-none disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {isExporting ? 'Exporting...' : 'Export Excel'}
+              </Button>
             </div>
           </div>
           

@@ -20,17 +20,82 @@ import {
 } from '../../components/ui/Dialog';
 import { useTeacherData } from '../../lib/teacherData';
 import TeacherStudentDetailView from './TeacherStudentDetailView';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '../../components/ui/Input';
+import { db } from '../../lib/firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../../components/ui/Select';
 
 export function EnrollmentsView() {
-  const { students, updateStudentStatus, loading, currentGradeLevel, currentSectionName } = useTeacherData();
+  const { students, updateStudentStatus, loading, currentGradeLevel, currentSectionName, currentSection } = useTeacherData();
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentToEnroll, setStudentToEnroll] = useState<any | null>(null);
   const [psaViewUrl, setPsaViewUrl] = useState<string | null>(null);
   const [psaViewName, setPsaViewName] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<'All' | 'Male' | 'Female'>('All');
+
+  const [allSections, setAllSections] = useState<any[]>([]);
+  const [sectionCounts, setSectionCounts] = useState<Record<string, number>>({});
+  const [selectedSectionId, setSelectedSectionId] = useState<string>('');
+
+  useEffect(() => {
+    const unsubSections = onSnapshot(collection(db, 'sections'), (snap) => {
+      setAllSections(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const qEnrolled = query(
+      collection(db, 'enrollments'),
+      where('status', 'in', ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR'])
+    );
+    const unsubEnrolled = onSnapshot(qEnrolled, (snap) => {
+      const counts: Record<string, number> = {};
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        const sId = data.sectionId;
+        if (sId) {
+          counts[sId] = (counts[sId] || 0) + 1;
+        }
+      });
+      setSectionCounts(counts);
+    });
+
+    return () => {
+      unsubSections();
+      unsubEnrolled();
+    };
+  }, []);
+
+  const matchingSections = useMemo(() => {
+    if (!studentToEnroll || !studentToEnroll.gradeLevel) return [];
+    const normalizedGrade = studentToEnroll.gradeLevel.toString().toLowerCase().replace(/grade\s*/g, '').trim();
+    return allSections.filter(sec => {
+      const secGrade = (sec.gradeLevel || '').toString().toLowerCase().replace(/grade\s*/g, '').trim();
+      return secGrade === normalizedGrade;
+    });
+  }, [studentToEnroll, allSections]);
+
+  const mostVacantSectionId = useMemo(() => {
+    if (matchingSections.length === 0) return '';
+    let minCount = Infinity;
+    let minId = '';
+    matchingSections.forEach(sec => {
+      const count = sectionCounts[sec.id] || 0;
+      if (count < minCount) {
+        minCount = count;
+        minId = sec.id;
+      }
+    });
+    return minId;
+  }, [matchingSections, sectionCounts]);
+
+  useEffect(() => {
+    if (studentToEnroll) {
+      setSelectedSectionId(mostVacantSectionId || currentSection || '');
+    } else {
+      setSelectedSectionId('');
+    }
+  }, [studentToEnroll, mostVacantSectionId, currentSection]);
 
   const isImageFile = (url: string | null) => {
     if (!url) return false;
@@ -296,16 +361,41 @@ export function EnrollmentsView() {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-200/60">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Target Section & Grade</span>
-                  <div className="flex items-center gap-2">
+                <div className="pt-3 border-t border-slate-200/60 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Grade</span>
                     <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100 font-bold px-2 py-0.5 rounded-lg shadow-sm">
                       Grade {studentToEnroll.gradeLevel || currentGradeLevel}
                     </Badge>
-                    <span className="text-slate-400 text-xs font-semibold">/</span>
-                    <span className="text-sm font-bold text-slate-800">
-                      Section {currentSectionName || 'N/A'}
-                    </span>
+                  </div>
+                  
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Assign Section</label>
+                    <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+                      <SelectTrigger className="w-full h-11 border-slate-200 rounded-xl bg-white focus:ring-primary/20 text-slate-800 font-medium text-left">
+                        <SelectValue placeholder="Select section...">
+                          {(() => {
+                            const sel = matchingSections.find(s => s.id === selectedSectionId);
+                            if (!sel) return 'Select section...';
+                            const count = sectionCounts[sel.id] || 0;
+                            return `${sel.name || sel.sectionName} (${count} student${count !== 1 ? 's' : ''})`;
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px] overflow-y-auto">
+                        {matchingSections.map(sec => {
+                          const count = sectionCounts[sec.id] || 0;
+                          const isMostVacant = sec.id === mostVacantSectionId;
+                          return (
+                            <SelectItem key={sec.id} value={sec.id}>
+                              <span className="font-semibold text-slate-800">{sec.name || sec.sectionName}</span>
+                              <span className="text-slate-400 text-xs ml-2">({count} student{count !== 1 ? 's' : ''})</span>
+                              {isMostVacant && <span className="text-emerald-600 font-bold text-[10px] ml-2 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-wider">Most Vacant</span>}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -326,7 +416,7 @@ export function EnrollmentsView() {
               className="w-full sm:w-1/2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-11 border-none active:scale-98"
               onClick={() => {
                 if (studentToEnroll) {
-                  updateStudentStatus(studentToEnroll.id, 'Enrolled');
+                  updateStudentStatus(studentToEnroll.id, 'Enrolled', selectedSectionId);
                   setStudentToEnroll(null);
                 }
               }}

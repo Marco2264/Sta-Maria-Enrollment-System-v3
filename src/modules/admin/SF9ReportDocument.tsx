@@ -98,7 +98,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
 
   if (!student) {
     return (
-      <ReportLayout title="School Form 9 (SF9)" onClose={onClose} landscape={false}>
+      <ReportLayout title="School Form 9 (SF9)" onClose={onClose} landscape={true}>
         <div className="p-8 text-center text-slate-500 font-medium">
           No enrolled students found in this section.
         </div>
@@ -500,7 +500,46 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
   ];
 
   return (
-    <ReportLayout title="School Form 9 (SF9) - Report Card" onClose={onClose} landscape={false}>
+    <ReportLayout title="School Form 9 (SF9) - Report Card" onClose={onClose} landscape={true}>
+      <style>{`
+        @page {
+          size: landscape;
+          margin: 5mm;
+        }
+        @media print {
+          .report-card-page {
+            width: 100% !important;
+            max-width: 100% !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            margin: 0 !important;
+            padding: 0.25in !important;
+            box-sizing: border-box !important;
+            min-height: 195mm !important;
+            height: 195mm !important;
+            display: flex !important;
+            gap: 2rem !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+            font-size: 12px !important;
+          }
+          .report-card-page:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+          }
+          .report-card-page h3 {
+            font-size: 14px !important;
+            margin-bottom: 0.75rem !important;
+          }
+          .report-card-page table {
+            font-size: 11px !important;
+          }
+          .report-card-page th, .report-card-page td {
+            padding: 4px 6px !important;
+          }
+        }
+      `}</style>
       {/* Student Selector overlay in print header */}
       <div className="flex items-center gap-3 p-4 bg-slate-100 rounded-2xl border border-slate-200/60 mb-6 print:hidden relative z-50">
         <label className="text-sm font-bold text-slate-700 whitespace-nowrap">Select Student:</label>
@@ -570,10 +609,10 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
         </div>
       </div>
 
-      <div className="w-[1000px] mx-auto space-y-12 print:space-y-0 text-slate-900 leading-normal">
+      <div className="w-[1000px] print:w-full print:max-w-none mx-auto space-y-12 print:space-y-0 text-slate-900 leading-normal">
 
         {/* ==================== PAGE 1: FRONT ==================== */}
-        <div className="report-card-page bg-white p-8 border border-slate-200/80 rounded-3xl shadow-sm flex gap-8 w-[1000px] min-h-[640px] print:w-full print:min-h-0 print:border-none print:shadow-none print:p-0 page-break">
+        <div className="report-card-page bg-white p-8 border border-slate-200/80 rounded-3xl shadow-sm flex gap-8 w-[1000px] min-h-[640px] print:w-full print:min-h-[195mm] print:border-none print:shadow-none print:p-0 page-break">
           {/* LEFT COLUMN: Attendance Grid */}
           <div className="w-1/2 flex flex-col justify-between border-r border-dashed border-slate-300 pr-8 print:pr-4">
             <div>
@@ -741,7 +780,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
         </div>
 
         {/* ==================== PAGE 2: BACK ==================== */}
-        <div className="report-card-page bg-white p-8 border border-slate-200/80 rounded-3xl shadow-sm flex gap-8 w-[1000px] min-h-[640px] print:w-full print:min-h-0 print:border-none print:shadow-none print:p-0">
+        <div className="report-card-page bg-white p-8 border border-slate-200/80 rounded-3xl shadow-sm flex gap-8 w-[1000px] min-h-[640px] print:w-full print:min-h-[195mm] print:border-none print:shadow-none print:p-0">
           {/* LEFT COLUMN: Report on Learning Progress and Achievement */}
           <div className="w-1/2 border-r border-dashed border-slate-300 pr-8 print:pr-4 flex flex-col justify-between">
             <div>

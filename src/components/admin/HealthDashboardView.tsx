@@ -22,6 +22,7 @@ import { HealthAnalyticsService, HealthData, NutritionalStats } from '../../lib/
 import { NutritionalStatsChart } from './analytics/NutritionalStatsChart';
 import { useAuth } from '../../lib/AuthContext';
 import { normalizeRole } from '../../lib/roles';
+import { generateAdminSF8 } from '../../lib/excelGenerator';
 
 export function HealthDashboardView() {
   const [activeTab, setActiveTab] = useState<'analytics' | 'feeding' | 'roster'>('analytics');
@@ -191,6 +192,50 @@ export function HealthDashboardView() {
     });
   }, [allHealthData, searchTerm, gradeFilter, sectionFilter, genderFilter]);
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (filteredRoster.length === 0) {
+      alert("No student records available to export.");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const userRole = normalizeRole(currentUserRole);
+      let adviserName = "";
+      if (userRole === 'teacher') {
+        const u = userData as any;
+        adviserName = `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || (typeof u?.displayName === 'string' ? u?.displayName : '') || (typeof u?.fullName === 'string' ? u?.fullName : '') || "";
+      }
+      let gradeLevel = "All Grades";
+      if (gradeFilter !== 'all') {
+        gradeLevel = gradeFilter;
+      } else if ((filteredRoster[0] as any)?.gradeLevel) {
+        gradeLevel = (filteredRoster[0] as any).gradeLevel;
+      }
+      let section = "All Sections";
+      if (userRole === 'teacher') {
+        section = assignedSectionNames.join(', ') || "Assigned Section";
+      } else if (sectionFilter !== 'all') {
+        section = sections.find(s => s.id === sectionFilter)?.name || sectionFilter;
+      }
+      const schoolYear = (filteredRoster[0] as any)?.schoolYear || "2025-2026";
+
+      await generateAdminSF8({
+        schoolYear,
+        gradeLevel,
+        section,
+        learners: filteredRoster,
+        adviserName: adviserName || undefined
+      });
+    } catch (err) {
+      console.error("Failed to export SF8:", err);
+      alert("An error occurred while exporting SF8 Excel sheet. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center h-full">
@@ -220,22 +265,13 @@ export function HealthDashboardView() {
           
           <div className="flex items-center gap-3">
             <Button
-              variant="outline"
               size="sm"
-              onClick={fetchData}
-              className="h-9 px-3.5 border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold rounded-xl text-xs flex items-center gap-1.5 active:scale-95 duration-100"
-              title="Refresh Data"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Refresh
-            </Button>
-            <Button
-              size="sm"
-              className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 duration-100 border-none"
-              onClick={() => window.print()}
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 duration-100 border-none disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" />
-              Export PDF
+              {isExporting ? 'Exporting...' : 'Export Excel'}
             </Button>
           </div>
         </div>

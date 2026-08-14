@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from '../../lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -62,6 +64,17 @@ export function ChildDetailView({
   const { user } = useAuth();
   const { children, updateChild } = useParentData();
   const child = children.find((c) => c.id === childId);
+
+  const [gradeConfigs, setGradeConfigs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!child?.sectionId) return;
+    const qConfigs = query(collection(db, 'gradeConfigurations'), where('sectionId', '==', child.sectionId));
+    const unsub = onSnapshot(qConfigs, (snap) => {
+      setGradeConfigs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [child?.sectionId]);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -308,20 +321,91 @@ export function ChildDetailView({
   // Performance calculations
   const getStudentAverage = (c: any): string => {
     if (!c.grades) return 'N/A';
-    const gradesValues: number[] = [];
-    Object.values(c.grades).forEach((subjectGrades: any) => {
-      if (typeof subjectGrades === 'object' && subjectGrades !== null) {
-        Object.values(subjectGrades).forEach((g: any) => {
-          const num = parseFloat(g);
-          if (!isNaN(num)) gradesValues.push(num);
-        });
-      } else {
-        const num = parseFloat(subjectGrades);
-        if (!isNaN(num)) gradesValues.push(num);
+    const gLvl = c.gradeLevel || 'Grade 6';
+    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '') === `grade${gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '')}`);
+    if (!matchedKey) return 'N/A';
+    const studentGrades = c.grades[matchedKey];
+    if (!studentGrades || typeof studentGrades !== 'object') return 'N/A';
+
+    const subjectFinalGrades: number[] = [];
+    Object.entries(studentGrades).forEach(([subjCode, subjVal]: [string, any]) => {
+      if (!subjVal || typeof subjVal !== 'object') return;
+      
+      // 1. Direct override
+      if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
+        const parsed = parseFloat(subjVal.finalGradeOverride);
+        if (!isNaN(parsed)) {
+          subjectFinalGrades.push(parsed);
+          return;
+        }
+      }
+
+      // 2. Resolve term grades
+      const termAverages: number[] = [];
+      const isThreeTerm = ['4', '5', '6', 'grade 4', 'grade 5', 'grade 6'].includes(gLvl.toString().toLowerCase().replace(/grade/i, '').trim());
+      const terms = isThreeTerm ? ['Term 1', 'Term 2', 'Finals'] : ['Quarter 1', 'Quarter 2', 'Quarter 3', 'Quarter 4'];
+
+      terms.forEach(term => {
+        const directKeys = term === 'Term 1' || term === 'Quarter 1' ? ['t1', 'q1'] :
+                           term === 'Term 2' || term === 'Quarter 2' ? ['t2', 'q2'] :
+                           term === 'Term 3' || term === 'Quarter 3' ? ['t3', 'q3'] : ['q4'];
+        for (const key of directKeys) {
+          if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
+            const parsed = parseFloat(subjVal[key]);
+            if (!isNaN(parsed)) {
+              termAverages.push(parsed);
+              return;
+            }
+          }
+        }
+
+        // Use configurations if available
+        const cols = gradeConfigs.filter(cfg => 
+          cfg.subjectCode?.toLowerCase() === subjCode.toLowerCase() && 
+          cfg.term === term && 
+          cfg.type !== 'submission'
+        );
+
+        const termData = subjVal[term];
+        if (cols.length > 0 && termData && typeof termData === 'object') {
+          let termTotal = 0;
+          let hasGrade = false;
+          cols.forEach(col => {
+            const val = termData[col.id];
+            if (val !== undefined && val !== null && val !== '') {
+              const num = parseFloat(val);
+              if (!isNaN(num)) {
+                termTotal += (num * (col.weight / 100));
+                hasGrade = true;
+              }
+            }
+          });
+          if (hasGrade) {
+            termAverages.push(termTotal);
+            return;
+          }
+        }
+
+        // Fallback to simple average of column values in this term
+        if (termData && typeof termData === 'object') {
+          const values: number[] = [];
+          Object.values(termData).forEach((v: any) => {
+            const num = parseFloat(v);
+            if (!isNaN(num)) values.push(num);
+          });
+          if (values.length > 0) {
+            termAverages.push(values.reduce((a, b) => a + b, 0) / values.length);
+          }
+        }
+      });
+
+      if (termAverages.length > 0) {
+        subjectFinalGrades.push(termAverages.reduce((a, b) => a + b, 0) / termAverages.length);
       }
     });
-    if (gradesValues.length === 0) return 'N/A';
-    return (gradesValues.reduce((a, b) => a + b, 0) / gradesValues.length).toFixed(1);
+
+    if (subjectFinalGrades.length === 0) return 'N/A';
+    return (subjectFinalGrades.reduce((a, b) => a + b, 0) / subjectFinalGrades.length).toFixed(1);
   };
 
   const getAcademicStandingBadge = (avgStr: string) => {
@@ -978,7 +1062,7 @@ export function ChildDetailView({
                             <GraduationCap className="w-5 h-5 text-[#D8232A]" />
                             Subject Performance Breakdown
                           </h3>
-                          <p className="text-xs text-slate-500 font-medium mt-1">Detailed 4-term grade breakdown and component analysis</p>
+                          <p className="text-xs text-slate-500 font-medium mt-1">Detailed term grade breakdown and component analysis</p>
                         </div>
 
                         {!child.grades || Object.keys(child.grades).length === 0 ? (
@@ -993,104 +1077,179 @@ export function ChildDetailView({
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {Object.entries(child.grades).map(([subjName, subjVal]: [string, any]) => {
-                              let q1: number | string = '--';
-                              let q2: number | string = '--';
-                              let q3: number | string = '--';
-                              let q4: number | string = '--';
-                              let finalVal: number | null = null;
-                              
-                              if (typeof subjVal === 'object' && subjVal !== null) {
-                                q1 = subjVal.q1 ? parseFloat(subjVal.q1) || '--' : '--';
-                                q2 = subjVal.q2 ? parseFloat(subjVal.q2) || '--' : '--';
-                                q3 = subjVal.q3 ? parseFloat(subjVal.q3) || '--' : '--';
-                                q4 = subjVal.q4 ? parseFloat(subjVal.q4) || '--' : '--';
-                                const nums = [q1, q2, q3, q4].filter(n => typeof n === 'number') as number[];
-                                if (nums.length > 0) finalVal = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
-                              } else {
-                                const n = parseFloat(subjVal);
-                                if (!isNaN(n)) {
-                                  finalVal = n;
-                                  q1 = n;
-                                }
+                            {(() => {
+                              const gLvl = child.gradeLevel || 'Grade 6';
+                              const matchedKey = Object.keys(child.grades || {}).find(k => k.toLowerCase().replace(/\s+/g, '') === `grade${gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '')}`);
+                              const studentGrades = matchedKey ? child.grades[matchedKey] : {};
+                              const subjectsEntries = Object.entries(studentGrades || {}).filter(([k, v]) => v && typeof v === 'object');
+                              const isThreeTerm = ['4', '5', '6', 'grade 4', 'grade 5', 'grade 6'].includes(gLvl.toString().toLowerCase().replace(/grade/i, '').trim());
+
+                              if (subjectsEntries.length === 0) {
+                                return (
+                                  <div className="p-12 text-center">
+                                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                      <BarChart3 className="w-8 h-8 text-slate-300" />
+                                    </div>
+                                    <h4 className="text-base font-bold text-slate-800 mb-1">No Grades Encoded Yet</h4>
+                                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                                      Subject teachers have not submitted grades for this student yet. Check back once term grades are encoded.
+                                    </p>
+                                  </div>
+                                );
                               }
 
-                              const displayGrade = finalVal !== null ? finalVal : '--';
-                              const subjBadge = finalVal !== null ? getSubjectStatus(finalVal) : null;
-
-                              return (
-                                <details key={subjName} className="group bg-slate-50/50 rounded-2xl border border-slate-200 overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-                                  <summary className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors list-none select-none">
-                                    <div className="flex-1 flex items-center justify-between sm:justify-start gap-4">
-                                      <h4 className="font-bold text-slate-900">{subjName}</h4>
-                                      {subjBadge ? (
-                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${subjBadge.color}`}>
-                                          {subjBadge.label}
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] font-bold text-slate-400">Pending</span>
-                                      )}
-                                    </div>
-                                    
-                                    {/* 4-Term Quick View */}
-                                    <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-                                      <div className="text-center min-w-[2.5rem]">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q1</p>
-                                        <p className="text-sm font-semibold text-slate-700">{q1}</p>
-                                      </div>
-                                      <div className="text-center min-w-[2.5rem]">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q2</p>
-                                        <p className="text-sm font-semibold text-slate-700">{q2}</p>
-                                      </div>
-                                      <div className="text-center min-w-[2.5rem]">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q3</p>
-                                        <p className="text-sm font-semibold text-slate-700">{q3}</p>
-                                      </div>
-                                      <div className="text-center min-w-[2.5rem]">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q4</p>
-                                        <p className="text-sm font-semibold text-slate-700">{q4}</p>
-                                      </div>
-                                      <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-5">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p>
-                                        <p className="text-base font-black text-[#D8232A]">{displayGrade}</p>
-                                      </div>
-                                      <div className="text-slate-400 group-open:rotate-180 transition-transform duration-200 ml-1">
-                                        <ChevronDown className="w-5 h-5" />
-                                      </div>
-                                    </div>
-                                  </summary>
+                              return subjectsEntries.map(([subjName, subjVal]: [string, any]) => {
+                                const getTermVal = (termName: string) => {
+                                  const directKeys = termName === 'Term 1' || termName === 'Quarter 1' ? ['t1', 'q1'] :
+                                                     termName === 'Term 2' || termName === 'Quarter 2' ? ['t2', 'q2'] :
+                                                     termName === 'Term 3' || termName === 'Quarter 3' ? ['t3', 'q3'] : ['q4'];
+                                  for (const key of directKeys) {
+                                    if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
+                                      const parsed = parseFloat(subjVal[key]);
+                                      if (!isNaN(parsed)) return parsed;
+                                    }
+                                  }
                                   
-                                  {/* Expanded Content (Drill-Down) */}
-                                  <div className="px-5 py-5 border-t border-slate-100 bg-white space-y-4">
-                                    <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Grade Breakdown Components</h5>
+                                  // Use configurations if available
+                                  const cols = gradeConfigs.filter(cfg => 
+                                    cfg.subjectCode?.toLowerCase() === subjName.toLowerCase() && 
+                                    cfg.term === termName && 
+                                    cfg.type !== 'submission'
+                                  );
+
+                                  const termData = subjVal[termName];
+                                  if (cols.length > 0 && termData && typeof termData === 'object') {
+                                    let termTotal = 0;
+                                    let hasGrade = false;
+                                    cols.forEach(col => {
+                                      const val = termData[col.id];
+                                      if (val !== undefined && val !== null && val !== '') {
+                                        const num = parseFloat(val);
+                                        if (!isNaN(num)) {
+                                          termTotal += (num * (col.weight / 100));
+                                          hasGrade = true;
+                                        }
+                                      }
+                                    });
+                                    if (hasGrade) {
+                                      return Math.round(termTotal * 10) / 10;
+                                    }
+                                  }
+
+                                  if (termData && typeof termData === 'object') {
+                                    const values: number[] = [];
+                                    Object.values(termData).forEach((v: any) => {
+                                      const num = parseFloat(v);
+                                      if (!isNaN(num)) values.push(num);
+                                    });
+                                    if (values.length > 0) {
+                                      return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+                                    }
+                                  }
+                                  return null;
+                                };
+
+                                let t1 = isThreeTerm ? getTermVal('Term 1') : getTermVal('Quarter 1');
+                                let t2 = isThreeTerm ? getTermVal('Term 2') : getTermVal('Quarter 2');
+                                let t3 = isThreeTerm ? getTermVal('Finals') || getTermVal('Term 3') : getTermVal('Quarter 3');
+                                let t4 = isThreeTerm ? null : getTermVal('Quarter 4');
+
+                                const q1 = t1 !== null ? t1.toString() : '--';
+                                const q2 = t2 !== null ? t2.toString() : '--';
+                                const q3 = t3 !== null ? t3.toString() : '--';
+                                const q4 = t4 !== null ? t4.toString() : '--';
+
+                                let finalVal: number | null = null;
+                                if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
+                                  const parsed = parseFloat(subjVal.finalGradeOverride);
+                                  if (!isNaN(parsed)) finalVal = parsed;
+                                }
+                                if (finalVal === null) {
+                                  const active = [t1, t2, t3, t4].filter(v => v !== null) as number[];
+                                  if (active.length > 0) {
+                                    finalVal = Math.round(active.reduce((a, b) => a + b, 0) / active.length);
+                                  }
+                                }
+
+                                const displayGrade = finalVal !== null ? finalVal : '--';
+                                const subjBadge = finalVal !== null ? getSubjectStatus(finalVal) : null;
+
+                                return (
+                                  <details key={subjName} className="group bg-slate-50/50 rounded-2xl border border-slate-200 overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                                    <summary className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors list-none select-none">
+                                      <div className="flex-1 flex items-center justify-between sm:justify-start gap-4">
+                                        <h4 className="font-bold text-slate-900">{subjName}</h4>
+                                        {subjBadge ? (
+                                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${subjBadge.color}`}>
+                                            {subjBadge.label}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] font-bold text-slate-400">Pending</span>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Quick View */}
+                                      <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
+                                        <div className="text-center min-w-[2.5rem]">
+                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isThreeTerm ? 'T1' : 'Q1'}</p>
+                                          <p className="text-sm font-semibold text-slate-700">{q1}</p>
+                                        </div>
+                                        <div className="text-center min-w-[2.5rem]">
+                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isThreeTerm ? 'T2' : 'Q2'}</p>
+                                          <p className="text-sm font-semibold text-slate-700">{q2}</p>
+                                        </div>
+                                        <div className="text-center min-w-[2.5rem]">
+                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isThreeTerm ? 'T3' : 'Q3'}</p>
+                                          <p className="text-sm font-semibold text-slate-700">{q3}</p>
+                                        </div>
+                                        {!isThreeTerm && (
+                                          <div className="text-center min-w-[2.5rem]">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q4</p>
+                                            <p className="text-sm font-semibold text-slate-700">{q4}</p>
+                                          </div>
+                                        )}
+                                        <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-5">
+                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p>
+                                          <p className="text-base font-black text-[#D8232A]">{displayGrade}</p>
+                                        </div>
+                                        <div className="text-slate-400 group-open:rotate-180 transition-transform duration-200 ml-1">
+                                          <ChevronDown className="w-5 h-5" />
+                                        </div>
+                                      </div>
+                                    </summary>
                                     
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                      <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex justify-between items-center">
-                                        <div>
-                                          <p className="text-xs font-bold text-slate-700">Written Work</p>
-                                          <p className="text-[10px] font-medium text-slate-400">Weight: 30%</p>
+                                    {/* Expanded Content (Drill-Down) */}
+                                    <div className="px-5 py-5 border-t border-slate-100 bg-white space-y-4">
+                                      <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Grade Breakdown Components</h5>
+                                      
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex justify-between items-center">
+                                          <div>
+                                            <p className="text-xs font-bold text-slate-700">Written Work</p>
+                                            <p className="text-[10px] font-medium text-slate-400">Weight: 30%</p>
+                                          </div>
+                                          <p className="text-sm font-semibold text-indigo-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 5)) : '--'}/100</p>
                                         </div>
-                                        <p className="text-sm font-semibold text-indigo-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 5)) : '--'}/100</p>
-                                      </div>
-                                      <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/50 flex justify-between items-center">
-                                        <div>
-                                          <p className="text-xs font-bold text-slate-700">Performance Task</p>
-                                          <p className="text-[10px] font-medium text-slate-400">Weight: 50%</p>
+                                        <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/50 flex justify-between items-center">
+                                          <div>
+                                            <p className="text-xs font-bold text-slate-700">Performance Task</p>
+                                            <p className="text-[10px] font-medium text-slate-400">Weight: 50%</p>
+                                          </div>
+                                          <p className="text-sm font-semibold text-emerald-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : '--'}/100</p>
                                         </div>
-                                        <p className="text-sm font-semibold text-emerald-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : '--'}/100</p>
-                                      </div>
-                                      <div className="p-3 bg-rose-50/50 rounded-xl border border-rose-100/50 flex justify-between items-center">
-                                        <div>
-                                          <p className="text-xs font-bold text-slate-700">Term Exams</p>
-                                          <p className="text-[10px] font-medium text-slate-400">Weight: 20%</p>
+                                        <div className="p-3 bg-rose-50/50 rounded-xl border border-rose-100/50 flex justify-between items-center">
+                                          <div>
+                                            <p className="text-xs font-bold text-slate-700">Term Exams</p>
+                                            <p className="text-[10px] font-medium text-slate-400">Weight: 20%</p>
+                                          </div>
+                                          <p className="text-sm font-semibold text-rose-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 4)) : '--'}/100</p>
                                         </div>
-                                        <p className="text-sm font-semibold text-rose-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 4)) : '--'}/100</p>
                                       </div>
                                     </div>
-                                  </div>
-                                </details>
-                              );
-                            })}
+                                  </details>
+                                );
+                              });
+                            })()}
                           </div>
                         )}
                       </Card>

@@ -35,6 +35,10 @@ export function ReportLayout({ title, onClose, children, landscape = true }: Rep
       {/* Required style to hide background UI when printing and set layout */}
       <style dangerouslySetInnerHTML={{
         __html: `
+        @page {
+          size: ${landscape ? 'landscape' : 'portrait'};
+          margin: 5mm;
+        }
         @media print {
           body * {
             visibility: hidden;
@@ -53,10 +57,6 @@ export function ReportLayout({ title, onClose, children, landscape = true }: Rep
           }
           .print\\:hidden {
             display: none !important;
-          }
-          @page {
-            size: ${landscape ? 'landscape' : 'portrait'};
-            margin: 5mm;
           }
         }
       `}} />

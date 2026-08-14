@@ -10,6 +10,7 @@ import {
   doc, 
   serverTimestamp,
   getDoc,
+  getDocs,
   deleteDoc,
   setDoc
 } from 'firebase/firestore';
@@ -97,7 +98,7 @@ export interface TeacherContextType {
   assignedSubjectCodes: string[];
   updateAttendance: (studentId: string, date: string, status: 'Present' | 'Absent' | 'Late' | 'Unmarked') => Promise<void>;
   deleteAttendance: (studentId: string, date: string) => Promise<void>;
-  updateStudentStatus: (id: string, status: 'Enrolled' | 'Rejected') => Promise<void>;
+  updateStudentStatus: (id: string, status: 'Enrolled' | 'Rejected', targetSectionId?: string) => Promise<void>;
   updateStudentGrade: (id: string, subjectCode: string, quarter: string, grade: number | null) => Promise<void>;
   updateStudentObservedValue: (id: string, statementKey: string, quarter: string, value: string | null) => Promise<void>;
   updateStudentBmi: (id: string, height: string, weight: string) => Promise<void>;
@@ -453,18 +454,48 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateStudentStatus = async (id: string, status: 'Enrolled' | 'Rejected') => {
-    if (status === 'Enrolled' && currentSection) {
+  const updateStudentStatus = async (
+    id: string, 
+    status: 'Enrolled' | 'Rejected',
+    targetSectionId?: string
+  ) => {
+    if (status === 'Enrolled') {
+      const sId = targetSectionId || currentSection;
+      let sName = currentSectionName;
       const todayStr = new Date().toISOString().split('T')[0];
-      const adviserName = (userData?.firstName && userData?.lastName) 
+      let adviserName = (userData?.firstName && userData?.lastName) 
         ? `${userData.firstName} ${userData.lastName}` 
         : (userData?.fullName || 'Teacher');
         
+      if (sId !== currentSection) {
+        // Fetch target section's custom name & adviser info
+        try {
+          const secSnap = await getDoc(doc(db, 'sections', sId));
+          if (secSnap.exists()) {
+            sName = secSnap.data().name || secSnap.data().sectionName || '';
+          }
+          const assignSnap = await getDocs(
+            query(collection(db, 'assignments'), where('sectionId', '==', sId), where('isAdvisor', '==', true))
+          );
+          if (!assignSnap.empty) {
+            const tId = assignSnap.docs[0].data().teacherId;
+            const tSnap = await getDoc(doc(db, 'users', tId));
+            if (tSnap.exists()) {
+              adviserName = `${tSnap.data().firstName || ''} ${tSnap.data().lastName || ''}`.trim() || tSnap.data().fullName || '';
+            }
+          } else {
+            adviserName = '';
+          }
+        } catch (e) {
+          console.warn("Failed to retrieve target section details:", e);
+        }
+      }
+      
       await updateDoc(doc(db, 'enrollments', id), { 
         status, 
-        sectionId: currentSection,
-        section: currentSectionName,
-        adviser: adviserName,
+        sectionId: sId,
+        section: sName || '',
+        adviser: adviserName || '',
         enrollmentDate: todayStr 
       });
     } else {

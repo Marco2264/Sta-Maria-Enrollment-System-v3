@@ -170,22 +170,66 @@ export function ParentDashboardView({
   };
 
   // Helper for Student Subject Average
-  const getStudentAverage = (child: any): string => {
-    if (!child.grades) return 'N/A';
-    const gradesValues: number[] = [];
-    Object.values(child.grades).forEach((subjectGrades: any) => {
-      if (typeof subjectGrades === 'object' && subjectGrades !== null) {
-        Object.values(subjectGrades).forEach((g: any) => {
-          const num = parseFloat(g);
-          if (!isNaN(num)) gradesValues.push(num);
-        });
-      } else {
-        const num = parseFloat(subjectGrades);
-        if (!isNaN(num)) gradesValues.push(num);
+  const getStudentAverage = (c: any): string => {
+    if (!c.grades) return 'N/A';
+    const gLvl = c.gradeLevel || 'Grade 6';
+    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '') === `grade${gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '')}`);
+    if (!matchedKey) return 'N/A';
+    const studentGrades = c.grades[matchedKey];
+    if (!studentGrades || typeof studentGrades !== 'object') return 'N/A';
+
+    const subjectFinalGrades: number[] = [];
+    Object.entries(studentGrades).forEach(([subjCode, subjVal]: [string, any]) => {
+      if (!subjVal || typeof subjVal !== 'object') return;
+      
+      // 1. Direct override
+      if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
+        const parsed = parseFloat(subjVal.finalGradeOverride);
+        if (!isNaN(parsed)) {
+          subjectFinalGrades.push(parsed);
+          return;
+        }
+      }
+
+      // 2. Resolve term grades
+      const termAverages: number[] = [];
+      const isThreeTerm = ['4', '5', '6', 'grade 4', 'grade 5', 'grade 6'].includes(gLvl.toString().toLowerCase().replace(/grade/i, '').trim());
+      const terms = isThreeTerm ? ['Term 1', 'Term 2', 'Finals'] : ['Quarter 1', 'Quarter 2', 'Quarter 3', 'Quarter 4'];
+
+      terms.forEach(term => {
+        const directKeys = term === 'Term 1' || term === 'Quarter 1' ? ['t1', 'q1'] :
+                           term === 'Term 2' || term === 'Quarter 2' ? ['t2', 'q2'] :
+                           term === 'Term 3' || term === 'Quarter 3' ? ['t3', 'q3'] : ['q4'];
+        for (const key of directKeys) {
+          if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
+            const parsed = parseFloat(subjVal[key]);
+            if (!isNaN(parsed)) {
+              termAverages.push(parsed);
+              return;
+            }
+          }
+        }
+
+        const termData = subjVal[term];
+        if (termData && typeof termData === 'object') {
+          const values: number[] = [];
+          Object.values(termData).forEach((v: any) => {
+            const num = parseFloat(v);
+            if (!isNaN(num)) values.push(num);
+          });
+          if (values.length > 0) {
+            termAverages.push(values.reduce((a, b) => a + b, 0) / values.length);
+          }
+        }
+      });
+
+      if (termAverages.length > 0) {
+        subjectFinalGrades.push(termAverages.reduce((a, b) => a + b, 0) / termAverages.length);
       }
     });
-    if (gradesValues.length === 0) return 'N/A';
-    return (gradesValues.reduce((a, b) => a + b, 0) / gradesValues.length).toFixed(1);
+
+    if (subjectFinalGrades.length === 0) return 'N/A';
+    return (subjectFinalGrades.reduce((a, b) => a + b, 0) / subjectFinalGrades.length).toFixed(1);
   };
 
   // Helper for Academic Standing Badge

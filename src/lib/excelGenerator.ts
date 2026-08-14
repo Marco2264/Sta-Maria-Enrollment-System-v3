@@ -18,6 +18,51 @@ const removeStrikethrough = (worksheet: ExcelJS.Worksheet) => {
   });
 };
 
+const applyPrintPageSetup = (
+  worksheet: ExcelJS.Worksheet,
+  orientation: 'landscape' | 'portrait' = 'landscape',
+  fitToWidth: boolean = true
+) => {
+  let maxCol = 1;
+  let maxRow = 1;
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    maxRow = Math.max(maxRow, rowNumber);
+    row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+        maxCol = Math.max(maxCol, colNumber);
+      }
+    });
+  });
+
+  const getColLetter = (col: number): string => {
+    let letter = '';
+    while (col > 0) {
+      let temp = (col - 1) % 26;
+      letter = String.fromCharCode(65 + temp) + letter;
+      col = Math.floor((col - temp) / 26);
+    }
+    return letter;
+  };
+
+  const colLetter = getColLetter(maxCol);
+
+  worksheet.pageSetup = {
+    paperSize: 9, // A4
+    orientation: orientation,
+    fitToPage: fitToWidth,
+    ...(fitToWidth ? { fitToWidth: 1, fitToHeight: 0 } : {}),
+    printArea: `A1:${colLetter}${maxRow}`,
+    margins: {
+      left: 0.25,
+      right: 0.25,
+      top: 0.3,
+      bottom: 0.3,
+      header: 0.1,
+      footer: 0.1
+    }
+  };
+};
+
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
@@ -458,6 +503,9 @@ export async function generateSF5(
     }
 
     removeStrikethrough(worksheet);
+    workbook.worksheets.forEach((ws) => {
+      applyPrintPageSetup(ws, 'landscape');
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -665,6 +713,9 @@ export async function generateSF8(
     });
 
     removeStrikethrough(worksheet);
+    workbook.worksheets.forEach((ws) => {
+      applyPrintPageSetup(ws, 'landscape');
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -684,6 +735,10 @@ export async function generateSF9(
   subjects: TeacherSubject[] = [],
   gradeConfigurations: any[] = []
 ) {
+  const safeAttendance = attendance || [];
+  const safeSubjects = subjects || [];
+  const safeGradeConfigs = gradeConfigurations || [];
+
   try {
     let advisorId = '';
     try {
@@ -704,7 +759,7 @@ export async function generateSF9(
       console.warn('Failed to resolve advisorId for SF9 attendance:', err);
     }
 
-    let activeGradeConfigs = gradeConfigurations;
+    let activeGradeConfigs = safeGradeConfigs;
     if (!activeGradeConfigs || activeGradeConfigs.length === 0) {
       try {
         const gcSnap = await getDocs(collection(db, 'gradeConfigurations'));
@@ -885,7 +940,7 @@ export async function generateSF9(
     const buildSubjectsList = () => {
       const list: string[] = [];
       const gradeLevelClean = (dataGradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
-      const dbSubjects = (subjects || []).filter((sub) => {
+      const dbSubjects = safeSubjects.filter((sub) => {
         const sGrade = (sub.gradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
         return sGrade === gradeLevelClean;
       });
@@ -1307,7 +1362,7 @@ export async function generateSF9(
       // Monthly Attendance (Cols O to BF)
       const monthsList = ['July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March', 'April'];
       monthsList.forEach((month, mIdx) => {
-        const stats = getStudentMonthlyAttendanceStats(student.id, month, attendance);
+        const stats = getStudentMonthlyAttendanceStats(student.id, month, safeAttendance);
         row.getCell(15 + mIdx).value = stats.schoolDays;
         row.getCell(26 + mIdx).value = stats.presentDays;
         row.getCell(37 + mIdx).value = stats.absentDays;
@@ -1346,9 +1401,9 @@ export async function generateSF9(
           row.getCell(sColIdx + 3).value = { formula: `=IF(COUNT(${t1AvgCol}${r}:${t3AvgCol}${r})>0, ROUND(AVERAGE(${t1AvgCol}${r}:${t3AvgCol}${r}), 0), "")` }; // FG
           row.getCell(sColIdx + 4).value = { formula: `=IF(${fgAvgCol}${r}="", "", IF(${fgAvgCol}${r}>=75, "Passed", "Failed"))` }; // Remarks
         } else {
-          const t1 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '1st Term', subjects) : getGradeVal(student, subjectName, '1st Term', subjects);
-          const t2 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '2nd Term', subjects) : getGradeVal(student, subjectName, '2nd Term', subjects);
-          const t3 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '3rd Term', subjects) : getGradeVal(student, subjectName, '3rd Term', subjects);
+          const t1 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '1st Term', safeSubjects) : getGradeVal(student, subjectName, '1st Term', safeSubjects);
+          const t2 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '2nd Term', safeSubjects) : getGradeVal(student, subjectName, '2nd Term', safeSubjects);
+          const t3 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '3rd Term', safeSubjects) : getGradeVal(student, subjectName, '3rd Term', safeSubjects);
 
           row.getCell(sColIdx).value = t1;
           row.getCell(sColIdx + 1).value = t2;
@@ -1453,6 +1508,10 @@ export async function generateSF9(
           workbook.removeWorksheet(sheet.id);
         }
       }
+    });
+
+    workbook.worksheets.forEach((ws) => {
+      applyPrintPageSetup(ws, 'landscape', false);
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1769,6 +1828,9 @@ export async function generateSF2(data: any) {
 
     // Fix stale value bug for WPS Office/Excel compatibility
     removeStrikethrough(worksheet);
+    workbook.worksheets.forEach((ws) => {
+      applyPrintPageSetup(ws, 'landscape');
+    });
 
     // Save & Trigger Download
     const buffer = await workbook.xlsx.writeBuffer();
@@ -2114,6 +2176,10 @@ export async function generateAdminSF1(data: SF1Data) {
       }
     }
 
+    workbook.worksheets.forEach((ws) => {
+      applyPrintPageSetup(ws, 'landscape');
+    });
+
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, `SF1_${data.gradeLevel}_${data.section}_${data.schoolYear}.xlsx`);
@@ -2226,6 +2292,10 @@ export async function generateAdminSF4(data: SF4Data, principalName?: string) {
       horizontal: 'center',
       vertical: 'middle'
     };
+
+    workbook.worksheets.forEach((ws) => {
+      applyPrintPageSetup(ws, 'landscape');
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -2411,6 +2481,9 @@ export async function generateAdminSF8(data: {
     }
 
     removeStrikethrough(worksheet);
+    workbook.worksheets.forEach((ws) => {
+      applyPrintPageSetup(ws, 'landscape');
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
