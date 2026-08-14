@@ -123,13 +123,14 @@ function TeacherDashboardContent() {
     return (
       <div className="flex flex-col h-full bg-white font-sans overflow-hidden">
         {/* Brand Header */}
-        <div className="h-[72px] border-b border-slate-200 flex items-center px-4 shrink-0 overflow-hidden relative">
+        <div className="h-[72px] border-b border-slate-200 flex items-center pl-[18px] pr-4 shrink-0 overflow-hidden relative">
           <div className="p-1.5 bg-primary/5 rounded-xl border border-primary/10 shadow-sm shrink-0 transition-all duration-200">
             <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
           </div>
 
-          <div className={`ml-3 flex flex-col text-left overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-36 opacity-100'}`}>
-            <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none">Sta. Maria</span>
+          <div className={`flex flex-col text-left overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'max-w-0 ml-0' : 'max-w-[200px] ml-3'}`}>
+            <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none mb-1.5">Sta. Maria</span>
+            <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-[#D8232A]/10 text-[#D8232A] rounded-md w-max">Teacher Portal</span>
           </div>
         </div>
         {/* Nav Menu Items */}
@@ -139,17 +140,17 @@ function TeacherDashboardContent() {
             <div className={`mb-2 ${collapsed ? 'px-1' : ''}`}>
               <button
                 onClick={toggleSidebar}
-                className="w-full flex items-center px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer relative group rounded-xl border border-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-200"
                 title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+                className="w-full flex items-center transition-all duration-300 cursor-pointer rounded-xl border border-transparent hover:bg-slate-100 text-slate-500 group px-[18px] py-2.5"
               >
                 <div className="w-5 h-5 flex items-center justify-center shrink-0">
                   {collapsed ? <PanelLeftOpen className="w-4.5 h-4.5" /> : <PanelLeftClose className="w-4.5 h-4.5" />}
                 </div>
-                {!collapsed && (
-                  <span className="ml-3.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 group-hover:text-slate-600">
+                <div className={`flex items-center overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'max-w-0 ml-0' : 'max-w-[200px] ml-3.5'}`}>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 group-hover:text-slate-600">
                     Collapse
                   </span>
-                )}
+                </div>
                 {collapsed && (
                   <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap shadow-xl">
                     Expand Sidebar
@@ -172,9 +173,7 @@ function TeacherDashboardContent() {
                     <button
                       key={item.id}
                       onClick={() => { setActiveView(item.id); setMobileOpen(false); }}
-                      className={`w-full flex items-center transition-all duration-200 cursor-pointer relative group rounded-xl border ${
-                        collapsed ? 'justify-center p-2.5' : 'px-3 py-2'
-                      } text-sm ${
+                      className={`w-full flex items-center transition-all duration-300 cursor-pointer relative group rounded-xl border px-[18px] py-2.5 text-sm ${
                         isActive 
                           ? 'bg-[#D32F2F]/10 text-[#D32F2F] border-[#D32F2F] font-bold shadow-xs' 
                           : 'border-transparent text-slate-600 hover:bg-[#D32F2F]/5 hover:text-[#D32F2F] hover:border-[#D32F2F]/40 font-medium'
@@ -183,7 +182,7 @@ function TeacherDashboardContent() {
                       <div className="w-5 h-5 flex items-center justify-center shrink-0">
                         <item.icon className={`w-4.5 h-4.5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-[#D32F2F]' : 'text-slate-400 group-hover:text-[#D32F2F]'}`} />
                       </div>
-                      <div className={`${collapsed ? 'hidden' : 'ml-3.5'} flex-1 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out w-auto opacity-100`}>
+                      <div className={`flex-1 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'max-w-0 ml-0' : 'max-w-[200px] ml-3.5'}`}>
                         <span className="truncate">{item.label}</span>
                         {item.badge && (
                           <Badge className="bg-rose-50 text-[#D32F2F] border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 ml-2">
@@ -233,11 +232,15 @@ function TeacherDashboardContent() {
             </div>
           )}
           <div 
-            className="w-full flex items-center px-2.5 py-2 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl cursor-pointer transition-all active:scale-98 relative group overflow-hidden"
+            className="w-full flex items-center pl-[10px] pr-2.5 py-2 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-2xl cursor-pointer transition-all active:scale-98 relative group overflow-hidden"
             onClick={() => setShowUserMenu(!showUserMenu)}
           >
-            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-inner">{initials}</div>
-            <div className={`ml-2.5 flex-1 min-w-0 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+            {uData?.photoURL ? (
+              <img src={uData.photoURL} alt="Profile" className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200 shadow-inner" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-inner">{initials}</div>
+            )}
+            <div className={`flex-1 min-w-0 flex items-center justify-between overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'max-w-0 ml-0' : 'max-w-[200px] ml-2.5'}`}>
               <div className="flex flex-col text-left overflow-hidden min-w-0">
                 <p className="text-xs font-black truncate text-slate-800 leading-tight" title={fullName}>{fullName}</p>
                 <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 truncate mt-0.5">{userRole}</p>
