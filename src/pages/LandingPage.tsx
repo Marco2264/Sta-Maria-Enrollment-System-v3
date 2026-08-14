@@ -438,7 +438,7 @@ export function LandingPage() {
                       <span className="w-2 h-2 rounded-full bg-[#D8232A] animate-pulse shadow-[0_0_8px_#D8232A]" />
                       <span>ALIVIO - STA MARIA CENTRAL SCHOOL SYSTEM</span>
                     </div>
-                    <h1 className="landing-reveal lp-stagger-1 text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.05] mb-6 text-slate-900">
+                    <h1 className="landing-reveal lp-stagger-1 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.05] mb-6 text-slate-900">
                       <span className="block">Your School,</span>
                       <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#D8232A] to-red-500">In Your Hands.</span>
                     </h1>
