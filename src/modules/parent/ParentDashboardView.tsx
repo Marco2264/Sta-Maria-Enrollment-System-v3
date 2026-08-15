@@ -27,7 +27,8 @@ import {
   Lock,
   UserCheck,
   Bell,
-  Info
+  Info,
+  Pin
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
@@ -44,6 +45,7 @@ interface AnnouncementItem {
   author: string;
   date: string;
   content: string;
+  isPinned?: boolean;
 }
 
 const DEFAULT_ANNOUNCEMENTS: AnnouncementItem[] = [
@@ -125,8 +127,14 @@ export function ParentDashboardView({
                 title: data.title || 'School Announcement',
                 author: data.author || 'School Administration',
                 date: formatDate(data.date || data.createdAt || 'Recent'),
-                content: data.content || ''
+                content: data.content || '',
+                isPinned: !!data.isPinned
               };
+            })
+            .sort((a, b) => {
+              if (a.isPinned && !b.isPinned) return -1;
+              if (!a.isPinned && b.isPinned) return 1;
+              return 0;
             });
           setAnnouncements(list);
         }
@@ -744,9 +752,16 @@ export function ParentDashboardView({
               {/* Scrollable Announcements List (Only 3 displayed by default) */}
               <div className="max-h-[280px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                 {announcements.slice(0, 3).map((ann) => (
-                  <div key={ann.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-1 transition-colors">
+                  <div key={ann.id} className={`p-3.5 ${ann.isPinned ? 'bg-amber-50/40 border-amber-200/70 hover:bg-amber-50/60' : 'bg-slate-50/70 hover:bg-slate-50 border-slate-100'} rounded-2xl border space-y-1 transition-colors relative`}>
                     <div className="flex items-center justify-between text-[10px] font-bold">
-                      <span className="text-[#D8232A] uppercase tracking-wider">{ann.category}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[#D8232A] uppercase tracking-wider">{ann.category}</span>
+                        {ann.isPinned && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-900 border border-amber-200/80">
+                            <Pin className="w-2.5 h-2.5 fill-amber-600 text-amber-700" /> Pinned
+                          </span>
+                        )}
+                      </div>
                       <span className="text-slate-400">{ann.date}</span>
                     </div>
                     <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{ann.title}</h4>

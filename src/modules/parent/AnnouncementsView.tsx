@@ -21,7 +21,8 @@ import {
   Bell,
   CheckCheck,
   MoreHorizontal,
-  User
+  User,
+  Pin
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { db } from '../../lib/firebase';
@@ -347,8 +348,18 @@ export function AnnouncementsView() {
               return (
                 <div
                   key={item.id}
-                  className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 space-y-4 flex flex-col justify-between"
+                  className={`bg-white rounded-2xl ${item.isPinned ? 'border-amber-200 shadow-[0_4px_20px_rgba(245,158,11,0.08)]' : 'border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]'} border p-6 hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 space-y-4 flex flex-col justify-between overflow-hidden relative`}
                 >
+                  {/* Pinned Notice Ribbon */}
+                  {item.isPinned && (
+                    <div className="bg-gradient-to-r from-amber-500/15 via-amber-400/5 to-transparent px-4 py-1.5 border-b border-amber-200/60 flex items-center justify-between -mx-6 -mt-6 mb-2">
+                      <div className="flex items-center gap-1.5 text-amber-800 text-[10px] font-black tracking-wider uppercase">
+                        <Pin className="w-3 h-3 text-amber-600 fill-amber-500" />
+                        <span>Pinned Notice</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-3">
                     {/* Top Row: Icon, Category & Time, Options */}
                     <div className="flex items-center justify-between">
@@ -435,10 +446,15 @@ export function AnnouncementsView() {
               {/* Modal Header */}
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-red-50 text-[#D8232A] border border-red-100">
                       {selectedAnnouncement.category}
                     </span>
+                    {selectedAnnouncement.isPinned && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/60">
+                        <Pin className="w-3 h-3 fill-amber-500 text-amber-600" /> Pinned Notice
+                      </span>
+                    )}
                     <span className="text-[11px] font-semibold text-slate-400">
                       {selectedAnnouncement.date} • {selectedAnnouncement.time}
                     </span>
