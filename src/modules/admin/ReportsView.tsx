@@ -28,6 +28,7 @@ import { SF2ReportDocument } from './SF2ReportDocument';
 import { SF4ReportDocument } from './SF4ReportDocument';
 import { SF8ReportDocument } from './SF8ReportDocument';
 import { SF5ReportDocument } from './SF5ReportDocument';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 export function ReportsView() {
   const { schoolYear, classrooms, sections, assignments, users } = useAdminData();
@@ -47,6 +48,13 @@ export function ReportsView() {
     });
   }, [sections]);
   const { role: currentUserRole, userData } = useAuth();
+  const [schoolName, setSchoolName] = React.useState('Sta. Maria Elementary School');
+
+  React.useEffect(() => {
+    getGlobalSettings().then(settings => {
+      if (settings.schoolName) setSchoolName(settings.schoolName);
+    }).catch(console.error);
+  }, []);
   
   const isSubAdmin = normalizeRole(currentUserRole) === 'subadmin';
   const assignedGrade = isSubAdmin ? (userData?.assignedGrade as string | undefined) : undefined;
@@ -771,7 +779,7 @@ export function ReportsView() {
       {idCardData && (
         <StudentIdCardDocument
           data={idCardData}
-          schoolName="Sta. Maria Elementary School"
+          schoolName={schoolName}
           onClose={() => setIdCardData(null)}
         />
       )}

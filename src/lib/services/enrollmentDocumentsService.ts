@@ -77,6 +77,11 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   });
 }
 
+export async function deleteFromCloudinary(_urlOrPublicId: string): Promise<boolean> {
+  // Client-side Cloudinary delete fallback placeholder
+  return true;
+}
+
 export async function addEnrollmentDocumentRecord(params: {
   enrollmentId: string;
   parentId: string;

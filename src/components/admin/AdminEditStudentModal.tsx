@@ -32,6 +32,15 @@ export function AdminEditStudentModal({ student, isOpen, onClose }: AdminEditStu
         gradeLevel: student.gradeLevel ? student.gradeLevel.toString() : '',
         status: student.status || 'Pending',
         sectionId: student.sectionId || 'unassigned',
+        // Transferred / Dropped Info
+        transferredOutSchoolName: student.transferredOutSchoolName || '',
+        transferredOutSchoolType: student.transferredOutSchoolType || 'Public',
+        transferredOutDate: student.transferredOutDate || '',
+        transferredInSchoolName: student.transferredInSchoolName || '',
+        transferredInSchoolType: student.transferredInSchoolType || 'Public',
+        transferredInDate: student.transferredInDate || '',
+        droppedReason: student.droppedReason || '',
+        droppedDate: student.droppedDate || '',
         // Address
         addressStreet: student.address?.street || '',
         addressBarangay: student.address?.barangay || '',
@@ -65,6 +74,14 @@ export function AdminEditStudentModal({ student, isOpen, onClose }: AdminEditStu
         gradeLevel: formData.gradeLevel,
         status: formData.status,
         sectionId: formData.sectionId === 'unassigned' ? '' : formData.sectionId,
+        transferredOutSchoolName: formData.transferredOutSchoolName || '',
+        transferredOutSchoolType: formData.transferredOutSchoolType || '',
+        transferredOutDate: formData.transferredOutDate || '',
+        transferredInSchoolName: formData.transferredInSchoolName || '',
+        transferredInSchoolType: formData.transferredInSchoolType || '',
+        transferredInDate: formData.transferredInDate || '',
+        droppedReason: formData.droppedReason || '',
+        droppedDate: formData.droppedDate || '',
         'address.street': formData.addressStreet,
         'address.barangay': formData.addressBarangay,
         'address.city': formData.addressCity,
@@ -176,12 +193,72 @@ export function AdminEditStudentModal({ student, isOpen, onClose }: AdminEditStu
                   <SelectContent>
                     <SelectItem value="Pending">Pending</SelectItem>
                     <SelectItem value="Enrolled">Enrolled</SelectItem>
+                    <SelectItem value="Transferred Out">Transferred Out (T/O)</SelectItem>
+                    <SelectItem value="Transferred In">Transferred In (T/I)</SelectItem>
+                    <SelectItem value="Dropped">Dropped (DRP)</SelectItem>
                     <SelectItem value="Rejected">Rejected</SelectItem>
-                    <SelectItem value="Dropped">Dropped</SelectItem>
-                    <SelectItem value="Transferred">Transferred</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {(formData.status === 'Transferred Out' || formData.status === 'Transferred') && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 col-span-full">
+                  <div className="space-y-2">
+                    <Label className="text-indigo-900 font-semibold text-xs">School Transferred To (Public/Private)</Label>
+                    <Input placeholder="e.g. Ateneo de Zamboanga" value={formData.transferredOutSchoolName} onChange={e => setFormData({...formData, transferredOutSchoolName: e.target.value})} className="bg-white" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-indigo-900 font-semibold text-xs">School Type</Label>
+                    <Select value={formData.transferredOutSchoolType} onValueChange={v => setFormData({...formData, transferredOutSchoolType: v})}>
+                      <SelectTrigger className="bg-white"><SelectValue placeholder="School Type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Public">Public (P)</SelectItem>
+                        <SelectItem value="Private">Private (PR)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-indigo-900 font-semibold text-xs">Effectivity Date</Label>
+                    <Input type="date" value={formData.transferredOutDate} onChange={e => setFormData({...formData, transferredOutDate: e.target.value})} className="bg-white" />
+                  </div>
+                </div>
+              )}
+
+              {formData.status === 'Transferred In' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50/60 rounded-xl border border-blue-100 col-span-full">
+                  <div className="space-y-2">
+                    <Label className="text-blue-900 font-semibold text-xs">School Transferred From (Public/Private)</Label>
+                    <Input placeholder="e.g. Tetuan Elementary School" value={formData.transferredInSchoolName} onChange={e => setFormData({...formData, transferredInSchoolName: e.target.value})} className="bg-white" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-blue-900 font-semibold text-xs">School Type</Label>
+                    <Select value={formData.transferredInSchoolType} onValueChange={v => setFormData({...formData, transferredInSchoolType: v})}>
+                      <SelectTrigger className="bg-white"><SelectValue placeholder="School Type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Public">Public (P)</SelectItem>
+                        <SelectItem value="Private">Private (PR)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-blue-900 font-semibold text-xs">Effectivity Date</Label>
+                    <Input type="date" value={formData.transferredInDate} onChange={e => setFormData({...formData, transferredInDate: e.target.value})} className="bg-white" />
+                  </div>
+                </div>
+              )}
+
+              {formData.status === 'Dropped' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-rose-50/60 rounded-xl border border-rose-100 col-span-full">
+                  <div className="space-y-2">
+                    <Label className="text-rose-900 font-semibold text-xs">Reason for Dropping</Label>
+                    <Input placeholder="e.g. Moved residence / Family matter / Health" value={formData.droppedReason} onChange={e => setFormData({...formData, droppedReason: e.target.value})} className="bg-white" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-rose-900 font-semibold text-xs">Effectivity Date</Label>
+                    <Input type="date" value={formData.droppedDate} onChange={e => setFormData({...formData, droppedDate: e.target.value})} className="bg-white" />
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Section Assignment</Label>
                 <Select value={formData.sectionId} onValueChange={v => setFormData({...formData, sectionId: v})}>

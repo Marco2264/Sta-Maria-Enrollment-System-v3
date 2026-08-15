@@ -269,6 +269,16 @@ export function StudentsView() {
       }
     });
 
+    if (s.status === 'Transferred Out' || s.status === 'Transferred') {
+      return 'Transferred Out (T/O)';
+    }
+    if (s.status === 'Transferred In') {
+      return 'Transferred In (T/I)';
+    }
+    if (s.status === 'Dropped') {
+      return 'Dropped (DRP)';
+    }
+
     if (!allSubjectsAndTermsCompleted || finalGrades.length === 0) {
       return 'Enrolled';
     }
@@ -330,7 +340,7 @@ export function StudentsView() {
     return students
       .filter((s) => {
         const st = (s.status as string) || '';
-        if (st !== 'Enrolled' && st !== 'enrolled' && st !== 'PROMOTED' && st !== 'RETAINED' && st !== 'IRREGULAR') return false;
+        if (st === 'Pending' || st === 'Rejected') return false;
         if ((s as any).isManualHistory === true) return false;
         
         // Search filter
@@ -671,6 +681,9 @@ export function StudentsView() {
                               status === 'Promoted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                               status === 'Retained' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                               status === 'Conditional' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              status === 'Transferred Out (T/O)' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                              status === 'Transferred In (T/I)' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              status === 'Dropped (DRP)' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                               'bg-blue-50 text-blue-700 border-blue-200'
                             }`}>
                               {status}

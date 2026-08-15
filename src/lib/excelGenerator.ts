@@ -1,9 +1,10 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Student, AttendanceEntry, TeacherSubject } from './teacherData';
-import type { SF1Data, SF4Data } from './services/reportDataService';
+import { buildSF1Remarks, type SF1Data, type SF4Data } from './services/reportDataService';
 import type { HealthData } from './services/healthAnalyticsService';
 import { HealthAnalyticsService } from './services/healthAnalyticsService';
+import { getSchoolHeadName, getGlobalSettings } from './services/settingsService';
 
 // Helper function to fix the Excel stale value strikethrough bug (WPS Compatibility)
 const removeStrikethrough = (worksheet: ExcelJS.Worksheet) => {
@@ -13,6 +14,41 @@ const removeStrikethrough = (worksheet: ExcelJS.Worksheet) => {
         const newFont = { ...cell.font };
         delete newFont.strike; // Completely remove it for WPS Office
         cell.font = newFont;
+      }
+    });
+  });
+};
+
+const formatDateStr = (str?: string) => {
+  if (!str) return '';
+  const d = new Date(str.includes('T') ? str : `${str}T00:00:00`);
+  if (isNaN(d.getTime())) return str;
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
+};
+
+const populateBoSYEoSYDates = (worksheet: ExcelJS.Worksheet, bosyDate: string, eosyDate: string) => {
+  if (!bosyDate && !eosyDate) return;
+  worksheet.eachRow({ includeEmpty: true }, (row) => {
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      if (cell.value && typeof cell.value === 'string') {
+        let val = cell.value;
+        if (bosyDate && (val.includes('BoSY Date:') || val.includes('BoSY Date'))) {
+          if (!val.includes(bosyDate)) {
+            val = val.replace(/BoSY Date:\s*/gi, `BoSY Date: ${bosyDate}`);
+            val = val.replace(/BoSY Date\s*$/gi, `BoSY Date: ${bosyDate}`);
+            cell.value = val;
+          }
+        }
+        if (eosyDate && (val.includes('EoSY Date:') || val.includes('EoSY Date'))) {
+          if (!val.includes(eosyDate)) {
+            val = val.replace(/EoSY Date:\s*/gi, `EoSY Date: ${eosyDate}`);
+            val = val.replace(/EoSY Date\s*$/gi, `EoSY Date: ${eosyDate}`);
+            cell.value = val;
+          }
+        }
       }
     });
   });
@@ -101,6 +137,10 @@ export async function generateSF5(
     const normalizedGradeLevel = gradeLevel.toLowerCase().replace(/grade\s*/g, '').trim();
 
     let finalAdvisorName = advisorName;
+    let finalPrincipalName = principalName;
+    if (!finalPrincipalName) {
+      finalPrincipalName = await getSchoolHeadName().catch(() => 'MRS. LEPIDAPTERA VILLANUEVA');
+    }
     if (!finalAdvisorName && students.length > 0) {
       const secId = (students[0] as any).sectionId;
       if (secId) {
@@ -177,17 +217,19 @@ export async function generateSF5(
       }
     };
 
+    const settings = await getGlobalSettings().catch(() => null);
+
     // Row 3
     setHeaderLabel('B3', 'Region');
-    setHeaderBox('C3', 'C3:E3', 'REGION IX');
+    setHeaderBox('C3', 'C3:E3', settings ? `REGION ${settings.region}` : 'REGION IX');
     setHeaderLabel('F3', 'Division');
-    setHeaderBox('G3', 'G3:H3', 'ZAMBOANGA');
+    setHeaderBox('G3', 'G3:H3', settings ? settings.division.toUpperCase() : 'ZAMBOANGA');
     setHeaderLabel('I3', 'District');
-    setHeaderBox('J3', 'J3:L3', 'STA. MARIA CENTRAL', 'center', 10);
+    setHeaderBox('J3', 'J3:L3', settings ? settings.district.toUpperCase() : 'STA. MARIA CENTRAL', 'center', 10);
 
     // Row 5
     setHeaderLabel('B5', 'School ID');
-    setHeaderBox('C5', 'C5:E5', '199006');
+    setHeaderBox('C5', 'C5:E5', settings?.schoolId || '199006');
     setHeaderLabel('F5', 'School Year');
     setHeaderBox('G5', 'G5:H5', academicYear);
     setHeaderLabel('I5', 'Curriculum');
@@ -195,7 +237,7 @@ export async function generateSF5(
 
     // Row 7
     setHeaderLabel('B7', 'School Name');
-    setHeaderBox('C7', 'C7:E7', 'STA. MARIA CS SPED CENTER');
+    setHeaderBox('C7', 'C7:E7', settings ? settings.schoolName.toUpperCase() : 'STA. MARIA CS SPED CENTER');
     setHeaderLabel('F7', 'Grade Level');
     setHeaderBox('G7', 'G7:H7', gradeLevel.replace(/grade\s*/i, '').trim());
     setHeaderLabel('I7', 'Section');
@@ -474,32 +516,90 @@ export async function generateSF5(
     setTallyCell('N32', tally.outstanding.F);
     setTallyCell('O32', tally.outstanding.M + tally.outstanding.F);
 
+    // Helper to format and center-align a signature block over columns L to P
+    const alignSignatureBlock = (labelRowIndex: number, nameText: string) => {
+      const nameRowIndex = labelRowIndex - 1;
+      const subtitleRowIndex = labelRowIndex + 1;
+
+      // 1. Name Row (L:P)
+      try { worksheet.unMergeCells(`L${nameRowIndex}:P${nameRowIndex}`); } catch (e) { }
+      try { worksheet.mergeCells(`L${nameRowIndex}:P${nameRowIndex}`); } catch (e) { }
+      const nameCell = worksheet.getCell(`L${nameRowIndex}`);
+      nameCell.value = nameText.toUpperCase();
+      nameCell.font = { name: ARIAL_NARROW, size: 12, bold: true };
+      nameCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // 2. Label Row (L:P) e.g. "Class Adviser" or "School Head"
+      try { worksheet.unMergeCells(`L${labelRowIndex}:P${labelRowIndex}`); } catch (e) { }
+      try { worksheet.mergeCells(`L${labelRowIndex}:P${labelRowIndex}`); } catch (e) { }
+      const labelCell = worksheet.getCell(`L${labelRowIndex}`);
+      labelCell.font = { name: ARIAL_NARROW, size: 10, bold: false };
+      labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // 3. Subtitle Row (L:P) e.g. "(Name and Signature)"
+      try { worksheet.unMergeCells(`L${subtitleRowIndex}:P${subtitleRowIndex}`); } catch (e) { }
+      try { worksheet.mergeCells(`L${subtitleRowIndex}:P${subtitleRowIndex}`); } catch (e) { }
+      const subCell = worksheet.getCell(`L${subtitleRowIndex}`);
+      subCell.font = { name: ARIAL_NARROW, size: 9, bold: false, italic: false };
+      subCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      subCell.border = {};
+    };
+
     // Adviser signature
     if (finalAdvisorName) {
       let found = false;
       for (let r = 35; r <= Math.min(worksheet.rowCount, 65); r++) {
         const row = worksheet.getRow(r);
-        row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        row.eachCell({ includeEmpty: false }, (cell) => {
           const val = cell.value;
           if (!found && val && typeof val === 'string' && val.toLowerCase().includes('adviser')) {
-            const rowNum = r - 1;
-            try { worksheet.unMergeCells(`L${rowNum}:P${rowNum}`); } catch (e) { }
-            try { worksheet.mergeCells(`L${rowNum}:P${rowNum}`); } catch (e) { }
-            const sigCell = worksheet.getCell(`L${rowNum}`);
-            sigCell.value = finalAdvisorName.toUpperCase();
-            styleCell(sigCell, { size: 16, bold: true, align: 'center' });
+            alignSignatureBlock(r, finalAdvisorName);
             found = true;
           }
         });
         if (found) break;
       }
       if (!found) {
-        try { worksheet.unMergeCells('L36:P36'); } catch (e) { }
-        try { worksheet.mergeCells('L36:P36'); } catch (e) { }
-        const sigCell = worksheet.getCell('L36');
-        sigCell.value = finalAdvisorName.toUpperCase();
-        styleCell(sigCell, { size: 16, bold: true, align: 'center' });
+        alignSignatureBlock(37, finalAdvisorName);
       }
+    }
+
+    // School Head / Principal signature
+    const headName = (finalPrincipalName || await getSchoolHeadName().catch(() => 'MRS. LEPIDAPTERA VILLANUEVA')).toUpperCase();
+    if (headName) {
+      let headFound = false;
+      for (let r = 40; r <= Math.min(worksheet.rowCount, 65); r++) {
+        const row = worksheet.getRow(r);
+        row.eachCell({ includeEmpty: false }, (cell) => {
+          const val = cell.value;
+          if (!headFound && val && typeof val === 'string') {
+            const lower = val.toLowerCase().trim();
+            if (lower.includes('school head') || lower.includes('principal') || lower === 'school head / representative') {
+              alignSignatureBlock(r, headName);
+              headFound = true;
+            }
+          }
+        });
+        if (headFound) break;
+      }
+      if (!headFound) {
+        alignSignatureBlock(58, headName);
+      }
+    }
+
+    // Ensure all "(Name and Signature)" or "(Signature)" subtitle labels are unbolded, small font, and have no border box
+    for (let r = 30; r <= Math.min(worksheet.rowCount, 65); r++) {
+      const row = worksheet.getRow(r);
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        if (cell.value && typeof cell.value === 'string') {
+          const valStr = cell.value.toString().toLowerCase();
+          if (valStr.includes('signature') || valStr.includes('name and signature')) {
+            cell.font = { name: ARIAL_NARROW, size: 9, bold: false, italic: false };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = {};
+          }
+        }
+      });
     }
 
     removeStrikethrough(worksheet);
@@ -740,10 +840,17 @@ export async function generateSF9(
   const safeGradeConfigs = gradeConfigurations || [];
 
   try {
+    // 1. Fetch Global Settings & Advisor Name
+    const settings = await getGlobalSettings().catch(() => null);
+    const principalName = (settings && settings.principalName)
+      ? settings.principalName
+      : await getSchoolHeadName().catch(() => 'MRS. LEPIDAPTERA VILLANUEVA');
+
+    let adviserName = 'Assigned Adviser';
     let advisorId = '';
-    try {
-      const firstStudent = students[0];
-      if (firstStudent && firstStudent.sectionId) {
+    const firstStudent = students[0];
+    if (firstStudent && firstStudent.sectionId) {
+      try {
         const assignSnap = await getDocs(
           query(
             collection(db, 'assignments'),
@@ -752,11 +859,19 @@ export async function generateSF9(
           )
         );
         if (!assignSnap.empty) {
-          advisorId = assignSnap.docs[0].data().teacherId || '';
+          const tId = assignSnap.docs[0].data().teacherId;
+          advisorId = tId || '';
+          if (tId) {
+            const uSnap = await getDocs(query(collection(db, 'users'), where('__name__', '==', tId)));
+            if (!uSnap.empty) {
+              const uData = uSnap.docs[0].data();
+              adviserName = `${uData.firstName || ''} ${uData.lastName || ''}`.trim() || 'Assigned Adviser';
+            }
+          }
         }
+      } catch (err) {
+        console.warn('Failed to resolve advisor for SF9:', err);
       }
-    } catch (err) {
-      console.warn('Failed to resolve advisorId for SF9 attendance:', err);
     }
 
     let activeGradeConfigs = safeGradeConfigs;
@@ -770,306 +885,36 @@ export async function generateSF9(
       }
     }
 
-    const response = await fetch('/templates/SF9.xlsx');
-    const arrayBuffer = await response.arrayBuffer();
+    const schoolInfo = {
+      schoolId: settings?.schoolId || '199006',
+      region: settings ? settings.region : 'IX',
+      division: settings ? settings.division.toUpperCase() : 'ZAMBOANGA',
+      district: settings ? settings.district.toUpperCase() : 'STA. MARIA CENTRAL',
+      schoolName: settings ? settings.schoolName.toUpperCase() : 'STA. MARIA CS SPED CENTER'
+    };
+
+    // Sort students alphabetically
+    const sortedStudents = [...students].sort((a, b) => {
+      const aName = `${a.lastName || ''}, ${a.firstName || ''}`.toLowerCase();
+      const bName = `${b.lastName || ''}, ${b.firstName || ''}`.toLowerCase();
+      return aName.localeCompare(bName);
+    });
+
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(arrayBuffer);
 
-    const worksheet = workbook.getWorksheet('DATA SF9');
-    if (!worksheet) {
-      throw new Error('Worksheet DATA SF9 not found in template SF9.xlsx');
-    }
-
-    const firstStudent = students[0];
-    const dataGradeLevel = firstStudent?.gradeLevel || 'Grade 6';
-
-    // Unhide all subject columns between BG (59) and DS (123)
-    for (let c = 59; c <= 123; c++) {
-      worksheet.getColumn(c).hidden = false;
-    }
-
-    // Unhide all observed values columns between EC (133) and FD (160)
-    for (let c = 133; c <= 160; c++) {
-      worksheet.getColumn(c).hidden = false;
-    }
-
-    // Clear existing top merges (rows <= 3) before inserting/shifting rows
-    // Only clear columns BG onwards (>= 59) and row 1 to prevent clashing with our subject merges
-    const mergesToShift: any[] = [];
-    const allOriginalMerges: any[] = [];
-    const merges = (worksheet as any)._merges || {};
-    for (const key of Object.keys(merges)) {
-      const m = merges[key];
-      if (m && m.model) {
-        allOriginalMerges.push(m.model);
-        // Only keep merges for biography and attendance columns (1 to 58, i.e., columns < BG)
-        if (m.model.left < 59 && m.model.top > 1) {
-          mergesToShift.push({
-            top: m.model.top + 6,
-            left: m.model.left,
-            bottom: m.model.bottom + 6,
-            right: m.model.right
-          });
-        }
-      }
-    }
-
-    allOriginalMerges.forEach(m => {
-      try {
-        worksheet.unMergeCells(m.top, m.left, m.bottom, m.right);
-      } catch (err) {
-        // Ignore unmerge errors
-      }
-    });
-
-    // 1. Splice 6 blank rows at the top to make room for the School/DepEd heading
-    worksheet.spliceRows(1, 0, [], [], [], [], [], []);
-
-    // 2. Set Heading Information (Rows 1 to 7) and fetch logos
-    worksheet.getRow(1).height = 12;
-    worksheet.getRow(2).height = 24;
-    worksheet.getRow(3).height = 18;
-    worksheet.getRow(4).height = 12;
-    worksheet.getRow(5).height = 25;
-    worksheet.getRow(6).height = 10;
-    worksheet.getRow(7).height = 25;
-
-    // Set Title in row 2, subtitle in row 3
-    worksheet.mergeCells('C2:Z2');
-    const titleCell = worksheet.getCell('C2');
-    titleCell.value = "School Form 9 (SF9) Learner's Progress Report Card";
-    titleCell.font = { name: 'Segoe UI', size: 16, bold: true, color: { argb: 'FF000000' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-    worksheet.mergeCells('C3:Z3');
-    const subtitleCell = worksheet.getCell('C3');
-    subtitleCell.value = "(Official Learner's Progress Report Card)";
-    subtitleCell.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF555555' } };
-    subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-    // Fetch and add DepEd Seal and Logo to header
+    // Fetch images buffer once if possible
+    let logoBuffer: ArrayBuffer | null = null;
+    let sealBuffer: ArrayBuffer | null = null;
     try {
-      const sealResponse = await fetch('/deped_seal.png');
-      const sealBuffer = await sealResponse.arrayBuffer();
-      const sealImageId = workbook.addImage({
-        buffer: sealBuffer,
-        extension: 'png',
-      });
-      worksheet.addImage(sealImageId, {
-        tl: { col: 0, row: 1 }, // Row 2 (0-indexed 1), Column A (0)
-        ext: { width: 75, height: 75 }
-      });
-    } catch (e) {
-      console.warn('Failed to add seal to SF9:', e);
-    }
-
+      const r1 = await fetch('/deped_seal.png');
+      if (r1.ok) sealBuffer = await r1.arrayBuffer();
+    } catch (e) {}
     try {
-      const logoResponse = await fetch('/deped_logo.png');
-      const logoBuffer = await logoResponse.arrayBuffer();
-      const logoImageId = workbook.addImage({
-        buffer: logoBuffer,
-        extension: 'png',
-      });
-      worksheet.addImage(logoImageId, {
-        tl: { col: 26, row: 1 }, // Row 2 (0-indexed 1), Column AA (26)
-        ext: { width: 170, height: 70 }
-      });
-    } catch (e) {
-      console.warn('Failed to add logo to SF9:', e);
-    }
+      const r2 = await fetch('/kagawaran_ng_edukasyon.png');
+      if (r2.ok) logoBuffer = await r2.arrayBuffer();
+    } catch (e) {}
 
-    const drawLabel = (colIdx: number, rowIdx: number, val: string) => {
-      const cell = worksheet.getCell(rowIdx, colIdx);
-      cell.value = val;
-      cell.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FF000000' } };
-      cell.alignment = { horizontal: 'right', vertical: 'middle' };
-    };
-
-    const drawBox = (startCol: number, endCol: number, rowIdx: number, val: string) => {
-      worksheet.mergeCells(rowIdx, startCol, rowIdx, endCol);
-      const mainCell = worksheet.getCell(rowIdx, startCol);
-      mainCell.value = val;
-      mainCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF000000' } };
-      mainCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-      for (let col = startCol; col <= endCol; col++) {
-        const cell = worksheet.getCell(rowIdx, col);
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF000000' } },
-          left: { style: 'thin', color: { argb: 'FF000000' } },
-          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-          right: { style: 'thin', color: { argb: 'FF000000' } }
-        };
-      }
-    };
-
-    // Draw row 5 inputs
-    drawLabel(4, 5, "School ID");      // Column D
-    drawBox(5, 7, 5, "199006");        // Columns E to G
-    drawLabel(9, 5, "Region");         // Column I
-    drawBox(10, 10, 5, "REGION IX");   // Column J
-    drawLabel(12, 5, "Division");      // Column L
-    drawBox(13, 15, 5, "ZAMBOANGA");   // Columns M to O
-    drawLabel(17, 5, "District");      // Column Q
-    drawBox(18, 21, 5, "STA. MARIA CENTRAL"); // Columns R to U
-
-    // Draw row 7 inputs
-    drawLabel(2, 7, "School Name");    // Column B
-    drawBox(3, 9, 7, "STA. MARIA CS SPED CENTER"); // Columns C to I
-    drawLabel(11, 7, "School Year");   // Column K
-    drawBox(12, 14, 7, academicYear);  // Columns L to N
-    drawLabel(16, 7, "Grade & Section"); // Column P
-    drawBox(17, 21, 7, `${dataGradeLevel} - ${sectionName}`); // Columns Q to U
-
-    // Clear legacy template title that shifted to row 7
-    worksheet.getCell('A7').value = '';
-    worksheet.getCell('B7').value = '';
-    worksheet.getCell('C7').value = '';
-    worksheet.getCell('D7').value = '';
-
-    // Restore shifted merges for biography & attendance columns
-    mergesToShift.forEach(m => {
-      try {
-        worksheet.mergeCells(m.top, m.left, m.bottom, m.right);
-      } catch (err) {
-        // Ignore merge errors
-      }
-    });
-
-    // 3. Define the Elementary subjects in columns BG onwards
-    const buildSubjectsList = () => {
-      const list: string[] = [];
-      const gradeLevelClean = (dataGradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
-      const dbSubjects = safeSubjects.filter((sub) => {
-        const sGrade = (sub.gradeLevel || '').toLowerCase().replace(/grade\s*/g, '').trim();
-        return sGrade === gradeLevelClean;
-      });
-
-      if (dbSubjects.length === 0) {
-        return [
-          'Filipino',
-          'English',
-          'Mathematics',
-          'Science',
-          'Araling Panlipunan (AP)',
-          'Edukasyon sa Pagpapakatao (EsP)',
-          'EPP/TLE',
-          'MAPEH',
-          'Music',
-          'Arts',
-          'PE',
-          'Health',
-          'General Average'
-        ];
-      }
-
-      dbSubjects.forEach((sub) => {
-        const name = sub.name || '';
-        const lowerName = name.toLowerCase();
-
-        if (lowerName.includes('music') || lowerName.includes('arts') || lowerName.includes('art') || lowerName === 'pe' || lowerName.includes('physical education') || lowerName === 'health') {
-          return;
-        }
-
-        if (lowerName.includes('mapeh')) {
-          list.push('MAPEH');
-          list.push('Music');
-          list.push('Arts');
-          list.push('PE');
-          list.push('Health');
-        } else {
-          list.push(name);
-        }
-      });
-      list.push('General Average');
-      return list;
-    };
-
-    const subjectsList = buildSubjectsList();
-
-    let colIdx = 59; // Column BG (1-indexed)
-    subjectsList.forEach(subjectName => {
-      // Merge the 5 cells in Row 8 for this subject
-      worksheet.mergeCells(8, colIdx, 8, colIdx + 4);
-
-      const mainCell = worksheet.getCell(8, colIdx);
-      mainCell.value = subjectName;
-      colIdx += 5;
-    });
-
-    const finalColIdx = 59 + (subjectsList.length * 5);
-
-    // Apply header row colors, borders, and typography
-    const thinBorder = {
-      top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-      left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-      bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-      right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-    };
-    const bioHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-    const attHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
-    const subjHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } };
-
-    worksheet.getRow(8).height = 28;
-    worksheet.getRow(9).height = 22;
-
-    for (let col = 1; col < finalColIdx; col++) {
-      const cell8 = worksheet.getCell(8, col);
-      const cell9 = worksheet.getCell(9, col);
-
-      let fill = bioHeaderFill;
-      if (col >= 15 && col <= 58) {
-        fill = attHeaderFill as any;
-      } else if (col >= 59) {
-        fill = subjHeaderFill as any;
-      }
-
-      cell8.fill = fill as any;
-      cell9.fill = fill as any;
-
-      cell8.border = thinBorder as any;
-      cell9.border = thinBorder as any;
-
-      cell8.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FF334155' } };
-      cell9.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FF475569' } };
-
-      cell8.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      cell9.alignment = { horizontal: 'center', vertical: 'middle' };
-    }
-
-    // Write subheaders to row 9 for subject columns
-    let subColIdx = 59;
-    subjectsList.forEach(() => {
-      const subHeaders = ['T1', 'T2', 'T3', 'FG', 'Remarks'];
-      subHeaders.forEach((sh, offset) => {
-        const subCell = worksheet.getCell(9, subColIdx + offset);
-        subCell.value = sh;
-        subCell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FF475569' } };
-        subCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      });
-
-      subColIdx += 5;
-    });
-
-    // Apply header styling for observed values (columns 133 to 160)
-    const obsHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF2F8' } };
-    for (let col = 133; col <= 160; col++) {
-      const cell8 = worksheet.getCell(8, col);
-      const cell9 = worksheet.getCell(9, col);
-
-      cell8.fill = obsHeaderFill as any;
-      cell9.fill = obsHeaderFill as any;
-
-      cell8.border = thinBorder as any;
-      cell9.border = thinBorder as any;
-
-      cell8.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FF86198F' } };
-      cell9.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FF86198F' } };
-
-      cell8.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      cell9.alignment = { horizontal: 'center', vertical: 'middle' };
-    }
-
+    // Helper functions for student grades & attendance
     const subjectRowMap: Record<string, string> = {
       'filipino': 'FILIPINO',
       'english': 'ENGLISH',
@@ -1086,7 +931,6 @@ export async function generateSF9(
       'good manners and right conduct (gmrc)': 'ESP',
       'tle': 'TLE',
       'epp': 'TLE',
-      'epp/tle': 'TLE',
       'mapeh': 'MAPEH',
       'music': 'MUSIC',
       'arts': 'ARTS',
@@ -1099,424 +943,558 @@ export async function generateSF9(
       'makabansa': 'MAKABANSA'
     };
 
-    // Helper functions for student grades/attendance retrieval
-    const computeCalculatedGrade = (
-      subjectData: any,
-      subjectCode: string,
-      standardCode: string,
-      quarterKey: 'q1' | 'q2' | 'q3' | 'q4'
-    ): number | null => {
-      if (!subjectData || typeof subjectData !== 'object') return null;
+    const getDecryptedStudentGrades = (stud: Student) => {
+      const activeRows: Array<{
+        name: string;
+        code: string;
+        q1: number | string;
+        q2: number | string;
+        q3: number | string;
+        q4: number | string;
+        final: number | string;
+        remarks: string;
+        isComponent?: boolean;
+      }> = [];
 
-      // 1. Direct master sheet grade check
-      const directVal = subjectData[quarterKey];
-      if (directVal !== undefined && directVal !== null && directVal !== '') {
-        const parsed = parseFloat(directVal);
-        if (!isNaN(parsed)) return parsed;
-      }
+      const gradeLevel = stud.gradeLevel || 'Grade 6';
+      const gradeKey = gradeLevel.toLowerCase().startsWith('grade') ? gradeLevel : `Grade ${gradeLevel}`;
+      const studentGrades = (stud.grades?.[gradeKey] as any) || {};
 
-      // 2. Teacher dynamic grade columns check
-      const termAliases: Record<string, string[]> = {
-        q1: ['Term 1', '1st Quarter', 'Q1', 'q1', '1st Term'],
-        q2: ['Term 2', '2nd Quarter', 'Q2', 'q2', '2nd Term'],
-        q3: ['Term 3', 'Finals', '3rd Quarter', 'Q3', 'q3', '3rd Term'],
-        q4: ['Term 4', '4th Quarter', 'Q4', 'q4', '4th Term']
-      };
-      const possibleTerms = termAliases[quarterKey] || [quarterKey];
-      const configs = activeGradeConfigs || [];
+      const mappedDbGrades: Record<string, { q1: number | null; q2: number | null; q3: number | null; q4: number | null }> = {};
+      safeSubjects.forEach((sub) => {
+        const code = sub.code ?? sub.name;
+        const subNameLower = (sub.name || '').toLowerCase().trim();
+        const standardCode = subjectRowMap[subNameLower] || subjectRowMap[code.toLowerCase().trim()] || (code.toUpperCase().replace(/\s+/g, '_'));
+        if (standardCode) {
+          const gradeData = studentGrades[code] || studentGrades[sub.name] || studentGrades[standardCode] || {};
+          let q1 = typeof gradeData.q1 !== 'undefined' && gradeData.q1 !== null ? parseFloat(gradeData.q1) : null;
+          let q2 = typeof gradeData.q2 !== 'undefined' && gradeData.q2 !== null ? parseFloat(gradeData.q2) : null;
+          let q3 = typeof gradeData.q3 !== 'undefined' && gradeData.q3 !== null ? parseFloat(gradeData.q3) : null;
+          let q4 = typeof gradeData.q4 !== 'undefined' && gradeData.q4 !== null ? parseFloat(gradeData.q4) : null;
 
-      for (const termName of possibleTerms) {
-        const cols = configs.filter(
-          c => (
-            c.subjectCode === subjectCode ||
-            c.subjectCode === standardCode ||
-            (c.subjectCode && subjectCode && c.subjectCode.toLowerCase() === subjectCode.toLowerCase()) ||
-            (c.subjectCode && standardCode && c.subjectCode.toLowerCase() === standardCode.toLowerCase())
-          ) &&
-            c.term === termName &&
-            c.type !== 'submission'
-        );
+          if (isNaN(q1 as any)) q1 = null;
+          if (isNaN(q2 as any)) q2 = null;
+          if (isNaN(q3 as any)) q3 = null;
+          if (isNaN(q4 as any)) q4 = null;
 
-        if (cols.length > 0) {
-          let termTotal = 0;
-          let hasGrade = false;
-          const termData = subjectData[termName] || {};
-          cols.forEach(col => {
-            const val = termData[col.id];
-            if (val !== undefined && val !== null && val !== '') {
-              const num = parseFloat(val);
-              if (!isNaN(num)) {
-                termTotal += (num * (col.weight / 100));
-                hasGrade = true;
-              }
-            }
-          });
-          if (hasGrade) {
-            return Math.round(termTotal * 10) / 10;
-          }
+          mappedDbGrades[standardCode] = { q1, q2, q3, q4 };
         }
-      }
-
-      // Fallback check if termData exists even if gradeConfigs subjectCode didn't match exactly
-      for (const termName of possibleTerms) {
-        const termData = subjectData[termName];
-        if (termData && typeof termData === 'object' && Object.keys(termData).length > 0) {
-          const cols = configs.filter(c => c.term === termName && c.type !== 'submission');
-          if (cols.length > 0) {
-            let termTotal = 0;
-            let hasGrade = false;
-            cols.forEach(col => {
-              const val = termData[col.id];
-              if (val !== undefined && val !== null && val !== '') {
-                const num = parseFloat(val);
-                if (!isNaN(num)) {
-                  termTotal += (num * (col.weight / 100));
-                  hasGrade = true;
-                }
-              }
-            });
-            if (hasGrade) {
-              return Math.round(termTotal * 10) / 10;
-            }
-          }
-        }
-      }
-
-      return null;
-    };
-
-    const getGradeVal = (student: Student, colSubjectName: string, term: string, subjs: TeacherSubject[]) => {
-      const gLvl = student.gradeLevel || 'Grade 6';
-      const gradeKey = gLvl.toLowerCase().startsWith('grade') ? gLvl : `Grade ${gLvl}`;
-      const studentGrades = (student.grades?.[gradeKey] as any) || {};
-
-      const cleanColName = colSubjectName.toLowerCase().replace(/\(ap\)|\(esp\)/g, '').trim();
-      const standardCode = subjectRowMap[cleanColName] || subjectRowMap[colSubjectName.toLowerCase().trim()] || (colSubjectName.toUpperCase().replace(/\s+/g, '_'));
-      if (!standardCode) return null;
-
-      const matchingSub = subjs.find(s => {
-        const code = s.code ?? s.name;
-        const subNameLower = (s.name || '').toLowerCase().trim();
-        const sc = subjectRowMap[subNameLower] || subjectRowMap[code.toLowerCase().trim()] || (code.toUpperCase().replace(/\s+/g, '_'));
-        return sc === standardCode;
       });
 
-      const dbKey = matchingSub ? (matchingSub.code ?? matchingSub.name) : colSubjectName;
-      let gradeData = studentGrades[dbKey] ||
-        (matchingSub?.name ? studentGrades[matchingSub.name] : null) ||
-        (matchingSub?.code ? studentGrades[matchingSub.code] : null) ||
-        studentGrades[standardCode] ||
-        studentGrades[colSubjectName];
+      const isGrade1 = gradeLevel.toLowerCase().includes('1');
+      const isGrade2 = gradeLevel.toLowerCase().includes('2');
+      const isGrade3 = gradeLevel.toLowerCase().includes('3');
+      const isGrade4 = gradeLevel.toLowerCase().includes('4');
+      const isGrade5 = gradeLevel.toLowerCase().includes('5');
+      const isGrade6 = gradeLevel.toLowerCase().includes('6');
 
-      if (!gradeData) {
-        const keys = Object.keys(studentGrades);
-        for (const k of keys) {
-          const kClean = k.toLowerCase().trim();
-          const kStandard = subjectRowMap[kClean] || (k.toUpperCase().replace(/\s+/g, '_'));
-          if (kStandard === standardCode || kClean === dbKey.toLowerCase().trim()) {
-            gradeData = studentGrades[k];
-            break;
-          }
-        }
+      const getGradeByCode = (code: string) => {
+        const gd = mappedDbGrades[code];
+        if (!gd) return { q1: '', q2: '', q3: '', q4: '', final: '', remarks: '' };
+
+        const q1 = gd.q1 !== null && typeof gd.q1 !== 'undefined' ? gd.q1 : '';
+        const q2 = gd.q2 !== null && typeof gd.q2 !== 'undefined' ? gd.q2 : '';
+        const q3 = gd.q3 !== null && typeof gd.q3 !== 'undefined' ? gd.q3 : '';
+        const q4 = gd.q4 !== null && typeof gd.q4 !== 'undefined' ? gd.q4 : '';
+
+        const active = [q1, q2, q3, q4].filter(v => v !== '') as number[];
+        const final = active.length > 0 ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : '';
+        const remarks = final !== '' ? (final >= 75 ? 'PASSED' : 'FAILED') : '';
+
+        return { q1, q2, q3, q4, final, remarks };
+      };
+
+      const averageGrades = (g1: any, g2: any) => {
+        const calculateQ = (qKey: 'q1' | 'q2' | 'q3' | 'q4') => {
+          const vals = [g1[qKey], g2[qKey]].filter(v => v !== '') as number[];
+          return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : '';
+        };
+        const q1 = calculateQ('q1');
+        const q2 = calculateQ('q2');
+        const q3 = calculateQ('q3');
+        const q4 = calculateQ('q4');
+        const active = [q1, q2, q3, q4].filter(v => v !== '') as number[];
+        const final = active.length > 0 ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : '';
+        const remarks = final !== '' ? (final >= 75 ? 'PASSED' : 'FAILED') : '';
+        return { q1, q2, q3, q4, final, remarks };
+      };
+
+      // Row 1: English / Language
+      if (isGrade1) {
+        activeRows.push({ name: 'Language', code: 'LANGUAGE', ...getGradeByCode('LANGUAGE') });
+      } else {
+        activeRows.push({ name: 'English', code: 'ENGLISH', ...getGradeByCode('ENGLISH') });
       }
 
-      if (!gradeData) return null;
+      // Row 2: Filipino / Reading and Literacy
+      if (isGrade1) {
+        activeRows.push({ name: 'Reading and Literacy', code: 'READING_AND_LITERACY', ...getGradeByCode('READING_AND_LITERACY') });
+      } else {
+        activeRows.push({ name: 'Filipino', code: 'FILIPINO', ...getGradeByCode('FILIPINO') });
+      }
 
-      const quarterKey = term === '1st Term' ? 'q1' : term === '2nd Term' ? 'q2' : term === '3rd Term' ? 'q3' : 'q4';
-      return computeCalculatedGrade(gradeData, dbKey, standardCode, quarterKey);
+      // Row 3: Math
+      activeRows.push({ name: 'Mathematics', code: 'MATH', ...getGradeByCode('MATH') });
+
+      // Row 4: Science (Grade 3-6)
+      if (isGrade3 || isGrade4 || isGrade5 || isGrade6) {
+        activeRows.push({ name: 'Science', code: 'SCIENCE', ...getGradeByCode('SCIENCE') });
+      }
+
+      // Row 5: AP / Makabansa
+      if (isGrade1 || isGrade2 || isGrade3) {
+        activeRows.push({ name: 'AP/Makabansa', code: 'MAKABANSA', ...getGradeByCode('MAKABANSA') });
+      } else {
+        activeRows.push({ name: 'AP/Makabansa', code: 'AP', ...getGradeByCode('AP') });
+      }
+
+      // Row 6: EPP/TLE (Grade 4-6)
+      if (isGrade4 || isGrade5 || isGrade6) {
+        activeRows.push({ name: 'EPP/TLE', code: 'TLE', ...getGradeByCode('TLE') });
+      }
+
+      // Row 7: MAPEH (Grade 4-6)
+      if (isGrade4 || isGrade5 || isGrade6) {
+        const musicGrad = getGradeByCode('MUSIC');
+        const artsGrad = getGradeByCode('ARTS');
+        const peGrad = getGradeByCode('PE');
+        const healthGrad = getGradeByCode('HEALTH');
+
+        const musicAndArts = averageGrades(musicGrad, artsGrad);
+        const peAndHealth = averageGrades(peGrad, healthGrad);
+        const mapeh = averageGrades(musicAndArts, peAndHealth);
+
+        activeRows.push({ name: 'MAPEH', code: 'MAPEH', ...mapeh });
+        activeRows.push({ name: '  • Music & Arts', code: 'MUSIC_ARTS', ...musicAndArts, isComponent: true });
+        activeRows.push({ name: '  • PE & Health', code: 'PE_HEALTH', ...peAndHealth, isComponent: true });
+      }
+
+      // Row 8: GMRC / EsP
+      activeRows.push({ name: 'GMRC', code: 'ESP', ...getGradeByCode('ESP') });
+
+      return activeRows;
     };
 
-    const getMAPEHGrade = (student: Student, term: string, subjs: TeacherSubject[]) => {
-      const directMAPEH = getGradeVal(student, 'MAPEH', term, subjs);
-      if (directMAPEH !== null && directMAPEH !== undefined) return directMAPEH;
-
-      const music = getGradeVal(student, 'Music', term, subjs);
-      const arts = getGradeVal(student, 'Arts', term, subjs);
-      const pe = getGradeVal(student, 'PE', term, subjs);
-      const health = getGradeVal(student, 'Health', term, subjs);
-
-      const components = [music, arts, pe, health].filter(v => v !== null && v !== undefined) as number[];
-      if (components.length === 0) return null;
-      return Math.round(components.reduce((a, b) => a + b, 0) / components.length);
+    const getObservedValueRating = (stud: Student, statementKey: string, quarter: 'q1' | 'q2' | 'q3' | 'q4') => {
+      const gLvl = stud.gradeLevel || 'Grade 6';
+      const gradeKey = gLvl.startsWith('Grade') ? gLvl : `Grade ${gLvl}`;
+      const val = (stud as any).observedValues?.[gradeKey]?.[statementKey]?.[quarter];
+      return val || '--';
     };
 
-    const getStudentMonthlyAttendanceStats = (studentId: string, monthName: string, atts: AttendanceEntry[]) => {
-      const monthMap: Record<string, number> = {
-        'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5,
-        'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11
-      };
-      const targetMonthIdx = monthMap[monthName];
+    const getAttendanceData = (studentId: string) => {
+      const filteredAttendance = safeAttendance.filter(a => !advisorId || !a.teacherId || a.teacherId === advisorId);
+      const studentAtt = filteredAttendance.filter((a) => a.studentId === studentId);
+      const monthsDef = [
+        { name: 'Jun', index: 5 }, { name: 'Jul', index: 6 }, { name: 'Aug', index: 7 },
+        { name: 'Sep', index: 8 }, { name: 'Oct', index: 9 }, { name: 'Nov', index: 10 },
+        { name: 'Dec', index: 11 }, { name: 'Jan', index: 0 }, { name: 'Feb', index: 1 },
+        { name: 'Mar', index: 2 }, { name: 'Apr', index: 3 }
+      ];
 
-      const studentRecs = atts.filter(a => {
+      const presentDays: Record<number, number> = {};
+      const absentDays: Record<number, number> = {};
+      const sectionDatesPerMonth: Record<number, Set<string>> = {};
+
+      filteredAttendance.forEach((a) => {
         const d = new Date(a.date);
-        if (isNaN(d.getTime())) return false;
-        
-        const isAdviserLog = !advisorId || !a.teacherId || a.teacherId === advisorId;
-        if (!isAdviserLog) return false;
-
-        return d.getMonth() === targetMonthIdx && a.studentId === studentId;
+        if (isNaN(d.getTime())) return;
+        const m = d.getMonth();
+        const dStr = a.date.split('T')[0];
+        if (!sectionDatesPerMonth[m]) sectionDatesPerMonth[m] = new Set();
+        sectionDatesPerMonth[m].add(dStr);
       });
 
-      const sectionDates = new Set(
-        atts
-          .filter(a => {
-            const d = new Date(a.date);
-            if (isNaN(d.getTime())) return false;
+      studentAtt.forEach((a) => {
+        const d = new Date(a.date);
+        if (isNaN(d.getTime())) return;
+        const m = d.getMonth();
+        const amPres = (a as any).amStatus === 'Present' || (a as any).amStatus === 'Late';
+        const pmPres = (a as any).pmStatus === 'Present' || (a as any).pmStatus === 'Late';
 
-            const isAdviserLog = !advisorId || !a.teacherId || a.teacherId === advisorId;
-            return d.getMonth() === targetMonthIdx && isAdviserLog;
-          })
-          .map(a => a.date.split('T')[0])
-      );
-      const schoolDays = sectionDates.size;
+        let presentWeight = 0;
+        let absentWeight = 0;
 
-      const presentDays = studentRecs.filter(r => r.status === 'Present' || r.status === 'Late' || (r as any).amStatus === 'Present' || (r as any).amStatus === 'Late').length;
-      const absentDays = studentRecs.filter(r => r.status === 'Absent' || (r as any).amStatus === 'Absent').length;
-      const tardyDays = studentRecs.filter(r => r.status === 'Late' || (r as any).amStatus === 'Late').length;
+        if (a.status) {
+          const s = a.status.toLowerCase();
+          if (s === 'present' || s === 'late') presentWeight = 1;
+          else if (s === 'absent') absentWeight = 1;
+        } else {
+          if (amPres && pmPres) presentWeight = 1;
+          else if (!amPres && !pmPres) absentWeight = 1;
+          else { presentWeight = 0.5; absentWeight = 0.5; }
+        }
 
-      return {
-        schoolDays,
-        presentDays,
-        absentDays,
-        tardyDays
+        if (presentWeight > 0) presentDays[m] = (presentDays[m] || 0) + presentWeight;
+        if (absentWeight > 0) absentDays[m] = (absentDays[m] || 0) + absentWeight;
+      });
+
+      let totalSchool = 0;
+      let totalPresent = 0;
+      let totalAbsent = 0;
+
+      const columns = monthsDef.map((m) => {
+        const school = sectionDatesPerMonth[m.index] ? sectionDatesPerMonth[m.index].size : 0;
+        const present = presentDays[m.index] || 0;
+        const absent = absentDays[m.index] || 0;
+
+        totalSchool += school;
+        totalPresent += present;
+        totalAbsent += absent;
+
+        return { name: m.name, school, present, absent };
+      });
+
+      return { columns, totalSchool, totalPresent, totalAbsent };
+    };
+
+    // Populate each student sheet
+    const studentsToProcess = sortedStudents.length > 0 ? sortedStudents : [
+      { id: 'sample', lastName: 'SAMPLE', firstName: 'STUDENT', gradeLevel: 'Grade 6', lrn: '123456789' } as Student
+    ];
+
+    studentsToProcess.forEach((student, idx) => {
+      const rawName = `${idx + 1}. ${student.lastName || ''}, ${student.firstName || ''}`;
+      const sheetName = rawName.replace(/[:\\/?*\[\]]/g, '').trim().substring(0, 31) || `Student ${idx + 1}`;
+      const worksheet = workbook.addWorksheet(sheetName);
+
+      worksheet.pageSetup = {
+        paperSize: 9, // A4
+        orientation: 'landscape',
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: { left: 0.25, right: 0.25, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
       };
-    };
 
-    const getObservedValueRating = (student: Student, statementKey: string, quarter: string) => {
+      const colWidths = [
+        { col: 1, width: 22 }, { col: 2, width: 6 }, { col: 3, width: 6 }, { col: 4, width: 6 },
+        { col: 5, width: 6 },  { col: 6, width: 6 }, { col: 7, width: 6 }, { col: 8, width: 6 },
+        { col: 9, width: 6 },  { col: 10, width: 6 }, { col: 11, width: 6 }, { col: 12, width: 6 },
+        { col: 13, width: 10 },{ col: 14, width: 4 }, { col: 15, width: 16 },{ col: 16, width: 6 },
+        { col: 17, width: 6 }, { col: 18, width: 6 }, { col: 19, width: 6 }, { col: 20, width: 6 },
+        { col: 21, width: 6 }, { col: 22, width: 6 }, { col: 23, width: 6 }, { col: 24, width: 6 },
+        { col: 25, width: 6 }, { col: 26, width: 6 }, { col: 27, width: 10 }
+      ];
+      colWidths.forEach(cw => worksheet.getColumn(cw.col).width = cw.width);
+
+      const fontName = 'Segoe UI';
+      const thinBorder = {
+        top: { style: 'thin' as any, color: { argb: 'FF94A3B8' } },
+        left: { style: 'thin' as any, color: { argb: 'FF94A3B8' } },
+        bottom: { style: 'thin' as any, color: { argb: 'FF94A3B8' } },
+        right: { style: 'thin' as any, color: { argb: 'FF94A3B8' } }
+      };
+      const headerFill = { type: 'pattern' as any, pattern: 'solid' as any, fgColor: { argb: 'FFE2E8F0' } };
+      const subHeaderFill = { type: 'pattern' as any, pattern: 'solid' as any, fgColor: { argb: 'FFF1F5F9' } };
+
+      const styleBox = (rangeStr: string, value: any, opts: any = {}) => {
+        const { font = { name: fontName, size: 9 }, fill = null, align = { horizontal: 'center', vertical: 'middle' }, border = thinBorder } = opts;
+        try { worksheet.mergeCells(rangeStr); } catch (e) {}
+        const [startRef, endRef] = rangeStr.includes(':') ? rangeStr.split(':') : [rangeStr, rangeStr];
+        const cell = worksheet.getCell(startRef);
+        cell.value = value;
+        cell.font = font;
+        cell.alignment = align;
+        if (fill) cell.fill = fill;
+
+        const startCol = worksheet.getColumn(startRef.replace(/\d+/g, '')).number;
+        const endCol = worksheet.getColumn(endRef.replace(/\d+/g, '')).number;
+        const startRow = parseInt(startRef.replace(/\D+/g, ''), 10);
+        const endRow = parseInt(endRef.replace(/\D+/g, ''), 10);
+
+        for (let r = startRow; r <= endRow; r++) {
+          for (let c = startCol; c <= endCol; c++) {
+            const cl = worksheet.getCell(r, c);
+            if (border) cl.border = border;
+          }
+        }
+      };
+
+      // Calculate student data
       const gLvl = student.gradeLevel || 'Grade 6';
-      const gradeKey = gLvl.toLowerCase().startsWith('grade') ? gLvl : `Grade ${gLvl}`;
-      const studAny = student as any;
-      return studAny.observedValues?.[gradeKey]?.[statementKey]?.[quarter] || '';
-    };
-
-    // Pre-calculate column letters of main subjects for General Average formula
-    const mainSubjectCols: string[] = [];
-    let tempColIdx = 59;
-    subjectsList.forEach((subj) => {
-      if (subj === 'General Average') return;
-      const isComponent = ['music', 'arts', 'art', 'pe', 'health', 'physical education'].includes(subj.toLowerCase());
-      if (!isComponent) {
-        mainSubjectCols.push(worksheet.getColumn(tempColIdx).letter);
-      }
-      tempColIdx += 5;
-    });
-
-    const zebraFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-
-    // Adjust key biography column widths to prevent text clipping
-    worksheet.getColumn(1).width = 16;  // LRN
-    worksheet.getColumn(2).width = 16;  // Last Name
-    worksheet.getColumn(3).width = 16;  // First Name
-    worksheet.getColumn(4).width = 16;  // Middle Name
-    worksheet.getColumn(9).width = 20;  // Grade & Section
-
-    // Optimize attendance columns spacing (Cols O to BF)
-    for (let c = 15; c <= 58; c++) {
-      const isTotalCol = [25, 36, 47, 58].includes(c);
-      worksheet.getColumn(c).width = isTotalCol ? 6 : 4;
-    }
-
-    // Optimize subject grades columns spacing (Cols BG onwards)
-    let wCol = 59;
-    subjectsList.forEach(() => {
-      worksheet.getColumn(wCol).width = 5;     // T1
-      worksheet.getColumn(wCol + 1).width = 5; // T2
-      worksheet.getColumn(wCol + 2).width = 5; // T3
-      worksheet.getColumn(wCol + 3).width = 5; // FG
-      worksheet.getColumn(wCol + 4).width = 9; // Remarks
-      wCol += 5;
-    });
-
-    // 4. Fill Student Rows starting from Row 10
-    students.forEach((student, idx) => {
-      const r = 10 + idx;
-      const row = worksheet.getRow(r);
-      const stdAny = student as any;
-      row.height = 22;
-
-      let age: number | string = '';
-      if (stdAny.birthDate) {
-        const birth = new Date(stdAny.birthDate);
+      const fullName = `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim();
+      let studentAge: number | string = '';
+      if (student.birthDate) {
+        const birth = new Date(student.birthDate);
         if (!isNaN(birth.getTime())) {
           const today = new Date();
-          let a = today.getFullYear() - birth.getFullYear();
+          let age = today.getFullYear() - birth.getFullYear();
           const m = today.getMonth() - birth.getMonth();
-          if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-            a--;
-          }
-          age = a;
+          if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+          studentAge = age;
         }
       }
 
-      // Biographical
-      row.getCell(1).value = stdAny.lrn || '';
-      row.getCell(2).value = stdAny.lastName || '';
-      row.getCell(3).value = stdAny.firstName || '';
-      row.getCell(4).value = stdAny.middleName || '';
-      row.getCell(5).value = stdAny.extensionName || '';
-      row.getCell(6).value = 'K to 12';
-      row.getCell(7).value = age;
-      row.getCell(8).value = stdAny.gender === 'Female' ? 'F' : 'M';
-      row.getCell(9).value = `${dataGradeLevel} - ${sectionName}`;
+      const gradesList = getDecryptedStudentGrades(student);
+      const mainAreas = gradesList.filter(g => !g.isComponent && typeof g.final === 'number');
+      const genAvg = mainAreas.length > 0 ? Math.round(mainAreas.reduce((a, b) => a + (b.final as number), 0) / mainAreas.length) : '';
+      const genAvgRemarks = genAvg !== '' ? (genAvg >= 75 ? 'PASSED' : 'FAILED') : '';
 
-      // Monthly Attendance (Cols O to BF)
-      const monthsList = ['July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March', 'April'];
-      monthsList.forEach((month, mIdx) => {
-        const stats = getStudentMonthlyAttendanceStats(student.id, month, safeAttendance);
-        row.getCell(15 + mIdx).value = stats.schoolDays;
-        row.getCell(26 + mIdx).value = stats.presentDays;
-        row.getCell(37 + mIdx).value = stats.absentDays;
-        row.getCell(48 + mIdx).value = stats.tardyDays;
+      const failedCount = mainAreas.filter(g => (g.final as number) < 75).length;
+      let eligibleGrade = '—';
+      if (mainAreas.length > 0 && failedCount === 0) {
+        if (gLvl.toLowerCase().includes('kinder')) eligibleGrade = 'Grade 1';
+        else {
+          const match = gLvl.match(/\d+/);
+          if (match) eligibleGrade = gLvl.replace(/\d+/, (parseInt(match[0], 10) + 1).toString());
+        }
+      }
+
+      const attData = getAttendanceData(student.id);
+
+      // ================= PAGE 1 =================
+      // Left Panel: Attendance Record
+      styleBox('A1:M1', 'ATTENDANCE RECORD', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+      styleBox('A2', 'Month', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      attData.columns.forEach((colInfo, cIdx) => {
+        const colLetter = String.fromCharCode(66 + cIdx);
+        styleBox(`${colLetter}2`, colInfo.name, { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      });
+      styleBox('M2', 'Total', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+
+      const attRowsDef = [
+        { label: 'No. of School Days', key: 'school', total: attData.totalSchool },
+        { label: 'No. of Days Present', key: 'present', total: attData.totalPresent },
+        { label: 'No. of Times Absent', key: 'absent', total: attData.totalAbsent }
+      ];
+
+      attRowsDef.forEach((rDef, rIdx) => {
+        const rowNum = 3 + rIdx;
+        const cellA = worksheet.getCell(`A${rowNum}`);
+        cellA.value = rDef.label;
+        cellA.font = { name: fontName, size: 8, bold: false };
+        cellA.alignment = { horizontal: 'left', vertical: 'middle' };
+        cellA.border = thinBorder;
+
+        attData.columns.forEach((colInfo, cIdx) => {
+          const colLetter = String.fromCharCode(66 + cIdx);
+          const c = worksheet.getCell(`${colLetter}${rowNum}`);
+          c.value = (colInfo as any)[rDef.key];
+          c.font = { name: fontName, size: 8 };
+          c.alignment = { horizontal: 'center', vertical: 'middle' };
+          c.border = thinBorder;
+        });
+
+        const totCell = worksheet.getCell(`M${rowNum}`);
+        totCell.value = rDef.total;
+        totCell.font = { name: fontName, size: 8, bold: true };
+        totCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        totCell.border = thinBorder;
       });
 
-      // Attendance Totals (Y, AJ, AU, BF)
-      row.getCell(25).value = { formula: `=SUM(O${r}:X${r})` };
-      row.getCell(36).value = { formula: `=SUM(Z${r}:AI${r})` };
-      row.getCell(47).value = { formula: `=SUM(AK${r}:AT${r})` };
-      row.getCell(58).value = { formula: `=SUM(AV${r}:BE${r})` };
-
-      // Subject Grades (Col BG onwards)
-      let sColIdx = 59;
-      subjectsList.forEach(subjectName => {
-        if (subjectName === 'General Average') {
-          // General Average formulas constructed dynamically
-          const t1FormulaTerms = mainSubjectCols.map(col => `${col}${r}`).join(',');
-          const t2FormulaTerms = mainSubjectCols.map(col => {
-            const nextCol = worksheet.getColumn(worksheet.getColumn(col).number + 1).letter;
-            return `${nextCol}${r}`;
-          }).join(',');
-          const t3FormulaTerms = mainSubjectCols.map(col => {
-            const nextCol = worksheet.getColumn(worksheet.getColumn(col).number + 2).letter;
-            return `${nextCol}${r}`;
-          }).join(',');
-
-          const t1AvgCol = worksheet.getColumn(sColIdx).letter;
-          const t2AvgCol = worksheet.getColumn(sColIdx + 1).letter;
-          const t3AvgCol = worksheet.getColumn(sColIdx + 2).letter;
-          const fgAvgCol = worksheet.getColumn(sColIdx + 3).letter;
-
-          row.getCell(sColIdx).value = { formula: `=IF(COUNT(${t1FormulaTerms})>0, ROUND(AVERAGE(${t1FormulaTerms}), 0), "")` }; // T1 Avg
-          row.getCell(sColIdx + 1).value = { formula: `=IF(COUNT(${t2FormulaTerms})>0, ROUND(AVERAGE(${t2FormulaTerms}), 0), "")` }; // T2 Avg
-          row.getCell(sColIdx + 2).value = { formula: `=IF(COUNT(${t3FormulaTerms})>0, ROUND(AVERAGE(${t3FormulaTerms}), 0), "")` }; // T3 Avg
-          row.getCell(sColIdx + 3).value = { formula: `=IF(COUNT(${t1AvgCol}${r}:${t3AvgCol}${r})>0, ROUND(AVERAGE(${t1AvgCol}${r}:${t3AvgCol}${r}), 0), "")` }; // FG
-          row.getCell(sColIdx + 4).value = { formula: `=IF(${fgAvgCol}${r}="", "", IF(${fgAvgCol}${r}>=75, "Passed", "Failed"))` }; // Remarks
-        } else {
-          const t1 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '1st Term', safeSubjects) : getGradeVal(student, subjectName, '1st Term', safeSubjects);
-          const t2 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '2nd Term', safeSubjects) : getGradeVal(student, subjectName, '2nd Term', safeSubjects);
-          const t3 = subjectName === 'MAPEH' ? getMAPEHGrade(student, '3rd Term', safeSubjects) : getGradeVal(student, subjectName, '3rd Term', safeSubjects);
-
-          row.getCell(sColIdx).value = t1;
-          row.getCell(sColIdx + 1).value = t2;
-          row.getCell(sColIdx + 2).value = t3;
-
-          const cT1 = worksheet.getColumn(sColIdx).letter;
-          const cT2 = worksheet.getColumn(sColIdx + 1).letter;
-          const cT3 = worksheet.getColumn(sColIdx + 2).letter;
-          const cFG = worksheet.getColumn(sColIdx + 3).letter;
-
-          row.getCell(sColIdx + 3).value = { formula: `=IF(COUNT(${cT1}${r}:${cT3}${r})>0, ROUND(AVERAGE(${cT1}${r}:${cT3}${r}), 0), "")` };
-          row.getCell(sColIdx + 4).value = { formula: `=IF(${cFG}${r}="", "", IF(${cFG}${r}>=75, "Passed", "Failed"))` };
-        }
-        sColIdx += 5;
+      // Parent Guardian Signature
+      styleBox('A7:M7', "PARENT / GUARDIAN'S SIGNATURE", { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+      ['1st Term', '2nd Term', '3rd Term', '4th Term'].forEach((t, i) => {
+        const r = 9 + (i * 2);
+        styleBox(`A${r}:C${r}`, t, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+        styleBox(`D${r}:M${r}`, '________________________________________________', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
       });
 
-      // Populate Observed Values (columns 133 to 160)
-      // MD1: 133, 134, 135
-      row.getCell(133).value = getObservedValueRating(student, 'makaDiyos1', 'q1');
-      row.getCell(134).value = getObservedValueRating(student, 'makaDiyos1', 'q2');
-      row.getCell(135).value = getObservedValueRating(student, 'makaDiyos1', 'q3');
+      // Certificate of Transfer
+      styleBox('A18:M18', 'CERTIFICATE OF TRANSFER', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+      styleBox('A20:M20', `Admitted to Grade: ${gLvl}      Section: ${sectionName}`, { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('A22:M22', `Eligible for Admission to Grade: ${eligibleGrade}`, { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
 
-      // MD2: 137, 138, 139
-      row.getCell(137).value = getObservedValueRating(student, 'makaDiyos2', 'q1');
-      row.getCell(138).value = getObservedValueRating(student, 'makaDiyos2', 'q2');
-      row.getCell(139).value = getObservedValueRating(student, 'makaDiyos2', 'q3');
+      styleBox('B25:F25', adviserName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('B26:F26', 'Adviser', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
 
-      // MT1: 141, 142, 143
-      row.getCell(141).value = getObservedValueRating(student, 'makatao1', 'q1');
-      row.getCell(142).value = getObservedValueRating(student, 'makatao1', 'q2');
-      row.getCell(143).value = getObservedValueRating(student, 'makatao1', 'q3');
+      styleBox('H25:L25', principalName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('H26:L26', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
 
-      // MT2: 145, 146, 147
-      row.getCell(145).value = getObservedValueRating(student, 'makatao2', 'q1');
-      row.getCell(146).value = getObservedValueRating(student, 'makatao2', 'q2');
-      row.getCell(147).value = getObservedValueRating(student, 'makatao2', 'q3');
+      // Cancellation of Eligibility
+      styleBox('A29:M29', 'CANCELLATION OF ELIGIBILITY TO TRANSFER', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+      styleBox('A31:M31', 'Admitted in: ____________________', { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('A33:M33', 'Date: ________________________', { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
 
-      // MK: 149, 150, 151
-      row.getCell(149).value = getObservedValueRating(student, 'makakalikasan1', 'q1');
-      row.getCell(150).value = getObservedValueRating(student, 'makakalikasan1', 'q2');
-      row.getCell(151).value = getObservedValueRating(student, 'makakalikasan1', 'q3');
+      styleBox('G36:K36', principalName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('G37:K37', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
 
-      // MB1: 153, 154, 155
-      row.getCell(153).value = getObservedValueRating(student, 'makabansa1', 'q1');
-      row.getCell(154).value = getObservedValueRating(student, 'makabansa1', 'q2');
-      row.getCell(155).value = getObservedValueRating(student, 'makabansa1', 'q3');
+      // Right Panel: DepEd Header & Profile
+      styleBox('O1:AA1', 'Republic of the Philippines', { font: { name: fontName, size: 8.5 }, border: null });
+      styleBox('O2:AA2', 'Department of Education', { font: { name: fontName, size: 11, bold: true, color: { argb: 'FF1E3A8A' } }, border: null });
+      styleBox('O3:AA3', `REGION ${schoolInfo.region}`, { font: { name: fontName, size: 9, bold: true }, border: null });
+      styleBox('O4:AA4', `DIVISION OF ${schoolInfo.division}`, { font: { name: fontName, size: 9, bold: true }, border: null });
+      styleBox('O5:AA5', `DISTRICT OF ${schoolInfo.district}`, { font: { name: fontName, size: 9, bold: true }, border: null });
+      styleBox('O6:AA6', schoolInfo.schoolName, { font: { name: fontName, size: 11, bold: true }, border: null });
+      styleBox('O7:AA7', `School ID: ${schoolInfo.schoolId}`, { font: { name: fontName, size: 8, italic: true }, border: null });
 
-      // MB2: 157, 158, 159
-      row.getCell(157).value = getObservedValueRating(student, 'makabansa2', 'q1');
-      row.getCell(158).value = getObservedValueRating(student, 'makabansa2', 'q2');
-      row.getCell(159).value = getObservedValueRating(student, 'makabansa2', 'q3');
+      styleBox('O9:AA9', 'PROGRESS REPORT CARD (SF9)', { font: { name: fontName, size: 13, bold: true, color: { argb: 'FF1E3A8A' } }, border: null });
+      styleBox('O10:AA10', `School Year ${academicYear}`, { font: { name: fontName, size: 9, italic: true }, border: null });
 
-      // Apply borders, typography, alignments and zebra striping to each cell
-      const isEvenRow = idx % 2 === 1;
-      for (let col = 1; col < finalColIdx; col++) {
-        const cell = row.getCell(col);
-        cell.font = { name: 'Segoe UI', size: 9.5, color: { argb: 'FF1E293B' } };
-        cell.border = thinBorder as any;
-
-        if (isEvenRow) {
-          cell.fill = zebraFill as any;
-        }
-
-        if (col <= 5) {
-          cell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-        } else if (col >= 6 && col <= 14) {
-          cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        } else if (col >= 15 && col <= 58) {
-          cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        } else if (col >= 59) {
-          cell.alignment = { horizontal: 'center', vertical: 'middle' };
-          cell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: 'FF0F172A' } };
-        }
+      // Add logo images if loaded
+      if (sealBuffer) {
+        try {
+          const sealImgId = workbook.addImage({ buffer: sealBuffer, extension: 'png' });
+          worksheet.addImage(sealImgId, { tl: { col: 14, row: 0 }, ext: { width: 55, height: 55 } });
+        } catch (e) {}
+      }
+      if (logoBuffer) {
+        try {
+          const logoImgId = workbook.addImage({ buffer: logoBuffer, extension: 'png' });
+          worksheet.addImage(logoImgId, { tl: { col: 25, row: 0 }, ext: { width: 55, height: 55 } });
+        } catch (e) {}
       }
 
-      // Apply style to Observed Values columns specifically
-      for (let col = 133; col <= 160; col++) {
-        const cell = row.getCell(col);
-        cell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: 'FF86198F' } };
-        cell.border = thinBorder as any;
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        if (isEvenRow) {
-          cell.fill = zebraFill as any;
+      // Learner Profile Box
+      styleBox('O12:P12', 'NAME:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
+      styleBox('Q12:AA12', fullName, { font: { name: fontName, size: 10, bold: true }, align: { horizontal: 'left', vertical: 'middle' } });
+
+      styleBox('O13', 'Age:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
+      styleBox('P13:R13', studentAge, { font: { name: fontName, size: 9, bold: true } });
+      styleBox('S13', 'Sex:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
+      styleBox('T13:V13', student.gender || '', { font: { name: fontName, size: 9, bold: true } });
+      styleBox('W13', 'LRN:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
+      styleBox('X13:AA13', student.lrn || '', { font: { name: fontName, size: 9, bold: true } });
+
+      styleBox('O14', 'Grade:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
+      styleBox('P14:R14', gLvl, { font: { name: fontName, size: 9, bold: true } });
+      styleBox('S14', 'Section:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
+      styleBox('T14:AA14', sectionName, { font: { name: fontName, size: 9, bold: true } });
+
+      // Dear parent
+      styleBox('O16:AA18', "Dear Parent:\nThis report card shows the ability and the progress your child has made in the different learning areas as well as his/her progress in core values. The school welcomes you should you desire to know more about your child's progress.", { font: { name: fontName, size: 8.5, italic: true }, align: { horizontal: 'left', vertical: 'middle', wrapText: true } });
+
+      styleBox('P21:T21', adviserName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('P22:T22', 'Adviser', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+
+      styleBox('V21:Z21', principalName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('V22:Z22', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+
+      // ================= PAGE 2 =================
+      const startP2 = 41;
+
+      // Left Panel: Report on Learning Progress
+      styleBox(`A${startP2}:M${startP2}`, 'REPORT ON LEARNING PROGRESS AND ACHIEVEMENT', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+
+      styleBox(`A${startP2+2}:D${startP2+2}`, 'Learning Areas', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
+      styleBox(`E${startP2+2}`, '1', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`F${startP2+2}`, '2', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`G${startP2+2}`, '3', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`H${startP2+2}`, '4', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`I${startP2+2}:K${startP2+2}`, 'Final Rating', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`L${startP2+2}:M${startP2+2}`, 'Remarks', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+
+      let currentR = startP2 + 3;
+      gradesList.forEach(sub => {
+        styleBox(`A${currentR}:D${currentR}`, sub.name, { font: { name: fontName, size: 8.5, bold: !sub.isComponent, italic: sub.isComponent }, align: { horizontal: 'left', vertical: 'middle' } });
+        styleBox(`E${currentR}`, sub.q1, { font: { name: fontName, size: 8.5 } });
+        styleBox(`F${currentR}`, sub.q2, { font: { name: fontName, size: 8.5 } });
+        styleBox(`G${currentR}`, sub.q3, { font: { name: fontName, size: 8.5 } });
+        styleBox(`H${currentR}`, sub.q4, { font: { name: fontName, size: 8.5 } });
+        styleBox(`I${currentR}:K${currentR}`, sub.final, { font: { name: fontName, size: 8.5, bold: !sub.isComponent } });
+        styleBox(`L${currentR}:M${currentR}`, sub.remarks, { font: { name: fontName, size: 8, bold: true } });
+        currentR++;
+      });
+
+      styleBox(`A${currentR}:D${currentR}`, 'General Average', { font: { name: fontName, size: 9, bold: true }, fill: headerFill, align: { horizontal: 'left', vertical: 'middle' } });
+      styleBox(`E${currentR}:H${currentR}`, '', { fill: headerFill });
+      styleBox(`I${currentR}:K${currentR}`, genAvg, { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+      styleBox(`L${currentR}:M${currentR}`, genAvgRemarks, { font: { name: fontName, size: 8.5, bold: true }, fill: headerFill });
+      currentR += 2;
+
+      // Descriptors
+      styleBox(`A${currentR}:M${currentR}`, 'DESCRIPTORS AND GRADING SCALE', { font: { name: fontName, size: 9, bold: true }, fill: subHeaderFill });
+      currentR++;
+      styleBox(`A${currentR}:E${currentR}`, 'Descriptors', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
+      styleBox(`F${currentR}:I${currentR}`, 'Grading Scale', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill });
+      styleBox(`J${currentR}:M${currentR}`, 'Remarks', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill });
+      currentR++;
+
+      const descRows = [
+        { d: 'Advancing', s: '90 - 100', r: 'Passed' },
+        { d: 'Benchmarking', s: '80 - 89', r: 'Passed' },
+        { d: 'Connecting', s: '75 - 79', r: 'Passed' },
+        { d: 'Developing', s: '65 - 74', r: 'Failed' },
+        { d: 'Emerging', s: '0 - 64', r: 'Failed' }
+      ];
+
+      descRows.forEach(dr => {
+        styleBox(`A${currentR}:E${currentR}`, dr.d, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle' } });
+        styleBox(`F${currentR}:I${currentR}`, dr.s, { font: { name: fontName, size: 8 } });
+        styleBox(`J${currentR}:M${currentR}`, dr.r, { font: { name: fontName, size: 8, bold: true } });
+        currentR++;
+      });
+
+      // Right Panel: Observed Values
+      styleBox(`O${startP2}:AA${startP2}`, "REPORT ON LEARNER'S OBSERVED VALUES", { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+
+      styleBox(`O${startP2+2}:Q${startP2+2}`, 'Core Values', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`R${startP2+2}:W${startP2+2}`, 'Behavior Statements', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
+      styleBox(`X${startP2+2}`, '1', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`Y${startP2+2}`, '2', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`Z${startP2+2}`, '3', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox(`AA${startP2+2}`, '4', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+
+      const coreValuesData = [
+        {
+          core: '1. Maka-Diyos',
+          statements: [
+            { key: 'makaDiyos1', text: "Expresses one's spiritual beliefs while respecting the spiritual beliefs of others" },
+            { key: 'makaDiyos2', text: "Show adherence to ethical principles by upholding truth" }
+          ]
+        },
+        {
+          core: '2. Makatao',
+          statements: [
+            { key: 'makatao1', text: "Is sensitive to individual, social, cultural, differences" },
+            { key: 'makatao2', text: "Demonstrate contributions toward solidarity." }
+          ]
+        },
+        {
+          core: '3. Maka-Kalikasan',
+          statements: [
+            { key: 'makakalikasan1', text: "Cares for the environment and utilizes resources wisely, judiciously, and economically" }
+          ]
+        },
+        {
+          core: '4. Makabansa',
+          statements: [
+            { key: 'makabansa1', text: "Demonstrates pride in being a Filipino; exercises the rights and responsibilities of a Filipino citizen" },
+            { key: 'makabansa2', text: "Demonstrates appropriate behavior in carrying out activities in the school, community, and country" }
+          ]
         }
-      }
+      ];
 
-      row.commit();
-    });
+      let ovR = startP2 + 3;
+      coreValuesData.forEach(cv => {
+        const startRowCV = ovR;
+        cv.statements.forEach(stmtObj => {
+          styleBox(`R${ovR}:W${ovR}`, stmtObj.text, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle', wrapText: true } });
+          styleBox(`X${ovR}`, getObservedValueRating(student, stmtObj.key, 'q1'), { font: { name: fontName, size: 8, bold: true } });
+          styleBox(`Y${ovR}`, getObservedValueRating(student, stmtObj.key, 'q2'), { font: { name: fontName, size: 8, bold: true } });
+          styleBox(`Z${ovR}`, getObservedValueRating(student, stmtObj.key, 'q3'), { font: { name: fontName, size: 8, bold: true } });
+          styleBox(`AA${ovR}`, getObservedValueRating(student, stmtObj.key, 'q4'), { font: { name: fontName, size: 8, bold: true } });
+          ovR++;
+        });
+        const endRowCV = ovR - 1;
+        styleBox(`O${startRowCV}:Q${endRowCV}`, cv.core, { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      });
 
-    // 4.5 Hide columns starting from the end of written subjects up to 170
-    for (let c = finalColIdx; c <= 170; c++) {
-      if (c >= 133 && c <= 160) continue;
-      worksheet.getColumn(c).hidden = true;
-    }
+      ovR++;
+      styleBox(`O${ovR}:AA${ovR}`, 'OBSERVED VALUES MARKING LEGEND', { font: { name: fontName, size: 9, bold: true }, fill: subHeaderFill });
+      ovR++;
+      styleBox(`O${ovR}:R${ovR}`, 'Marking', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill });
+      styleBox(`S${ovR}:AA${ovR}`, 'Non-numerical Rating', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
+      ovR++;
 
-    // 5. Remove all other worksheets so only 'DATA SF9' is in the workbook
-    const wsNames = workbook.worksheets.map(ws => ws.name);
-    wsNames.forEach(name => {
-      if (name !== 'DATA SF9') {
-        const sheet = workbook.getWorksheet(name);
-        if (sheet) {
-          workbook.removeWorksheet(sheet.id);
-        }
-      }
-    });
+      const legendRows = [
+        { m: 'AO', r: 'Always Observed' },
+        { m: 'SO', r: 'Sometimes Observed' },
+        { m: 'RO', r: 'Rarely Observed' },
+        { m: 'NO', r: 'Not Observed' }
+      ];
 
-    workbook.worksheets.forEach((ws) => {
-      applyPrintPageSetup(ws, 'landscape', false);
+      legendRows.forEach(lr => {
+        styleBox(`O${ovR}:R${ovR}`, lr.m, { font: { name: fontName, size: 8, bold: true } });
+        styleBox(`S${ovR}:AA${ovR}`, lr.r, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle' } });
+        ovR++;
+      });
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `SF9_Data_${sectionName.replace(/\s+/g, '_')}_${academicYear}.xlsx`);
+    saveAs(blob, `SF9_${sectionName.replace(/\s+/g, '_')}_${academicYear}.xlsx`);
     return true;
   } catch (error) {
     console.error('Failed to generate SF9', error);
@@ -1568,19 +1546,35 @@ export async function generateSF2(data: any) {
       console.warn('Failed to add logo to SF2:', e);
     }
 
+    const settings = await getGlobalSettings().catch(() => null);
+
     // Fill headers (School ID, School Name, Grade, Section, Month, SY)
     // School ID: Cell H4
-    worksheet.getCell('H4').value = data.schoolId || '199006';
+    worksheet.getCell('H4').value = data.schoolId || settings?.schoolId || '199006';
     // Name of School: Cell H5
-    worksheet.getCell('H5').value = (data.schoolName || 'Sta. Maria CS SPED Center').toUpperCase();
+    worksheet.getCell('H5').value = (data.schoolName || settings?.schoolName || 'Sta. Maria CS SPED Center').toUpperCase();
     // School Year: Cell O4
     worksheet.getCell('O4').value = data.schoolYear;
     // Month of: Cell AF4
-    worksheet.getCell('AF4').value = data.month.toUpperCase();
+    const monthStrUpper = (data.month || '').toUpperCase();
+    worksheet.getCell('AF4').value = monthStrUpper;
     // Grade Level: Cell AF5
     worksheet.getCell('AF5').value = data.gradeLevel;
     // Section Name: Cell BA5
     worksheet.getCell('BA5').value = data.section.toUpperCase();
+
+    // Update Summary Table Month header (Row 59 to 63)
+    for (let r = 59; r <= 63; r++) {
+      const row = worksheet.getRow(r);
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        if (cell.value && typeof cell.value === 'string') {
+          const valStr = cell.value.toString();
+          if (valStr.toLowerCase().includes('month') || valStr.toLowerCase().includes('april')) {
+            cell.value = `Month: ${monthStrUpper}`;
+          }
+        }
+      });
+    }
 
     // Adviser Name: Cell BB91 (write to BB91-BB94 to ensure it renders correctly on merged cells)
     const adviserName = (data.advisorName || data.adviserName || '').toUpperCase();
@@ -1603,7 +1597,11 @@ export async function generateSF2(data: any) {
     };
 
     // Principal / School Head Name: Cell BB98 (write to BB98-BB100 to ensure it renders correctly on merged cells)
-    const principalName = ((data as any).schoolHead || (data as any).principalName || (data as any).schoolHeadName || 'MRS. LEPIDAPTERA VILLANUEVA').toUpperCase();
+    let principalName = (data as any).schoolHead || (data as any).principalName || (data as any).schoolHeadName;
+    if (!principalName) {
+      principalName = await getSchoolHeadName();
+    }
+    principalName = (principalName || 'MRS. LEPIDAPTERA VILLANUEVA').toUpperCase();
 
     // Clear template defaults in BB98-BB100 first, and set the actual name (or empty to let them sign)
     worksheet.getCell('BB98').value = principalName || null;
@@ -1826,6 +1824,11 @@ export async function generateSF2(data: any) {
     worksheet.getCell('BH81').value = 0;
     worksheet.getCell('BJ81').value = 0;
 
+    // Populate BoSY and EoSY dates dynamically if present
+    const bosyDate = (data as any).bosyDate ? formatDateStr((data as any).bosyDate) : formatDateStr(settings?.schoolYearStart);
+    const eosyDate = (data as any).eosyDate ? formatDateStr((data as any).eosyDate) : formatDateStr(settings?.schoolYearEnd);
+    populateBoSYEoSYDates(worksheet, bosyDate, eosyDate);
+
     // Fix stale value bug for WPS Office/Excel compatibility
     removeStrikethrough(worksheet);
     workbook.worksheets.forEach((ws) => {
@@ -1903,12 +1906,14 @@ export async function generateAdminSF1(data: SF1Data) {
       c.alignment = { horizontal: 'center', vertical: 'middle' };
     };
 
-    setHeaderValue('F4', '199006'); // School ID
-    setHeaderValue('J4', 'REGION IX'); // Region
-    setHeaderValue('M4', 'ZAMBOANGA'); // Division value
-    setHeaderValue('S4', 'STA. MARIA CENTRAL'); // District value
+    const settings = await getGlobalSettings().catch(() => null);
 
-    setHeaderValue('F6', 'STA. MARIA CS SPED CENTER'); // School Name value
+    setHeaderValue('F4', (data as any).schoolId || settings?.schoolId || '199006'); // School ID
+    setHeaderValue('J4', (data as any).region || (settings ? `REGION ${settings.region}` : 'REGION IX')); // Region
+    setHeaderValue('M4', ((data as any).division || settings?.division || 'ZAMBOANGA').toUpperCase()); // Division value
+    setHeaderValue('S4', ((data as any).district || settings?.district || 'STA. MARIA CENTRAL').toUpperCase()); // District value
+
+    setHeaderValue('F6', ((data as any).schoolName || settings?.schoolName || 'STA. MARIA CS SPED CENTER').toUpperCase()); // School Name value
     setHeaderValue('O6', data.schoolYear || ''); // School Year value
     setHeaderValue('S6', (data.gradeLevel || '').toString().toUpperCase()); // Grade Level value
     setHeaderValue('V6', (data.section || '').toString().toUpperCase()); // Section value
@@ -2041,7 +2046,7 @@ export async function generateAdminSF1(data: SF1Data) {
         contactCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
         const remCell = worksheet.getCell(`Y${currentRow}`);
-        remCell.value = learner.remarks || '';
+        remCell.value = learner.remarks || buildSF1Remarks(learner) || '';
         remCell.font = { name: 'Arial Narrow', size: 14 };
         remCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
 
@@ -2121,7 +2126,11 @@ export async function generateAdminSF1(data: SF1Data) {
       };
     }
 
-    const principalName = ((data as any).schoolHead || (data as any).principalName || (data as any).schoolHeadName || 'MRS. LEPIDAPTERA VILLANUEVA').toUpperCase();
+    let principalName = (data as any).schoolHead || (data as any).principalName || (data as any).schoolHeadName;
+    if (!principalName) {
+      principalName = await getSchoolHeadName();
+    }
+    principalName = (principalName || 'MRS. LEPIDAPTERA VILLANUEVA').toUpperCase();
     if (principalName) {
       const cell = worksheet.getCell(`X${signatureRow}`);
       cell.value = principalName;
@@ -2137,6 +2146,11 @@ export async function generateAdminSF1(data: SF1Data) {
       horizontal: 'center',
       vertical: 'middle'
     };
+
+    // Populate BoSY and EoSY dates dynamically if present
+    const bosyDate = (data as any).bosyDate ? formatDateStr((data as any).bosyDate) : formatDateStr(settings?.schoolYearStart);
+    const eosyDate = (data as any).eosyDate ? formatDateStr((data as any).eosyDate) : formatDateStr(settings?.schoolYearEnd);
+    populateBoSYEoSYDates(worksheet, bosyDate, eosyDate);
 
     // Apply font size 18 to all cells in the sheet
     worksheet.eachRow({ includeEmpty: true }, (row) => {
@@ -2229,12 +2243,14 @@ export async function generateAdminSF4(data: SF4Data, principalName?: string) {
       console.warn('Failed to add logo to SF4:', e);
     }
 
+    const settings = await getGlobalSettings().catch(() => null);
+
     // Fill up the upper form fields in SF4
-    worksheet.getCell('D5').value = '199006'; // School ID
-    worksheet.getCell('I5').value = 'REGION IX'; // Region
-    worksheet.getCell('N5').value = 'ZAMBOANGA'; // Division
-    worksheet.getCell('Y5').value = 'STA. MARIA CENTRAL'; // District
-    worksheet.getCell('C7').value = 'STA. MARIA CS SPED CENTER'; // School Name
+    worksheet.getCell('D5').value = (data as any).schoolId || settings?.schoolId || '199006'; // School ID
+    worksheet.getCell('I5').value = (data as any).region || (settings ? `REGION ${settings.region}` : 'REGION IX'); // Region
+    worksheet.getCell('N5').value = ((data as any).division || settings?.division || 'ZAMBOANGA').toUpperCase(); // Division
+    worksheet.getCell('Y5').value = ((data as any).district || settings?.district || 'STA. MARIA CENTRAL').toUpperCase(); // District
+    worksheet.getCell('C7').value = ((data as any).schoolName || settings?.schoolName || 'STA. MARIA CS SPED CENTER').toUpperCase(); // School Name
     worksheet.getCell('Y7').value = data.schoolYear; // School Year
     worksheet.getCell('AJ7').value = data.reportMonth.toUpperCase(); // Report for the Month of
 
@@ -2260,38 +2276,284 @@ export async function generateAdminSF4(data: SF4Data, principalName?: string) {
         worksheet.mergeCells(`C${currentRow}:D${currentRow}`);
       }
 
-      worksheet.getCell(`A${currentRow}`).value = sec.gradeLevel;
-      worksheet.getCell(`B${currentRow}`).value = sec.section;
-      worksheet.getCell(`C${currentRow}`).value = sec.advisorName;
+      const cellA = worksheet.getCell(`A${currentRow}`);
+      cellA.value = sec.gradeLevel;
+      cellA.font = { name: 'Arial Narrow', size: 10, bold: true };
+      cellA.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const cellB = worksheet.getCell(`B${currentRow}`);
+      cellB.value = sec.section;
+      cellB.font = { name: 'Arial Narrow', size: 10, bold: true };
+      cellB.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const cellC = worksheet.getCell(`C${currentRow}`);
+      cellC.value = sec.advisorName;
+      cellC.font = { name: 'Arial Narrow', size: 10, bold: false };
+      cellC.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // Registered Learners
       worksheet.getCell(`E${currentRow}`).value = sec.maleCount;
       worksheet.getCell(`F${currentRow}`).value = sec.femaleCount;
-      worksheet.getCell(`G${currentRow}`).value = sec.totalCount;
+      worksheet.getCell(`G${currentRow}`).value = { formula: `E${currentRow}+F${currentRow}` };
+
+      // Daily Average Attendance
+      worksheet.getCell(`H${currentRow}`).value = sec.avgDailyAttendanceMale;
+      worksheet.getCell(`I${currentRow}`).value = sec.avgDailyAttendanceFemale;
+      worksheet.getCell(`J${currentRow}`).value = { formula: `H${currentRow}+I${currentRow}` };
+
+      // Percentage for the Month
+      worksheet.getCell(`K${currentRow}`).value = { formula: `IF(E${currentRow}>0, (H${currentRow}/E${currentRow})*100, 0)` };
+      worksheet.getCell(`L${currentRow}`).value = { formula: `IF(F${currentRow}>0, (I${currentRow}/F${currentRow})*100, 0)` };
+      worksheet.getCell(`M${currentRow}`).value = { formula: `IF(G${currentRow}>0, (J${currentRow}/G${currentRow})*100, 0)` };
+
+      // NLPA / Dropped Out
+      worksheet.getCell(`N${currentRow}`).value = sec.nlpaPrevMale || 0;
+      worksheet.getCell(`O${currentRow}`).value = sec.nlpaPrevFemale || 0;
+      worksheet.getCell(`P${currentRow}`).value = { formula: `N${currentRow}+O${currentRow}` };
+
+      worksheet.getCell(`Q${currentRow}`).value = sec.nlpaMonthMale || 0;
+      worksheet.getCell(`R${currentRow}`).value = sec.nlpaMonthFemale || 0;
+      worksheet.getCell(`S${currentRow}`).value = { formula: `Q${currentRow}+R${currentRow}` };
+
+      worksheet.getCell(`T${currentRow}`).value = { formula: `N${currentRow}+Q${currentRow}` };
+      worksheet.getCell(`U${currentRow}`).value = { formula: `O${currentRow}+R${currentRow}` };
+      worksheet.getCell(`V${currentRow}`).value = { formula: `T${currentRow}+U${currentRow}` };
+
+      // Transferred Out
+      worksheet.getCell(`W${currentRow}`).value = sec.tOutPrevMale || 0;
+      worksheet.getCell(`X${currentRow}`).value = sec.tOutPrevFemale || 0;
+      worksheet.getCell(`Y${currentRow}`).value = { formula: `W${currentRow}+X${currentRow}` };
+
+      worksheet.getCell(`Z${currentRow}`).value = sec.tOutMonthMale || 0;
+      worksheet.getCell(`AA${currentRow}`).value = sec.tOutMonthFemale || 0;
+      worksheet.getCell(`AB${currentRow}`).value = { formula: `Z${currentRow}+AA${currentRow}` };
+
+      worksheet.getCell(`AC${currentRow}`).value = { formula: `W${currentRow}+Z${currentRow}` };
+      worksheet.getCell(`AD${currentRow}`).value = { formula: `X${currentRow}+AA${currentRow}` };
+      worksheet.getCell(`AE${currentRow}`).value = { formula: `AC${currentRow}+AD${currentRow}` };
+
+      // Transferred In
+      worksheet.getCell(`AF${currentRow}`).value = sec.tInPrevMale || 0;
+      worksheet.getCell(`AG${currentRow}`).value = sec.tInPrevFemale || 0;
+      worksheet.getCell(`AH${currentRow}`).value = { formula: `AF${currentRow}+AG${currentRow}` };
+
+      worksheet.getCell(`AI${currentRow}`).value = sec.tInMonthMale || 0;
+      worksheet.getCell(`AJ${currentRow}`).value = sec.tInMonthFemale || 0;
+      worksheet.getCell(`AK${currentRow}`).value = { formula: `AI${currentRow}+AJ${currentRow}` };
+
+      worksheet.getCell(`AL${currentRow}`).value = { formula: `AF${currentRow}+AI${currentRow}` };
+      worksheet.getCell(`AM${currentRow}`).value = { formula: `AG${currentRow}+AJ${currentRow}` };
+      worksheet.getCell(`AN${currentRow}`).value = { formula: `AL${currentRow}+AM${currentRow}` };
+
       currentRow++;
     });
 
-    // Dynamic signature placement: Find the row containing "(Signature of School Head over Printed Name)" and write the name on the cell above it
-    let signatureRow = 43; // fallback default
+    // Populate TOTALS / SUMMARY Row at bottom of table
+    const totalRow = currentRow;
+    const startRow = 12;
+    const endRow = currentRow - 1;
+
+    if (endRow >= startRow) {
+      if (currentRow > 29) {
+        worksheet.duplicateRow(currentRow - 1, 1, true);
+      }
+
+      // Clear leftover section/adviser data in B, C, D copied from duplicateRow
+      worksheet.getCell(`B${totalRow}`).value = null;
+      worksheet.getCell(`C${totalRow}`).value = null;
+      worksheet.getCell(`D${totalRow}`).value = null;
+
+      try { worksheet.unMergeCells(`A${totalRow}:D${totalRow}`); } catch (e) { }
+      try { worksheet.mergeCells(`A${totalRow}:D${totalRow}`); } catch (e) { }
+
+      const totalCell = worksheet.getCell(`A${totalRow}`);
+      totalCell.value = 'TOTAL';
+      totalCell.font = { name: 'Arial Narrow', size: 10, bold: true };
+      totalCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      const colsToSum = ['E', 'F', 'G', 'H', 'I', 'J', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM', 'AN'];
+      colsToSum.forEach(col => {
+        worksheet.getCell(`${col}${totalRow}`).value = { formula: `SUM(${col}${startRow}:${col}${endRow})` };
+      });
+
+      // Overall Percentage Formulas
+      worksheet.getCell(`K${totalRow}`).value = { formula: `IF(E${totalRow}>0, (H${totalRow}/E${totalRow})*100, 0)` };
+      worksheet.getCell(`L${totalRow}`).value = { formula: `IF(F${totalRow}>0, (I${totalRow}/F${totalRow})*100, 0)` };
+      worksheet.getCell(`M${totalRow}`).value = { formula: `IF(G${totalRow}>0, (J${totalRow}/G${totalRow})*100, 0)` };
+
+      // Summary Table begins right after the main section table totalRow
+      const headerR = totalRow + 1;
+      const kinderR = totalRow + 2;
+      const g1R = totalRow + 3;
+      const g2R = totalRow + 4;
+      const g3R = totalRow + 5;
+      const g4R = totalRow + 6;
+      const g5R = totalRow + 7;
+      const g6R = totalRow + 8;
+      const nonGradedR = totalRow + 9;
+      const summaryTotalR = totalRow + 10;
+
+      worksheet.getCell(`A${headerR}`).value = 'ELEMENTARY:';
+      worksheet.getCell(`A${kinderR}`).value = 'KINDER';
+      worksheet.getCell(`A${g1R}`).value = 'GRADE 1';
+      worksheet.getCell(`A${g2R}`).value = 'GRADE 2';
+      worksheet.getCell(`A${g3R}`).value = 'GRADE 3';
+      worksheet.getCell(`A${g4R}`).value = 'GRADE 4';
+      worksheet.getCell(`A${g5R}`).value = 'GRADE 5';
+      worksheet.getCell(`A${g6R}`).value = 'GRADE 6';
+      worksheet.getCell(`A${nonGradedR}`).value = 'TOTAL FOR NON-GRADED';
+      worksheet.getCell(`A${summaryTotalR}`).value = 'TOTAL';
+
+      [headerR, kinderR, g1R, g2R, g3R, g4R, g5R, g6R, nonGradedR, summaryTotalR].forEach(r => {
+        try { worksheet.unMergeCells(`A${r}:D${r}`); } catch(e){}
+        try { worksheet.mergeCells(`A${r}:D${r}`); } catch(e){}
+        worksheet.getRow(r).hidden = false;
+        const cellA = worksheet.getCell(`A${r}`);
+        cellA.font = { name: 'Arial Narrow', size: 10, bold: true };
+        cellA.alignment = { horizontal: r === headerR ? 'left' : 'center', vertical: 'middle' };
+      });
+
+      const rawSumCols = ['E', 'F', 'H', 'I', 'N', 'O', 'Q', 'R', 'W', 'X', 'Z', 'AA', 'AF', 'AG', 'AI', 'AJ'];
+
+      const populateGradeRow = (r: number, searchGradeStr: string, altSearchGradeStr?: string) => {
+        rawSumCols.forEach(col => {
+          let formulaStr = `SUMIF($A$${startRow}:$A$${endRow}, "${searchGradeStr}", ${col}$${startRow}:${col}$${endRow})`;
+          if (altSearchGradeStr) {
+            formulaStr += ` + SUMIF($A$${startRow}:$A$${endRow}, "${altSearchGradeStr}", ${col}$${startRow}:${col}$${endRow})`;
+          }
+          worksheet.getCell(`${col}${r}`).value = { formula: formulaStr };
+        });
+
+        worksheet.getCell(`G${r}`).value = { formula: `E${r}+F${r}` };
+        worksheet.getCell(`J${r}`).value = { formula: `H${r}+I${r}` };
+        worksheet.getCell(`K${r}`).value = { formula: `IF(E${r}>0, (H${r}/E${r})*100, 0)` };
+        worksheet.getCell(`L${r}`).value = { formula: `IF(F${r}>0, (I${r}/F${r})*100, 0)` };
+        worksheet.getCell(`M${r}`).value = { formula: `IF(G${r}>0, (J${r}/G${r})*100, 0)` };
+
+        worksheet.getCell(`P${r}`).value = { formula: `N${r}+O${r}` };
+        worksheet.getCell(`S${r}`).value = { formula: `Q${r}+R${r}` };
+        worksheet.getCell(`T${r}`).value = { formula: `N${r}+Q${r}` };
+        worksheet.getCell(`U${r}`).value = { formula: `O${r}+R${r}` };
+        worksheet.getCell(`V${r}`).value = { formula: `T${r}+U${r}` };
+
+        worksheet.getCell(`Y${r}`).value = { formula: `W${r}+X${r}` };
+        worksheet.getCell(`AB${r}`).value = { formula: `Z${r}+AA${r}` };
+        worksheet.getCell(`AC${r}`).value = { formula: `W${r}+Z${r}` };
+        worksheet.getCell(`AD${r}`).value = { formula: `X${r}+AA${r}` };
+        worksheet.getCell(`AE${r}`).value = { formula: `AC${r}+AD${r}` };
+
+        worksheet.getCell(`AH${r}`).value = { formula: `AF${r}+AG${r}` };
+        worksheet.getCell(`AK${r}`).value = { formula: `AI${r}+AJ${r}` };
+        worksheet.getCell(`AL${r}`).value = { formula: `AF${r}+AI${r}` };
+        worksheet.getCell(`AM${r}`).value = { formula: `AG${r}+AJ${r}` };
+        worksheet.getCell(`AN${r}`).value = { formula: `AL${r}+AM${r}` };
+      };
+
+      populateGradeRow(kinderR, 'Kinder*');
+      populateGradeRow(g1R, 'Grade 1', '1');
+      populateGradeRow(g2R, 'Grade 2', '2');
+      populateGradeRow(g3R, 'Grade 3', '3');
+      populateGradeRow(g4R, 'Grade 4', '4');
+      populateGradeRow(g5R, 'Grade 5', '5');
+      populateGradeRow(g6R, 'Grade 6', '6');
+      populateGradeRow(nonGradedR, 'Non-Graded*');
+
+      colsToSum.forEach(col => {
+        worksheet.getCell(`${col}${summaryTotalR}`).value = { formula: `SUM(${col}${kinderR}:${col}${nonGradedR})` };
+      });
+
+      worksheet.getCell(`K${summaryTotalR}`).value = { formula: `IF(E${summaryTotalR}>0, (H${summaryTotalR}/E${summaryTotalR})*100, 0)` };
+      worksheet.getCell(`L${summaryTotalR}`).value = { formula: `IF(F${summaryTotalR}>0, (I${summaryTotalR}/F${summaryTotalR})*100, 0)` };
+      worksheet.getCell(`M${summaryTotalR}`).value = { formula: `IF(G${summaryTotalR}>0, (J${summaryTotalR}/G${summaryTotalR})*100, 0)` };
+    }
+
+    // Format Guidelines and Signature block below the summary table
+    let guidelinesHeaderRow: number | null = null;
+    let rule1Row: number | null = null;
+    let rule2Row: number | null = null;
+    let prepByRow: number | null = null;
+    let signatureLabelRow: number | null = null;
+    let pageRow: number | null = null;
+
     worksheet.eachRow((row, rowNum) => {
       row.eachCell({ includeEmpty: true }, (cell) => {
-        const val = cell.value;
-        if (val && typeof val === 'string' && val.includes('Signature of School Head')) {
-          signatureRow = rowNum;
+        if (cell.value && typeof cell.value === 'string') {
+          const val = cell.value.trim();
+          if (val.includes('GUIDELINES:')) guidelinesHeaderRow = rowNum;
+          if (val.startsWith('1.')) rule1Row = rowNum;
+          if (val.startsWith('2.')) rule2Row = rowNum;
+          if (val.includes('Prepared and Submitted by')) prepByRow = rowNum;
+          if (val.includes('Signature of School Head')) signatureLabelRow = rowNum;
+          if (val.includes('Page _____')) pageRow = rowNum;
         }
       });
     });
 
-    const targetNameRow = signatureRow - 1;
-    const targetCell = worksheet.getCell(`AG${targetNameRow}`);
-    targetCell.value = (principalName || 'MRS. LEPIDAPTERA VILLANUEVA').toUpperCase();
-    targetCell.font = {
-      name: 'Arial',
-      size: 10,
-      bold: true
-    };
-    targetCell.alignment = {
-      horizontal: 'center',
-      vertical: 'middle'
-    };
+    if (guidelinesHeaderRow) {
+      const gHeadCell = worksheet.getCell(`A${guidelinesHeaderRow}`);
+      gHeadCell.value = 'GUIDELINES:';
+      gHeadCell.font = { name: 'Arial Narrow', size: 10, bold: true };
+    }
+
+    if (rule1Row) {
+      try { worksheet.unMergeCells(`A${rule1Row}:V${rule1Row}`); } catch (e) { }
+      try { worksheet.mergeCells(`A${rule1Row}:V${rule1Row}`); } catch (e) { }
+      const c = worksheet.getCell(`A${rule1Row}`);
+      c.value = '1. This form shall be accomplished every end of the month using the summary box of SF2 submitted by the teachers/advisers to update figures for the month.';
+      c.font = { name: 'Arial Narrow', size: 9 };
+      c.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      worksheet.getRow(rule1Row).height = 22;
+    }
+
+    if (rule2Row) {
+      try { worksheet.unMergeCells(`A${rule2Row}:V${rule2Row}`); } catch (e) { }
+      try { worksheet.mergeCells(`A${rule2Row}:V${rule2Row}`); } catch (e) { }
+      const c = worksheet.getCell(`A${rule2Row}`);
+      c.value = '2. Furnish the Division Office with a copy a week after June 30, October 30 & March 31';
+      c.font = { name: 'Arial Narrow', size: 9 };
+      c.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      worksheet.getRow(rule2Row).height = 18;
+    }
+
+    if (pageRow) {
+      try { worksheet.unMergeCells(`A${pageRow}:V${pageRow}`); } catch (e) { }
+      try { worksheet.mergeCells(`A${pageRow}:V${pageRow}`); } catch (e) { }
+      const c = worksheet.getCell(`A${pageRow}`);
+      c.value = 'Page _____ of  _____ pages';
+      c.font = { name: 'Arial Narrow', size: 9, italic: true };
+      c.alignment = { horizontal: 'left', vertical: 'middle' };
+    }
+
+    let effectivePrincipalName = principalName;
+    if (!effectivePrincipalName) {
+      effectivePrincipalName = await getSchoolHeadName();
+    }
+    const finalPrincipalName = (effectivePrincipalName || 'MRS. LEPIDAPTERA VILLANUEVA').toUpperCase();
+
+    if (prepByRow) {
+      try { worksheet.unMergeCells(`Y${prepByRow}:AN${prepByRow}`); } catch (e) { }
+      try { worksheet.mergeCells(`Y${prepByRow}:AN${prepByRow}`); } catch (e) { }
+      const c = worksheet.getCell(`Y${prepByRow}`);
+      c.value = 'Prepared and Submitted by:';
+      c.font = { name: 'Arial Narrow', size: 10, bold: true };
+      c.alignment = { horizontal: 'center', vertical: 'middle' };
+    }
+
+    if (signatureLabelRow) {
+      const nameRow = signatureLabelRow - 1;
+      try { worksheet.unMergeCells(`Y${nameRow}:AN${nameRow}`); } catch (e) { }
+      try { worksheet.mergeCells(`Y${nameRow}:AN${nameRow}`); } catch (e) { }
+      const nameCell = worksheet.getCell(`Y${nameRow}`);
+      nameCell.value = finalPrincipalName;
+      nameCell.font = { name: 'Arial Narrow', size: 11, bold: true };
+      nameCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      try { worksheet.unMergeCells(`Y${signatureLabelRow}:AN${signatureLabelRow}`); } catch (e) { }
+      try { worksheet.mergeCells(`Y${signatureLabelRow}:AN${signatureLabelRow}`); } catch (e) { }
+      const labelCell = worksheet.getCell(`Y${signatureLabelRow}`);
+      labelCell.value = '(Signature of School Head over Printed Name)';
+      labelCell.font = { name: 'Arial Narrow', size: 9, bold: false };
+      labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    }
 
     workbook.worksheets.forEach((ws) => {
       applyPrintPageSetup(ws, 'landscape');

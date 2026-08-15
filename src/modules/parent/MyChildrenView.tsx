@@ -117,7 +117,19 @@ export function MyChildrenView({
     );
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, gradeLevel?: string) => {
+    const isGrade6 = (gradeLevel || '').toLowerCase().includes('6');
+    const isPromoted = status === 'PROMOTED' || status === 'Promoted';
+    const isGraduated = (isGrade6 && isPromoted) || status === 'GRADUATED' || status === 'Graduated';
+
+    if (isGraduated) {
+      return (
+        <span className="px-3.5 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-full border border-purple-200 inline-flex items-center gap-1.5 shadow-2xs">
+          <GraduationCap className="w-3.5 h-3.5 text-purple-600" /> Graduated
+        </span>
+      );
+    }
+
     switch (status) {
       case 'Enrolled':
       case 'Approved':
@@ -125,6 +137,39 @@ export function MyChildrenView({
         return (
           <span className="px-3.5 py-1 bg-emerald-50 text-emerald-600 text-xs font-semibold rounded-full border border-emerald-100/80 inline-flex items-center gap-1.5 shadow-2xs">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Enrolled
+          </span>
+        );
+      case 'Promoted':
+      case 'PROMOTED':
+        return (
+          <span className="px-3.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200 inline-flex items-center gap-1.5 shadow-2xs">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Promoted
+          </span>
+        );
+      case 'Retained':
+      case 'RETAINED':
+        return (
+          <span className="px-3.5 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-200 inline-flex items-center gap-1.5 shadow-2xs">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Retained
+          </span>
+        );
+      case 'Transferred Out':
+      case 'Transferred':
+        return (
+          <span className="px-3.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full border border-slate-200 inline-flex items-center gap-1.5 shadow-2xs">
+            Transferred Out
+          </span>
+        );
+      case 'Transferred In':
+        return (
+          <span className="px-3.5 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200 inline-flex items-center gap-1.5 shadow-2xs">
+            Transferred In
+          </span>
+        );
+      case 'Dropped':
+        return (
+          <span className="px-3.5 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-full border border-rose-200 inline-flex items-center gap-1.5 shadow-2xs">
+            Dropped
           </span>
         );
       case 'Pending':
@@ -349,7 +394,7 @@ export function MyChildrenView({
 
                           {/* Enrollment Status */}
                           <td className="py-5 px-6">
-                            {getStatusBadge(child.status)}
+                            {getStatusBadge(child.status, child.gradeLevel)}
                           </td>
 
                           {/* General Average */}

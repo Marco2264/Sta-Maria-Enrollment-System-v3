@@ -985,7 +985,7 @@ export function ChildDetailView({
                 </TabsContent>
 
                 <TabsContent value="attendance" className="mt-0 outline-none space-y-6">
-                  {child.status !== 'Enrolled' ? (
+                  {(child.status === 'Pending' || child.status === 'Rejected') ? (
                     <Card className="bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl overflow-hidden">
                       <div className="p-16 text-center">
                         <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1003,7 +1003,7 @@ export function ChildDetailView({
                 </TabsContent>
 
                 <TabsContent value="academic" className="mt-0 outline-none space-y-6">
-                  {child.status !== 'Enrolled' && child.status !== 'Approved' ? (
+                  {(child.status === 'Pending' || child.status === 'Rejected') ? (
                     <div className="p-16 text-center bg-white border border-slate-200/60 shadow-sm rounded-3xl mt-4">
                       <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Lock className="w-10 h-10 text-slate-300" />
@@ -1290,7 +1290,7 @@ export function ChildDetailView({
           {editData && (
             <div className="space-y-8 pt-4">
               {/* Basic Info */}
-              {child.status !== 'Enrolled' && child.status !== 'Approved' && (
+              {(child.status === 'Pending' || child.status === 'Rejected') && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-bold text-slate-800 border-b pb-2">Basic Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

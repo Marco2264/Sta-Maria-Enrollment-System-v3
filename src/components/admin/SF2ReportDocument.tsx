@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReportLayout } from './reports/ReportLayout';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF2ReportDocumentProps {
   onClose: () => void;
@@ -9,6 +10,45 @@ interface SF2ReportDocumentProps {
 export function SF2ReportDocument({ onClose, data }: SF2ReportDocumentProps) {
   const { schoolYear, gradeLevel, section, month, learners } = data;
   const anyData = data as any;
+  const [principalName, setPrincipalName] = useState<string>(
+    anyData.schoolHead || anyData.principalName || anyData.schoolHeadName || 'MRS. LEPIDAPTERA VILLANUEVA'
+  );
+  const formatDateStr = (str?: string) => {
+    if (!str) return '';
+    const d = new Date(str.includes('T') ? str : `${str}T00:00:00`);
+    if (isNaN(d.getTime())) return str;
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  };
+
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: anyData.schoolId || '199006',
+    region: anyData.region || 'IX',
+    division: anyData.division || 'Zamboanga',
+    district: anyData.district || 'Sta. Maria Central',
+    schoolName: anyData.schoolName || 'Sta. Maria CS SPED Center',
+    bosyDate: anyData.bosyDate ? formatDateStr(anyData.bosyDate) : '',
+    eosyDate: anyData.eosyDate ? formatDateStr(anyData.eosyDate) : ''
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: anyData.schoolId || settings.schoolId || '199006',
+        region: anyData.region || settings.region || 'IX',
+        division: anyData.division || settings.division || 'Zamboanga',
+        district: anyData.district || settings.district || 'Sta. Maria Central',
+        schoolName: anyData.schoolName || settings.schoolName || 'Sta. Maria CS SPED Center',
+        bosyDate: anyData.bosyDate ? formatDateStr(anyData.bosyDate) : formatDateStr(settings.schoolYearStart),
+        eosyDate: anyData.eosyDate ? formatDateStr(anyData.eosyDate) : formatDateStr(settings.schoolYearEnd)
+      });
+      if (!anyData.schoolHead && !anyData.principalName && !anyData.schoolHeadName && settings.principalName) {
+        setPrincipalName(settings.principalName);
+      }
+    }).catch(console.error);
+  }, [anyData]);
 
   const males = learners.filter((l: any) => !l.gender?.toLowerCase().startsWith('f'));
   const females = learners.filter((l: any) => l.gender?.toLowerCase().startsWith('f'));
@@ -83,19 +123,19 @@ export function SF2ReportDocument({ onClose, data }: SF2ReportDocumentProps) {
       <div className="border-t-2 border-b-2 border-blue-400 py-3 mb-4 text-xs">
         <div className="flex flex-wrap justify-between gap-4">
           <div className="space-y-1">
-            <p><span className="font-bold">School ID:</span> 199006</p>
-            <p><span className="font-bold">School Name:</span> Sta. Maria CS SPED Center</p>
+            <p><span className="font-bold">School ID:</span> {schoolInfo.schoolId}</p>
+            <p><span className="font-bold">School Name:</span> {schoolInfo.schoolName}</p>
           </div>
           <div className="space-y-1">
-            <p><span className="font-bold">Region:</span> IX</p>
+            <p><span className="font-bold">Region:</span> {schoolInfo.region}</p>
             <p><span className="font-bold">School Year:</span> {schoolYear}</p>
           </div>
           <div className="space-y-1">
-            <p><span className="font-bold">Division:</span> Zamboanga</p>
+            <p><span className="font-bold">Division:</span> {schoolInfo.division}</p>
             <p><span className="font-bold">Grade Level:</span> {gradeLevel}</p>
           </div>
           <div className="space-y-1">
-            <p><span className="font-bold">District:</span> Sta. Maria Central</p>
+            <p><span className="font-bold">District:</span> {schoolInfo.district}</p>
             <p><span className="font-bold">Section:</span> {section}</p>
           </div>
           <div className="space-y-1 pr-12">
@@ -319,10 +359,10 @@ export function SF2ReportDocument({ onClose, data }: SF2ReportDocumentProps) {
             </div>
             <div className="flex justify-between text-[7.5px] text-slate-600 mt-4 font-semibold gap-4">
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                BoSY Date:
+                BoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.bosyDate}</span>
               </div>
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                EoSY Date:
+                EoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.eosyDate}</span>
               </div>
             </div>
           </div>
@@ -330,17 +370,17 @@ export function SF2ReportDocument({ onClose, data }: SF2ReportDocumentProps) {
           <div className="flex flex-col">
             <span className="font-semibold text-slate-600 text-[8px] mb-2">Certified Correct:</span>
             <div className="border-b border-black text-center pb-1 font-bold uppercase tracking-wide text-[11px] leading-none min-h-[16px]">
-              {anyData.schoolHead || anyData.principalName || anyData.schoolHeadName || '\u00A0'}
+              {principalName}
             </div>
             <div className="text-[7px] text-slate-500 text-center mt-1 uppercase">
               (Signature of School Head over Printed Name)
             </div>
             <div className="flex justify-between text-[7.5px] text-slate-600 mt-4 font-semibold gap-4">
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                BoSY Date:
+                BoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.bosyDate}</span>
               </div>
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                EoSY Date:
+                EoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.eosyDate}</span>
               </div>
             </div>
           </div>

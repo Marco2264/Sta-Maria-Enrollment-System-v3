@@ -49,12 +49,10 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import {
   uploadToCloudinary,
   addEnrollmentDocumentRecord,
-  deleteFromCloudinary
-} from '../../lib/services/cloudinaryService';
-import { getGlobalSettings, GlobalSettings } from '../../lib/services/settingsService';
-import {
+  deleteFromCloudinary,
   validateRequirementUpload
 } from '../../lib/services/enrollmentDocumentsService';
+import { getGlobalSettings, GlobalSettings } from '../../lib/services/settingsService';
 
 export interface EnrollmentFormProps {
   onComplete: () => void;
@@ -183,6 +181,85 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
     lrn: '',
     classification: 'New Student' as StudentClassificationType
   });
+
+  const [selectedChildId, setSelectedChildId] = useState<string>('');
+
+  const handleSelectChildForReEnrollment = (childId: string) => {
+    const child = children.find(c => c.id === childId);
+    if (!child) return;
+
+    setSelectedChildId(childId);
+
+    const isPromoted = (child.status as string) === 'PROMOTED' || (child.status as string) === 'Promoted';
+    const isGrade6 = (child.gradeLevel || '').toLowerCase().includes('6');
+
+    if (isGrade6 && isPromoted) {
+      setErrorMsg(`${child.firstName} ${child.lastName} has completed Grade 6 and graduated. Re-enrollment in elementary is not applicable.`);
+      setSelectedChildId('');
+      return;
+    }
+
+    // Calculate Next Grade Level
+    let currentGradeNum = 1;
+    const match = (child.gradeLevel || '').match(/\d+/);
+    if (match) {
+      currentGradeNum = parseInt(match[0], 10);
+    }
+
+    let nextGradeStr = `Grade ${currentGradeNum}`;
+    if (isPromoted && currentGradeNum < 6) {
+      nextGradeStr = `Grade ${currentGradeNum + 1}`;
+    }
+
+    setStudentInfo({
+      firstName: child.firstName || '',
+      middleName: child.middleName || '',
+      lastName: child.lastName || '',
+      birthDate: child.birthDate || '',
+      gender: child.gender || '',
+      gradeLevel: nextGradeStr,
+      lrn: child.lrn || '',
+      classification: 'Continuing Student'
+    });
+
+    if (child.medical) {
+      setMedicalInfo(prev => ({
+        ...prev,
+        height: child.medical?.height?.toString() || prev.height,
+        weight: child.medical?.weight?.toString() || prev.weight,
+        allergies: child.medical?.allergies || prev.allergies,
+        diagnoses: child.medical?.diagnoses || prev.diagnoses,
+      }));
+    }
+
+    setSuccessMsg(`Loaded details for ${child.firstName}. Re-enrolling for ${nextGradeStr} as Continuing Student.`);
+  };
+
+  const handleResetToNewStudent = () => {
+    setSelectedChildId('NEW_STUDENT');
+    setStudentInfo({
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      birthDate: '',
+      gender: '',
+      gradeLevel: '',
+      lrn: '',
+      classification: 'New Student'
+    });
+    setMedicalInfo({
+      height: '',
+      weight: '',
+      bloodType: '',
+      allergies: '',
+      diagnoses: [],
+      otherDiagnosis: '',
+      functionalDifficulties: [],
+      hasPwdId: 'No',
+      pwdIdNumber: ''
+    });
+    setSuccessMsg('Switched to New Student Registration.');
+  };
 
   // Age Calculator
   const calculateAge = (bDate: string): number | null => {
@@ -784,6 +861,96 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                     <p className="text-xs text-slate-400 font-medium mt-1">Provide the learner's basic identification details.</p>
                   </div>
                 </div>
+
+                {children && children.length > 0 && (
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50/50 border border-blue-200/80 rounded-2xl space-y-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-blue-600" />
+                        <span className="text-xs font-black text-blue-900 uppercase tracking-wider">Re-Enroll Returning / Continuing Student</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
+                        {children.length} Registered Child(ren)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-blue-800/90 font-medium">
+                      Select an existing child to automatically populate their profile and compute their target grade level for the next school year:
+                    </p>
+                    <Select
+                      value={selectedChildId || 'NEW_STUDENT'}
+                      onValueChange={(val) => {
+                        if (val === 'NEW_STUDENT') {
+                          handleResetToNewStudent();
+                        } else {
+                          handleSelectChildForReEnrollment(val);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full h-11 bg-white border-blue-200 text-slate-900 font-bold text-xs rounded-xl shadow-xs">
+                        <SelectValue placeholder="Select child or New Student...">
+                          {(() => {
+                            if (!selectedChildId || selectedChildId === 'NEW_STUDENT') {
+                              return '➕ New Student Registration (Clear Selection)';
+                            }
+                            const selectedChild = children.find(c => c.id === selectedChildId);
+                            if (selectedChild) {
+                              const fName = (selectedChild.firstName || (selectedChild as any).givenName || '').trim();
+                              const lName = (selectedChild.lastName || (selectedChild as any).familyName || '').trim();
+                              const gLevel = selectedChild.gradeLevel || 'Grade Level';
+                              const fullName = `${fName} ${lName}`.trim() || 'Registered Student';
+                              const st = (selectedChild.status as string) || '';
+                              const isPromoted = st === 'PROMOTED' || st === 'Promoted';
+                              const isRetained = st === 'RETAINED' || st === 'Retained';
+                              const isGrade6 = (selectedChild.gradeLevel || '').toLowerCase().includes('6');
+                              const isGraduated = (isGrade6 && isPromoted) || st === 'GRADUATED' || st === 'Graduated';
+
+                              const statusText = isGraduated
+                                ? 'Graduated (Elementary Completer)'
+                                : isPromoted
+                                ? 'Promoted (Next Grade)'
+                                : isRetained
+                                ? 'Retained (Same Grade)'
+                                : st || 'Enrolled';
+
+                              return `${fullName} — Current: ${gLevel} (${statusText})`;
+                            }
+                            return '➕ New Student Registration (Clear Selection)';
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200">
+                        <SelectItem value="NEW_STUDENT">
+                          ➕ New Student Registration (Clear Selection)
+                        </SelectItem>
+                        {children.map((c) => {
+                          const st = (c.status as string) || '';
+                          const isPromoted = st === 'PROMOTED' || st === 'Promoted';
+                          const isRetained = st === 'RETAINED' || st === 'Retained';
+                          const isGrade6 = (c.gradeLevel || '').toLowerCase().includes('6');
+                          const isGraduated = (isGrade6 && isPromoted) || st === 'GRADUATED' || st === 'Graduated';
+
+                          const statusText = isGraduated
+                            ? 'Graduated (Elementary Completer)'
+                            : isPromoted
+                            ? 'Promoted (Next Grade)'
+                            : isRetained
+                            ? 'Retained (Same Grade)'
+                            : st || 'Enrolled';
+
+                          const fName = (c.firstName || (c as any).givenName || '').trim();
+                          const lName = (c.lastName || (c as any).familyName || '').trim();
+                          const gLevel = c.gradeLevel || 'Grade Level';
+                          const fullName = `${fName} ${lName}`.trim() || 'Registered Student';
+                          return (
+                            <SelectItem key={c.id} value={c.id} disabled={isGraduated}>
+                              {fullName} — Current: {gLevel} ({statusText})
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
                   {/* Field 1: First Name */}

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReportLayout } from './reports/ReportLayout';
-import type { SF1Data } from '../../lib/services/reportDataService';
+import { buildSF1Remarks, type SF1Data } from '../../lib/services/reportDataService';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF1ReportDocumentProps {
   onClose: () => void;
@@ -10,6 +11,45 @@ interface SF1ReportDocumentProps {
 export function SF1ReportDocument({ onClose, data }: SF1ReportDocumentProps) {
   const { schoolYear, gradeLevel, section, learners, advisorName } = data;
   const anyData = data as any;
+  const [principalName, setPrincipalName] = useState<string>(
+    anyData.schoolHead || anyData.principalName || anyData.schoolHeadName || 'MRS. LEPIDAPTERA VILLANUEVA'
+  );
+  const formatDateStr = (str?: string) => {
+    if (!str) return '';
+    const d = new Date(str.includes('T') ? str : `${str}T00:00:00`);
+    if (isNaN(d.getTime())) return str;
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  };
+
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: anyData.schoolId || '199006',
+    region: anyData.region || 'IX',
+    division: anyData.division || 'Zamboanga',
+    district: anyData.district || 'Sta. Maria Central',
+    schoolName: anyData.schoolName || 'Sta. Maria CS SPED Center',
+    bosyDate: anyData.bosyDate ? formatDateStr(anyData.bosyDate) : '',
+    eosyDate: anyData.eosyDate ? formatDateStr(anyData.eosyDate) : ''
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: anyData.schoolId || settings.schoolId || '199006',
+        region: anyData.region || settings.region || 'IX',
+        division: anyData.division || settings.division || 'Zamboanga',
+        district: anyData.district || settings.district || 'Sta. Maria Central',
+        schoolName: anyData.schoolName || settings.schoolName || 'Sta. Maria CS SPED Center',
+        bosyDate: anyData.bosyDate ? formatDateStr(anyData.bosyDate) : formatDateStr(settings.schoolYearStart),
+        eosyDate: anyData.eosyDate ? formatDateStr(anyData.eosyDate) : formatDateStr(settings.schoolYearEnd)
+      });
+      if (!anyData.schoolHead && !anyData.principalName && !anyData.schoolHeadName && settings.principalName) {
+        setPrincipalName(settings.principalName);
+      }
+    }).catch(console.error);
+  }, [anyData]);
 
   const femalesCount = learners.filter(s => s.gender?.toLowerCase().startsWith('f')).length;
   const malesCount = learners.filter(s => !s.gender?.toLowerCase().startsWith('f')).length;
@@ -33,6 +73,7 @@ export function SF1ReportDocument({ onClose, data }: SF1ReportDocumentProps) {
         </div>
       </div>
 
+
       {/* Info Boxes Header - Exact Replica of Excel Metadata Boxes */}
       <div className="mb-5 font-['Arial_Narrow',sans-serif] text-xs space-y-2">
         {/* Row 1 */}
@@ -40,25 +81,25 @@ export function SF1ReportDocument({ onClose, data }: SF1ReportDocumentProps) {
           <div className="col-span-3 flex items-center gap-2">
             <span className="font-bold text-slate-900 shrink-0">School ID</span>
             <div className="flex-1 border border-black bg-white px-2 py-1 text-center font-bold text-sm">
-              199006
+              {schoolInfo.schoolId}
             </div>
           </div>
           <div className="col-span-2 flex items-center gap-2">
             <span className="font-bold text-slate-900 shrink-0">Region</span>
             <div className="flex-1 border border-black bg-white px-2 py-1 text-center font-bold text-sm">
-              IX
+              {schoolInfo.region}
             </div>
           </div>
           <div className="col-span-4 flex items-center gap-2">
             <span className="font-bold text-slate-900 shrink-0">Division</span>
             <div className="flex-1 border border-black bg-white px-2 py-1 text-center font-bold text-sm">
-              Zamboanga
+              {schoolInfo.division}
             </div>
           </div>
           <div className="col-span-3 flex items-center gap-2">
             <span className="font-bold text-slate-900 shrink-0">District</span>
             <div className="flex-1 border border-black bg-white px-2 py-1 text-center font-bold text-sm truncate">
-              Sta. Maria Central
+              {schoolInfo.district}
             </div>
           </div>
         </div>
@@ -68,7 +109,7 @@ export function SF1ReportDocument({ onClose, data }: SF1ReportDocumentProps) {
           <div className="col-span-4 flex items-center gap-2">
             <span className="font-bold text-slate-900 shrink-0">Name of School</span>
             <div className="flex-1 border border-black bg-white px-2 py-1 text-center font-bold text-sm truncate">
-              Sta. Maria CS SPED Center
+              {schoolInfo.schoolName}
             </div>
           </div>
           <div className="col-span-3 flex items-center gap-2">
@@ -167,7 +208,7 @@ export function SF1ReportDocument({ onClose, data }: SF1ReportDocumentProps) {
                   <td className="border border-black px-2 py-1 uppercase text-left text-[14px] whitespace-nowrap">{l.guardianName}</td>
                   <td className="border border-black px-2 py-1 uppercase text-center text-[14px] whitespace-nowrap">{l.guardianRelationship}</td>
                   <td className="border border-black px-2 py-1 text-center text-[14px] whitespace-nowrap">{l.contactNumber}</td>
-                  <td className="border border-black px-2 py-1 uppercase text-left text-[14px] whitespace-nowrap">{l.remarks}</td>
+                  <td className="border border-black px-2 py-1 uppercase text-left text-[14px] whitespace-nowrap">{l.remarks || buildSF1Remarks(l)}</td>
                 </tr>
               ))
             ) : (
@@ -262,10 +303,10 @@ export function SF1ReportDocument({ onClose, data }: SF1ReportDocumentProps) {
             </div>
             <div className="flex justify-between text-[9px] text-slate-600 mt-4 font-semibold gap-4">
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                BoSY Date:
+                BoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.bosyDate}</span>
               </div>
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                EoSY Date:
+                EoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.eosyDate}</span>
               </div>
             </div>
           </div>
@@ -273,17 +314,17 @@ export function SF1ReportDocument({ onClose, data }: SF1ReportDocumentProps) {
           <div className="flex flex-col">
             <span className="font-semibold text-slate-600 text-[10px] mb-2">Certified Correct:</span>
             <div className="border-b border-black text-center pb-1 font-bold uppercase tracking-wide text-[16px] font-['Arial_Narrow',sans-serif] leading-none min-h-[22px]">
-              {anyData.schoolHead || anyData.principalName || anyData.schoolHeadName || 'MRS. LEPIDAPTERA VILLANUEVA'}
+              {principalName}
             </div>
             <div className="text-[9px] text-slate-500 text-center mt-1 uppercase font-semibold">
               (Signature of School Head over Printed Name)
             </div>
             <div className="flex justify-between text-[9px] text-slate-600 mt-4 font-semibold gap-4">
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                BoSY Date:
+                BoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.bosyDate}</span>
               </div>
               <div className="flex-1 border-b border-slate-400 pb-0.5">
-                EoSY Date:
+                EoSY Date: <span className="font-bold text-slate-900 ml-1">{schoolInfo.eosyDate}</span>
               </div>
             </div>
           </div>

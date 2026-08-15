@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReportLayout } from './reports/ReportLayout';
 import type { SF4Data } from '../../lib/services/reportDataService';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF4ReportDocumentProps {
   onClose: () => void;
@@ -9,6 +10,24 @@ interface SF4ReportDocumentProps {
 
 export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
   const { schoolYear, reportMonth, sections } = data;
+  const anyData = data as any;
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: anyData.schoolId || '199006',
+    region: anyData.region || 'IX',
+    division: anyData.division || 'ZAMBOANGA',
+    schoolName: anyData.schoolName || 'Sta. Maria CS SPED Center'
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: anyData.schoolId || settings.schoolId || '199006',
+        region: anyData.region || settings.region || 'IX',
+        division: (anyData.division || settings.division || 'ZAMBOANGA').toUpperCase(),
+        schoolName: anyData.schoolName || settings.schoolName || 'Sta. Maria CS SPED Center'
+      });
+    }).catch(console.error);
+  }, [anyData]);
 
   return (
     <ReportLayout title="School Form 4 (SF4)" onClose={onClose} landscape>
@@ -43,15 +62,15 @@ export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
         <tbody>
           <tr>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">School ID:</td>
-            <td className="border border-black px-2 py-1 w-64">199006</td>
+            <td className="border border-black px-2 py-1 w-64">{schoolInfo.schoolId}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">Region:</td>
-            <td className="border border-black px-2 py-1 w-64">IX</td>
+            <td className="border border-black px-2 py-1 w-64">{schoolInfo.region}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">Division:</td>
-            <td className="border border-black px-2 py-1">ZAMBOANGA</td>
+            <td className="border border-black px-2 py-1">{schoolInfo.division}</td>
           </tr>
           <tr>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">School Name:</td>
-            <td className="border border-black px-2 py-1 font-bold">Sta. Maria CS SPED Center</td>
+            <td className="border border-black px-2 py-1 font-bold">{schoolInfo.schoolName}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">School Year:</td>
             <td className="border border-black px-2 py-1">{schoolYear}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">Report Month:</td>

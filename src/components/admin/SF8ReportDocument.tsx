@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReportLayout } from './reports/ReportLayout';
 import type { HealthData } from '../../lib/services/healthAnalyticsService';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF8ReportDocumentProps {
   onClose: () => void;
@@ -9,11 +10,33 @@ interface SF8ReportDocumentProps {
     gradeLevel: string;
     section: string;
     learners: HealthData[];
+    adviserName?: string;
   };
 }
 
 export function SF8ReportDocument({ onClose, data }: SF8ReportDocumentProps) {
-  const { schoolYear, gradeLevel, section, learners } = data;
+  const { schoolYear, gradeLevel, section, learners, adviserName } = data;
+  const [principalName, setPrincipalName] = useState<string>((data as any).schoolHead || (data as any).principalName || 'MRS. LEPIDAPTERA VILLANUEVA');
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: (data as any).schoolId || '199006',
+    region: (data as any).region || 'IX',
+    division: (data as any).division || 'ZAMBOANGA',
+    district: (data as any).district || 'Sta. Maria Central',
+    schoolName: (data as any).schoolName || 'STA. MARIA CS SPED CENTER'
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: (data as any).schoolId || settings.schoolId || '199006',
+        region: (data as any).region || settings.region || 'IX',
+        division: ((data as any).division || settings.division || 'ZAMBOANGA').toUpperCase(),
+        district: (data as any).district || settings.district || 'Sta. Maria Central',
+        schoolName: ((data as any).schoolName || settings.schoolName || 'STA. MARIA CS SPED CENTER').toUpperCase()
+      });
+      if (settings.principalName) setPrincipalName(settings.principalName);
+    }).catch(console.error);
+  }, []);
 
   const countStats = (learnersList: typeof learners) => {
     const stats = {
@@ -85,19 +108,19 @@ export function SF8ReportDocument({ onClose, data }: SF8ReportDocumentProps) {
       <div className="border-t-2 border-b-2 border-blue-400 py-3 mb-4 text-xs">
         <div className="flex flex-wrap justify-between gap-4">
           <div className="space-y-1">
-            <p><span className="font-bold">School ID:</span> 100011</p>
-            <p><span className="font-bold">School Name:</span> STA. MARIA ELEMENTARY SCHOOL</p>
+            <p><span className="font-bold">School ID:</span> {schoolInfo.schoolId}</p>
+            <p><span className="font-bold">School Name:</span> {schoolInfo.schoolName}</p>
           </div>
           <div className="space-y-1">
-            <p><span className="font-bold">Region:</span> IX</p>
+            <p><span className="font-bold">Region:</span> {schoolInfo.region}</p>
             <p><span className="font-bold">School Year:</span> {schoolYear}</p>
           </div>
           <div className="space-y-1">
-            <p><span className="font-bold">Division:</span> ZAMBOANGA</p>
+            <p><span className="font-bold">Division:</span> {schoolInfo.division}</p>
             <p><span className="font-bold">Grade Level:</span> {gradeLevel}</p>
           </div>
           <div className="space-y-1 pr-12">
-            <p><span className="font-bold">District:</span></p>
+            <p><span className="font-bold">District:</span> {schoolInfo.district}</p>
             <p><span className="font-bold">Section:</span> {section}</p>
           </div>
         </div>
@@ -243,7 +266,7 @@ export function SF8ReportDocument({ onClose, data }: SF8ReportDocumentProps) {
           <div className="text-xs font-bold">Class Adviser</div>
         </div>
         <div className="text-center">
-          <div className="border-b border-black w-48 mb-1"></div>
+          <div className="border-b border-black w-48 mb-1 font-bold text-xs">{principalName}</div>
           <div className="text-xs font-bold">School Head</div>
         </div>
       </div>

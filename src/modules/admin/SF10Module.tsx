@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import { SF10ReportDocument } from './SF10ReportDocument';
 import { FileText, Plus, Edit, Save, X, Printer, Search, ChevronDown, CheckCircle2, CornerDownRight, Trash2 } from 'lucide-react';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF10ModuleProps {
   students?: any[];
@@ -403,6 +404,14 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
   const [formSchoolName, setFormSchoolName] = useState('Sta. Maria CS SPED Center');
   const [formSchoolId, setFormSchoolId] = useState('199006');
   const [formDivision, setFormDivision] = useState('Zamboanga City');
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      if (settings.schoolName) setFormSchoolName(settings.schoolName);
+      if (settings.schoolId) setFormSchoolId(settings.schoolId);
+      if (settings.division) setFormDivision(settings.division);
+    }).catch(console.error);
+  }, []);
   const [formAcademicYear, setFormAcademicYear] = useState('');
   const [formSectionName, setFormSectionName] = useState('');
   const [formAdviserName, setFormAdviserName] = useState('');
@@ -854,9 +863,15 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
     setEditingGradeLevel(gradeLevelName);
 
     if (!existingRecord) {
-      setFormSchoolName('Sta. Maria CS SPED Center');
-      setFormSchoolId('199006');
-      setFormDivision('Zamboanga City');
+      getGlobalSettings().then(settings => {
+        setFormSchoolName(settings.schoolName || 'Sta. Maria CS SPED Center');
+        setFormSchoolId(settings.schoolId || '199006');
+        setFormDivision(settings.division || 'Zamboanga City');
+      }).catch(() => {
+        setFormSchoolName('Sta. Maria CS SPED Center');
+        setFormSchoolId('199006');
+        setFormDivision('Zamboanga City');
+      });
       setFormAcademicYear('');
       setFormSectionName('');
       setFormAdviserName('');

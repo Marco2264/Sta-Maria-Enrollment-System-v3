@@ -4,6 +4,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { ReportLayout } from './reports/ReportLayout';
 import { useAuth } from '../../lib/AuthContext';
 import { ChevronDown, Search, Printer, FileText } from 'lucide-react';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF10ReportDocumentProps {
   onClose: () => void;
@@ -161,6 +162,27 @@ export function SF10ReportDocument({ onClose, data }: SF10ReportDocumentProps) {
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [gradeConfigs, setGradeConfigs] = useState<any[]>([]);
+  const [principalName, setPrincipalName] = useState<string>((data as any).schoolHead || (data as any).principalName || 'MRS. LEPIDAPTERA VILLANUEVA');
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: '199006',
+    region: 'IX',
+    division: 'Zamboanga City',
+    district: 'Sta. Maria Central',
+    schoolName: 'Sta. Maria CS SPED Center'
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: settings.schoolId || '199006',
+        region: settings.region || 'IX',
+        division: settings.division || 'Zamboanga City',
+        district: settings.district || 'Sta. Maria Central',
+        schoolName: settings.schoolName || 'Sta. Maria CS SPED Center'
+      });
+      if (settings.principalName) setPrincipalName(settings.principalName);
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'gradeConfigurations'), (snap) => {
@@ -457,13 +479,13 @@ export function SF10ReportDocument({ onClose, data }: SF10ReportDocumentProps) {
         {/* Metadata info header block */}
         <div style={{ padding: '3px 5px', borderBottom: '1px solid #000', fontSize: '7pt', display: 'flex', flexDirection: 'column', gap: '2px', backgroundColor: '#fff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px' }}>
-            <span><b>School:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '100px', display: 'inline-block' }}>{enrollment?.schoolName || (enrollment ? 'Sta. Maria CS SPED Center' : '')}</span></span>
-            <span><b>School ID:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '40px', display: 'inline-block' }}>{enrollment?.schoolId || (enrollment ? '199006' : '')}</span></span>
+            <span><b>School:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '100px', display: 'inline-block' }}>{enrollment?.schoolName || (enrollment ? schoolInfo.schoolName : '')}</span></span>
+            <span><b>School ID:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '40px', display: 'inline-block' }}>{enrollment?.schoolId || (enrollment ? schoolInfo.schoolId : '')}</span></span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <span><b>District:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '60px', display: 'inline-block' }}>{enrollment ? 'Sta. Maria Central' : ''}</span></span>
-            <span><b>Division:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '70px', display: 'inline-block' }}>{enrollment?.division || (enrollment ? 'Zamboanga City' : '')}</span></span>
-            <span><b>Region:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '20px', display: 'inline-block' }}>{enrollment ? 'IX' : ''}</span></span>
+            <span><b>District:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '60px', display: 'inline-block' }}>{enrollment ? schoolInfo.district : ''}</span></span>
+            <span><b>Division:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '70px', display: 'inline-block' }}>{enrollment?.division || (enrollment ? schoolInfo.division : '')}</span></span>
+            <span><b>Region:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '20px', display: 'inline-block' }}>{enrollment ? schoolInfo.region : ''}</span></span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <span><b>Classified as Grade:</b> <span style={{ borderBottom: '1px solid #000', minWidth: '25px', display: 'inline-block' }}>{enrollment ? gradeLabel.replace('Grade ', '') : ''}</span></span>
@@ -908,7 +930,7 @@ export function SF10ReportDocument({ onClose, data }: SF10ReportDocumentProps) {
                   </td>
                   <td colSpan={2} style={{ ...cellStyle, height: '40px', verticalAlign: 'bottom', padding: '4px 6px', textAlign: 'center' }}>
                     <div style={{ fontSize: '7pt' }}>
-                      <div style={{ borderBottom: '1px solid #000', width: '80%', margin: '0 auto 2px', fontWeight: 'bold' }}>MRS. LEPIDAPTERA VILLANUEVA</div>
+                      <div style={{ borderBottom: '1px solid #000', width: '80%', margin: '0 auto 2px', fontWeight: 'bold' }}>{principalName}</div>
                       <div>Signature of Principal/School Head over Printed Name</div>
                     </div>
                   </td>
@@ -952,7 +974,7 @@ export function SF10ReportDocument({ onClose, data }: SF10ReportDocumentProps) {
                   </td>
                   <td colSpan={2} style={{ ...cellStyle, height: '40px', verticalAlign: 'bottom', padding: '4px 6px', textAlign: 'center' }}>
                     <div style={{ fontSize: '7pt' }}>
-                      <div style={{ borderBottom: '1px solid #000', width: '80%', margin: '0 auto 2px', fontWeight: 'bold' }}>MRS. LEPIDAPTERA VILLANUEVA</div>
+                      <div style={{ borderBottom: '1px solid #000', width: '80%', margin: '0 auto 2px', fontWeight: 'bold' }}>{principalName}</div>
                       <div>Signature of Principal/School Head over Printed Name</div>
                     </div>
                   </td>

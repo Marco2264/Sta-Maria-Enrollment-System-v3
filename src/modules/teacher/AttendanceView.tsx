@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { PieChart, Pie, Cell } from 'recharts';
 import { Button } from '../../components/ui/Button';
 import {
@@ -116,7 +117,7 @@ function AttendanceViewContent() {
 
   const enrolled = useMemo(() => {
     return students
-      .filter((s) => s.status === 'Enrolled' && (!s.enrollmentDate || selectedDate >= s.enrollmentDate))
+      .filter((s) => s.status !== 'Pending' && s.status !== 'Rejected' && (!s.enrollmentDate || selectedDate >= s.enrollmentDate))
       .sort((a, b) => {
         if (a.gender !== b.gender) {
           if (a.gender === 'Male') return -1;
@@ -387,6 +388,11 @@ function AttendanceViewContent() {
 
     const avatarStatus = isConfirmed ? status : 'Unmarked';
 
+    const isTransferredIn = s.status === 'Transferred In';
+    const isInactiveStudent = s.status === 'Transferred Out' || s.status === 'Dropped' || s.status === 'Transferred';
+    const tInDate = (s.transferredInDate || (s as any).enrollmentDate || '').trim();
+    const isBeforeTransferredInDate = isTransferredIn && tInDate !== '' && selectedDate < tInDate;
+
     return (
       <TableRow
         key={s.id}
@@ -410,16 +416,38 @@ function AttendanceViewContent() {
                 </div>
               );
             })()}
-            <span className="font-bold text-slate-800 text-sm">
-              {s.lastName}, {s.firstName}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-800 text-sm">
+                {s.lastName}, {s.firstName}
+              </span>
+              {isTransferredIn && (
+                <Badge variant="outline" className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border-blue-200 uppercase tracking-wider shrink-0">
+                  T/I
+                </Badge>
+              )}
+              {isInactiveStudent && (
+                <Badge variant="outline" className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border-slate-200 uppercase tracking-wider shrink-0">
+                  {s.status === 'Dropped' ? 'DRP (Locked)' : 'T/O (Locked)'}
+                </Badge>
+              )}
+            </div>
           </div>
         </TableCell>
         <TableCell className="text-slate-500 font-mono text-sm font-medium">
           {s.lrn}
         </TableCell>
         <TableCell className="pr-6 text-right">
-          {statusDropdown(s.id, status, 'right')}
+          {isInactiveStudent ? (
+            <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200 font-extrabold text-xs px-3 py-1 rounded-full uppercase tracking-wider">
+              Locked ({s.status === 'Dropped' ? 'DRP' : 'T/O'})
+            </Badge>
+          ) : isBeforeTransferredInDate ? (
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-xs px-3 py-1 rounded-full">
+              N/A (T/I Starts: {tInDate})
+            </Badge>
+          ) : (
+            statusDropdown(s.id, status, 'right')
+          )}
         </TableCell>
       </TableRow>
     );
@@ -569,9 +597,17 @@ function AttendanceViewContent() {
                         const borderClass = (isMonday && !isFirstDay) ? "border-l border-slate-200" : "";
                         const weekIdx = dayWeeks[idx];
                         const bgClass = weekIdx % 2 === 0 ? "bg-white" : "bg-slate-50/40";
+                        const tInDate = (s.transferredInDate || (s as any).enrollmentDate || '').trim();
+                        const isBeforeTIn = s.status === 'Transferred In' && tInDate !== '' && day < tInDate;
+                        const isInactive = s.status === 'Transferred Out' || s.status === 'Dropped' || s.status === 'Transferred';
+
                         return (
                           <TableCell key={day} className={`text-center p-1 ${borderClass} ${bgClass}`}>
-                            {renderStatusBadge(stat)}
+                            {isInactive || isBeforeTIn ? (
+                              <span className="text-slate-300 text-xs font-bold">—</span>
+                            ) : (
+                              renderStatusBadge(stat)
+                            )}
                           </TableCell>
                         );
                       })}

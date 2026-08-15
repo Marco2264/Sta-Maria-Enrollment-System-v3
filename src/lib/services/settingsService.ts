@@ -43,7 +43,7 @@ const defaultSettings: GlobalSettings = {
   schoolAddress: 'Sta. Maria, Bulacan',
   contactNumber: '',
   emailAddress: '',
-  principalName: 'Juan Dela Cruz',
+  principalName: 'MRS. LEPIDAPTERA VILLANUEVA',
   schoolId: '199006',
   region: 'IX',
   division: 'Zamboanga',
@@ -71,6 +71,16 @@ export const getGlobalSettings = async (): Promise<GlobalSettings> => {
   }
 };
 
+export const getSchoolHeadName = async (): Promise<string> => {
+  try {
+    const settings = await getGlobalSettings();
+    return settings.principalName || 'MRS. LEPIDAPTERA VILLANUEVA';
+  } catch (error) {
+    console.error("Error fetching school head name:", error);
+    return 'MRS. LEPIDAPTERA VILLANUEVA';
+  }
+};
+
 export const updateGlobalSettings = async (updates: Partial<GlobalSettings>): Promise<void> => {
   try {
     const settingsRef = doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
@@ -80,3 +90,4 @@ export const updateGlobalSettings = async (updates: Partial<GlobalSettings>): Pr
     throw error;
   }
 };
+

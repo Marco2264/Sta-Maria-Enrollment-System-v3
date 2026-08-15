@@ -38,6 +38,7 @@ import {
   ImageIcon,
   Upload,
   X,
+  Save,
   Check,
   Camera,
   Search,
@@ -80,6 +81,63 @@ export function TeacherStudentDetailView({
   const [allSections, setAllSections] = useState<any[]>([]);
   const [sectionCounts, setSectionCounts] = useState<Record<string, number>>({});
   const [selectedSectionId, setSelectedSectionId] = useState<string>('');
+
+  // Card details state (Status, Height, Weight, Movement)
+  const [isEditingCard, setIsEditingCard] = useState(false);
+  const [cardHeight, setCardHeight] = useState(child?.medical?.height || '');
+  const [cardWeight, setCardWeight] = useState(child?.medical?.weight || '');
+  const [cardStatus, setCardStatus] = useState(child?.status || 'Enrolled');
+  const [cardTransferredOutSchoolName, setCardTransferredOutSchoolName] = useState(child?.transferredOutSchoolName || '');
+  const [cardTransferredOutSchoolType, setCardTransferredOutSchoolType] = useState(child?.transferredOutSchoolType || 'Public');
+  const [cardTransferredOutDate, setCardTransferredOutDate] = useState(child?.transferredOutDate || '');
+  const [cardTransferredInSchoolName, setCardTransferredInSchoolName] = useState(child?.transferredInSchoolName || '');
+  const [cardTransferredInSchoolType, setCardTransferredInSchoolType] = useState(child?.transferredInSchoolType || 'Public');
+  const [cardTransferredInDate, setCardTransferredInDate] = useState(child?.transferredInDate || '');
+  const [cardDroppedReason, setCardDroppedReason] = useState(child?.droppedReason || '');
+  const [cardDroppedDate, setCardDroppedDate] = useState(child?.droppedDate || '');
+  const [isSavingCard, setIsSavingCard] = useState(false);
+
+  useEffect(() => {
+    if (child) {
+      setCardHeight(child.medical?.height || '');
+      setCardWeight(child.medical?.weight || '');
+      setCardStatus(child.status || 'Enrolled');
+      setCardTransferredOutSchoolName(child.transferredOutSchoolName || '');
+      setCardTransferredOutSchoolType(child.transferredOutSchoolType || 'Public');
+      setCardTransferredOutDate(child.transferredOutDate || '');
+      setCardTransferredInSchoolName(child.transferredInSchoolName || '');
+      setCardTransferredInSchoolType(child.transferredInSchoolType || 'Public');
+      setCardTransferredInDate(child.transferredInDate || '');
+      setCardDroppedReason(child.droppedReason || '');
+      setCardDroppedDate(child.droppedDate || '');
+    }
+  }, [child]);
+
+  const handleSaveCardDetails = async () => {
+    if (!child?.id) return;
+    setIsSavingCard(true);
+    try {
+      const updates: any = {
+        status: cardStatus,
+        'medical.height': cardHeight,
+        'medical.weight': cardWeight,
+        transferredOutSchoolName: cardTransferredOutSchoolName,
+        transferredOutSchoolType: cardTransferredOutSchoolType,
+        transferredOutDate: cardTransferredOutDate,
+        transferredInSchoolName: cardTransferredInSchoolName,
+        transferredInSchoolType: cardTransferredInSchoolType,
+        transferredInDate: cardTransferredInDate,
+        droppedReason: cardDroppedReason,
+        droppedDate: cardDroppedDate
+      };
+      await updateDoc(doc(db, 'enrollments', child.id), updates);
+      setIsEditingCard(false);
+    } catch (err) {
+      console.error('Error saving student card details:', err);
+    } finally {
+      setIsSavingCard(false);
+    }
+  };
 
   useEffect(() => {
     const unsubSections = onSnapshot(collection(db, 'sections'), (snap) => {
@@ -237,6 +295,25 @@ export function TeacherStudentDetailView({
         return (
           <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-none px-3 py-1 font-semibold shadow-sm rounded-full">
             <XCircle className="w-3.5 h-3.5 mr-1.5" /> Rejected
+          </Badge>
+        );
+      case 'Transferred Out':
+      case 'Transferred':
+        return (
+          <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-3 py-1 font-semibold shadow-sm rounded-full">
+            Transferred Out (T/O)
+          </Badge>
+        );
+      case 'Transferred In':
+        return (
+          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none px-3 py-1 font-semibold shadow-sm rounded-full">
+            Transferred In (T/I)
+          </Badge>
+        );
+      case 'Dropped':
+        return (
+          <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-none px-3 py-1 font-semibold shadow-sm rounded-full">
+            Dropped (DRP)
           </Badge>
         );
       default:
@@ -410,7 +487,7 @@ export function TeacherStudentDetailView({
           <span className="text-slate-400">/</span>
           <span className="font-extrabold text-slate-900 uppercase tracking-tight">{child?.firstName} {child?.lastName}</span>
         </div>
-        {childStatus !== 'Enrolled' && childStatus !== 'enrolled' && (
+        {childStatus === 'Pending' && (
           <div className="flex items-center gap-3">
             <Button 
               variant="outline" 
@@ -437,7 +514,7 @@ export function TeacherStudentDetailView({
       <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 bg-[#F4F7F9]">
         
         {/* ALERT */}
-        {childStatus !== 'Enrolled' && childStatus !== 'enrolled' && (
+        {childStatus === 'Pending' && (
           <div className="bg-[#FFF9E6] border border-[#FFE082] p-5 rounded-2xl flex items-start gap-4 shadow-sm">
             <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
@@ -450,27 +527,191 @@ export function TeacherStudentDetailView({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* LEFT COL */}
           <div className="lg:col-span-1 space-y-6 h-fit">
-            <Card className="p-8 flex flex-col items-center justify-center text-center space-y-5 shadow-sm border-slate-200 rounded-2xl bg-white relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-blue-50/50 to-transparent"></div>
+            <Card className="p-6 flex flex-col items-center justify-center text-center space-y-4 shadow-sm border-slate-200 rounded-2xl bg-white relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-blue-50/60 to-transparent"></div>
               
-              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-50 flex items-center justify-center relative z-10">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-50 flex items-center justify-center relative z-10">
                  {(() => {
                     const photo = getStudentPhoto(child);
                     return photo ? (
                       <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
                     ) : (
-                      <User className="w-12 h-12 text-slate-300" />
+                      <User className="w-10 h-10 text-slate-300" />
                     );
                   })()}
               </div>
-              <div className="relative z-10 space-y-2">
-                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+              <div className="relative z-10 space-y-1 w-full">
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
                   {child.firstName} {child.lastName}
                 </h2>
-                <div className="flex items-center gap-2 justify-center flex-wrap">
-                  <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-50 px-3 py-1 font-bold rounded-full shadow-none text-xs">Grade {child.gradeLevel}</Badge>
-                  <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-50 px-3 py-1 font-bold rounded-full shadow-none text-xs">School Year 2026-2027</Badge>
+                <div className="flex items-center gap-2 justify-center flex-wrap pt-1">
+                  <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-50 px-2.5 py-0.5 font-bold rounded-full text-xs">Grade {child.gradeLevel}</Badge>
+                  {getStatusBadge(cardStatus || child.status)}
                 </div>
+              </div>
+
+              {/* Height & Weight Display on Student Card */}
+              <div className="w-full grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100/80">
+                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                    <Ruler className="w-3.5 h-3.5 text-blue-500" /> HEIGHT
+                  </p>
+                  {isEditingCard ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <Input 
+                        type="number" 
+                        value={cardHeight} 
+                        onChange={e => setCardHeight(e.target.value)} 
+                        className="h-8 text-center text-xs font-bold w-16 bg-white" 
+                        placeholder="cm" 
+                      />
+                      <span className="text-xs font-bold text-slate-500">cm</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-black text-slate-800">
+                      {cardHeight ? `${cardHeight} cm` : (child.medical?.height ? `${child.medical.height} cm` : '--')}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100/80">
+                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                    <Scale className="w-3.5 h-3.5 text-emerald-500" /> WEIGHT
+                  </p>
+                  {isEditingCard ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <Input 
+                        type="number" 
+                        value={cardWeight} 
+                        onChange={e => setCardWeight(e.target.value)} 
+                        className="h-8 text-center text-xs font-bold w-16 bg-white" 
+                        placeholder="kg" 
+                      />
+                      <span className="text-xs font-bold text-slate-500">kg</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-black text-slate-800">
+                      {cardWeight ? `${cardWeight} kg` : (child.medical?.weight ? `${child.medical.weight} kg` : '--')}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Editing Controls on Card when Editing */}
+              {isEditingCard && (
+                <div className="w-full space-y-3 pt-3 border-t border-slate-100 text-left">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Student Status</Label>
+                    <Select value={cardStatus} onValueChange={v => setCardStatus(v)}>
+                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue placeholder="Select Status" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Enrolled">Enrolled</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Transferred Out">Transferred Out (T/O)</SelectItem>
+                        <SelectItem value="Transferred In">Transferred In (T/I)</SelectItem>
+                        <SelectItem value="Dropped">Dropped (DRP)</SelectItem>
+                        <SelectItem value="Rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(cardStatus === 'Transferred Out' || cardStatus === 'Transferred') && (
+                    <div className="space-y-2 p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 text-xs">
+                      <div>
+                        <Label className="text-[11px] font-bold text-indigo-900">Transferred To (School)</Label>
+                        <Input value={cardTransferredOutSchoolName} onChange={e => setCardTransferredOutSchoolName(e.target.value)} className="h-8 text-xs bg-white mt-1" placeholder="School Name" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[11px] font-bold text-indigo-900">School Type</Label>
+                          <Select value={cardTransferredOutSchoolType} onValueChange={v => setCardTransferredOutSchoolType(v)}>
+                            <SelectTrigger className="h-8 text-xs bg-white mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Public">Public (P)</SelectItem>
+                              <SelectItem value="Private">Private (PR)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[11px] font-bold text-indigo-900">Date</Label>
+                          <Input type="date" value={cardTransferredOutDate} onChange={e => setCardTransferredOutDate(e.target.value)} className="h-8 text-xs bg-white mt-1" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {cardStatus === 'Transferred In' && (
+                    <div className="space-y-2 p-3 bg-blue-50/70 rounded-xl border border-blue-100 text-xs">
+                      <div>
+                        <Label className="text-[11px] font-bold text-blue-900">Transferred From (School)</Label>
+                        <Input value={cardTransferredInSchoolName} onChange={e => setCardTransferredInSchoolName(e.target.value)} className="h-8 text-xs bg-white mt-1" placeholder="School Name" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[11px] font-bold text-blue-900">School Type</Label>
+                          <Select value={cardTransferredInSchoolType} onValueChange={v => setCardTransferredInSchoolType(v)}>
+                            <SelectTrigger className="h-8 text-xs bg-white mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Public">Public (P)</SelectItem>
+                              <SelectItem value="Private">Private (PR)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[11px] font-bold text-blue-900">Date</Label>
+                          <Input type="date" value={cardTransferredInDate} onChange={e => setCardTransferredInDate(e.target.value)} className="h-8 text-xs bg-white mt-1" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {cardStatus === 'Dropped' && (
+                    <div className="space-y-2 p-3 bg-rose-50/70 rounded-xl border border-rose-100 text-xs">
+                      <div>
+                        <Label className="text-[11px] font-bold text-rose-900">Reason for Dropping</Label>
+                        <Input value={cardDroppedReason} onChange={e => setCardDroppedReason(e.target.value)} className="h-8 text-xs bg-white mt-1" placeholder="Reason" />
+                      </div>
+                      <div>
+                        <Label className="text-[11px] font-bold text-rose-900">Effectivity Date</Label>
+                        <Input type="date" value={cardDroppedDate} onChange={e => setCardDroppedDate(e.target.value)} className="h-8 text-xs bg-white mt-1" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Button to Edit or Save Card Details */}
+              <div className="w-full pt-2">
+                {isEditingCard ? (
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={handleSaveCardDetails} 
+                      disabled={isSavingCard}
+                      className="flex-1 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1.5"
+                    >
+                      {isSavingCard ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      Save Card
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setIsEditingCard(false)} 
+                      className="h-9 px-3 text-slate-600 text-xs font-bold rounded-xl"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setIsEditingCard(true)} 
+                    className="w-full h-9 bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-bold text-xs rounded-xl gap-1.5"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-slate-500" /> Edit Status & Health
+                  </Button>
+                )}
               </div>
             </Card>
           </div>
@@ -529,6 +770,75 @@ export function TeacherStudentDetailView({
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">MOTHER TONGUE</p>
                       <p className="text-[15px] text-slate-900 font-bold">{child.additional?.motherTongue || '--'}</p>
                     </div>
+                  </div>
+                </Card>
+
+                {/* Student Status & Movement Details */}
+                <Card className="p-8 rounded-2xl border-slate-200 shadow-sm space-y-6 bg-white hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
+                    <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0 text-purple-600">
+                      <GraduationCap className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Student Status & Movement</h3>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Official enrollment status & transfer/drop records (Managed via Student Settings)</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-6 gap-x-6">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">ENROLLMENT STATUS</p>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(child.status) || <span className="font-bold text-slate-700 text-sm">{child.status || 'Enrolled'}</span>}
+                      </div>
+                    </div>
+
+                    {(child.status === 'Transferred Out' || child.status === 'Transferred') && (
+                      <>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">SCHOOL TRANSFERRED TO</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.transferredOutSchoolName || '--'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">SCHOOL TYPE</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.transferredOutSchoolType === 'Private' ? 'Private (PR)' : child.transferredOutSchoolType ? 'Public (P)' : '--'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">EFFECTIVITY DATE</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.transferredOutDate || '--'}</p>
+                        </div>
+                      </>
+                    )}
+
+                    {child.status === 'Transferred In' && (
+                      <>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">SCHOOL TRANSFERRED FROM</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.transferredInSchoolName || '--'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">SCHOOL TYPE</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.transferredInSchoolType === 'Private' ? 'Private (PR)' : child.transferredInSchoolType ? 'Public (P)' : '--'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">EFFECTIVITY DATE</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.transferredInDate || '--'}</p>
+                        </div>
+                      </>
+                    )}
+
+                    {child.status === 'Dropped' && (
+                      <>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">REASON FOR DROPPING</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.droppedReason || '--'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">EFFECTIVITY DATE</p>
+                          <p className="text-[15px] text-slate-900 font-bold">{child.droppedDate || '--'}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </Card>
 
@@ -1026,7 +1336,7 @@ export function TeacherStudentDetailView({
                       <p className="text-xs text-slate-400 mt-1">Double session tracking records</p>
                     </div>
 
-                    {childStatus !== 'Enrolled' ? (
+                    {(childStatus === 'Pending' || childStatus === 'Rejected') ? (
                       <div className="p-16 text-center">
                         <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                           <CalendarCheck className="w-10 h-10 text-slate-300" />
@@ -1073,7 +1383,7 @@ export function TeacherStudentDetailView({
 
                 {/* 3. ACADEMIC TAB */}
                 <TabsContent value="academic" className="mt-0 outline-none space-y-6">
-                  {childStatus !== 'Enrolled' && childStatus !== 'Approved' ? (
+                  {(childStatus === 'Pending' || childStatus === 'Rejected') ? (
                     <div className="p-16 text-center bg-white border border-slate-200/60 shadow-sm rounded-3xl mt-4">
                       <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Lock className="w-10 h-10 text-slate-300" />
@@ -1229,7 +1539,7 @@ export function TeacherStudentDetailView({
 
           {editData && (
             <div className="space-y-8 pt-4">
-              {childStatus !== 'Enrolled' && childStatus !== 'Approved' && (
+              {(childStatus === 'Pending' || childStatus === 'Rejected') && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-bold text-slate-800 border-b pb-2">Basic Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ReportLayout } from './reports/ReportLayout';
 import { db } from '../../lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF5ReportDocumentProps {
   onClose: () => void;
@@ -18,6 +19,27 @@ export function SF5ReportDocument({ onClose, data }: SF5ReportDocumentProps) {
   const { schoolYear, gradeLevel, section, students, adviserName = 'Assigned Adviser' } = data;
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [principalName, setPrincipalName] = useState<string>((data as any).schoolHead || (data as any).principalName || 'MRS. LEPIDAPTERA VILLANUEVA');
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: (data as any).schoolId || '199006',
+    region: (data as any).region || 'REGION IX',
+    division: (data as any).division || 'ZAMBOANGA',
+    district: (data as any).district || 'STA. MARIA CENTRAL',
+    schoolName: (data as any).schoolName || 'STA. MARIA CS SPED CENTER'
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: (data as any).schoolId || settings.schoolId || '199006',
+        region: (data as any).region || `REGION ${settings.region}` || 'REGION IX',
+        division: ((data as any).division || settings.division || 'ZAMBOANGA').toUpperCase(),
+        district: ((data as any).district || settings.district || 'STA. MARIA CENTRAL').toUpperCase(),
+        schoolName: ((data as any).schoolName || settings.schoolName || 'STA. MARIA CS SPED CENTER').toUpperCase()
+      });
+      if (settings.principalName) setPrincipalName(settings.principalName);
+    }).catch(console.error);
+  }, []);
 
   // Normalize gradeLevel for subject matching (e.g. "Grade 6" -> "6")
   const normalizedGradeLevel = useMemo(() => {
@@ -286,15 +308,15 @@ export function SF5ReportDocument({ onClose, data }: SF5ReportDocumentProps) {
       <div className="border-t-2 border-b-2 border-blue-400 py-3 mb-4 text-xs">
         <div className="grid grid-cols-4 gap-4">
           <div className="space-y-1">
-            <p><span className="font-bold text-slate-500">Region:</span> <span className="font-semibold text-slate-800">REGION IX</span></p>
-            <p><span className="font-bold text-slate-500">School ID:</span> <span className="font-semibold text-slate-800">199006</span></p>
+            <p><span className="font-bold text-slate-500">Region:</span> <span className="font-semibold text-slate-800">{schoolInfo.region}</span></p>
+            <p><span className="font-bold text-slate-500">School ID:</span> <span className="font-semibold text-slate-800">{schoolInfo.schoolId}</span></p>
           </div>
           <div className="space-y-1">
-            <p><span className="font-bold text-slate-500">Division:</span> <span className="font-semibold text-slate-800">ZAMBOANGA</span></p>
-            <p><span className="font-bold text-slate-500">School Name:</span> <span className="font-semibold text-slate-800">STA. MARIA CS SPED CENTER</span></p>
+            <p><span className="font-bold text-slate-500">Division:</span> <span className="font-semibold text-slate-800">{schoolInfo.division}</span></p>
+            <p><span className="font-bold text-slate-500">School Name:</span> <span className="font-semibold text-slate-800">{schoolInfo.schoolName}</span></p>
           </div>
           <div className="space-y-1">
-            <p><span className="font-bold text-slate-500">District:</span> <span className="font-semibold text-slate-800">STA. MARIA CENTRAL</span></p>
+            <p><span className="font-bold text-slate-500">District:</span> <span className="font-semibold text-slate-800">{schoolInfo.district}</span></p>
             <p><span className="font-bold text-slate-500">School Year:</span> <span className="font-semibold text-slate-800">{schoolYear}</span></p>
           </div>
           <div className="space-y-1">
@@ -475,7 +497,7 @@ export function SF5ReportDocument({ onClose, data }: SF5ReportDocumentProps) {
           <div className="flex flex-col">
             <span className="font-semibold text-slate-500 text-[8px] mb-1.5 uppercase">Certified Correct &amp; Submitted:</span>
             <div className="border-b border-black text-center pb-0.5 font-bold uppercase tracking-wide text-[10px] leading-none min-h-[14px]">
-              MRS. LEPIDAPTERA VILLANUEVA
+              {principalName}
             </div>
             <div className="text-[7px] text-slate-400 text-center mt-1 uppercase font-semibold">
               Principal I

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReportLayout } from './reports/ReportLayout';
 import type { SF4Data } from '../../lib/services/reportDataService';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF4ReportDocumentProps {
   onClose: () => void;
@@ -9,6 +10,24 @@ interface SF4ReportDocumentProps {
 
 export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
   const { schoolYear, reportMonth, sections } = data;
+  const anyData = data as any;
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: anyData.schoolId || '199006',
+    region: anyData.region || 'IX',
+    division: anyData.division || 'ZAMBOANGA',
+    schoolName: anyData.schoolName || 'Sta. Maria CS SPED Center'
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: anyData.schoolId || settings.schoolId || '199006',
+        region: anyData.region || settings.region || 'IX',
+        division: (anyData.division || settings.division || 'ZAMBOANGA').toUpperCase(),
+        schoolName: anyData.schoolName || settings.schoolName || 'Sta. Maria CS SPED Center'
+      });
+    }).catch(console.error);
+  }, [anyData]);
 
   return (
     <ReportLayout title="School Form 4 (SF4)" onClose={onClose} landscape>
@@ -43,15 +62,15 @@ export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
         <tbody>
           <tr>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">School ID:</td>
-            <td className="border border-black px-2 py-1 w-64">199006</td>
+            <td className="border border-black px-2 py-1 w-64">{schoolInfo.schoolId}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">Region:</td>
-            <td className="border border-black px-2 py-1 w-64">IX</td>
+            <td className="border border-black px-2 py-1 w-64">{schoolInfo.region}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 w-32 font-bold">Division:</td>
-            <td className="border border-black px-2 py-1">ZAMBOANGA</td>
+            <td className="border border-black px-2 py-1">{schoolInfo.division}</td>
           </tr>
           <tr>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">School Name:</td>
-            <td className="border border-black px-2 py-1 font-bold">Sta. Maria CS SPED Center</td>
+            <td className="border border-black px-2 py-1 font-bold">{schoolInfo.schoolName}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">School Year:</td>
             <td className="border border-black px-2 py-1">{schoolYear}</td>
             <td className="border border-black px-2 py-1 bg-gray-100 font-bold">Report Month:</td>
@@ -115,29 +134,124 @@ export function SF4ReportDocument({ onClose, data }: SF4ReportDocumentProps) {
           </thead>
           <tbody>
             {sections.length > 0 ? (
-              sections.map((row, i) => (
-                <tr key={i}>
-                  <td className="border border-black p-1 font-bold">{row.gradeLevel}</td>
-                  <td className="border border-black p-1">{row.section}</td>
-                  <td className="border border-black p-1">{row.advisorName}</td>
-                  {/* Registered */}
-                  <td className="border border-black p-1">{row.maleCount}</td>
-                  <td className="border border-black p-1">{row.femaleCount}</td>
-                  <td className="border border-black p-1 font-bold">{row.totalCount}</td>
-                  {/* Daily Average */}
-                  <td className="border border-black p-1">{row.avgDailyAttendanceMale}</td>
-                  <td className="border border-black p-1">{row.avgDailyAttendanceFemale}</td>
-                  <td className="border border-black p-1 font-bold">{row.avgDailyAttendanceTotal}</td>
-                  {/* Percentage */}
-                  <td className="border border-black p-1">{row.attendancePctMale}%</td>
-                  <td className="border border-black p-1">{row.attendancePctFemale}%</td>
-                  <td className="border border-black p-1 font-bold">{row.attendancePctTotal}%</td>
-                  {/* Remaining columns (dropout/transfer) — 0 with resilient fallback */}
-                  {Array.from({ length: 27 }).map((_, ci) => (
-                    <td key={ci} className="border border-black p-1 h-6">0</td>
-                  ))}
-                </tr>
-              ))
+              <>
+                {sections.map((row, i) => (
+                  <tr key={i}>
+                    <td className="border border-black p-1 font-bold">{row.gradeLevel}</td>
+                    <td className="border border-black p-1">{row.section}</td>
+                    <td className="border border-black p-1">{row.advisorName}</td>
+                    {/* Registered */}
+                    <td className="border border-black p-1">{row.maleCount}</td>
+                    <td className="border border-black p-1">{row.femaleCount}</td>
+                    <td className="border border-black p-1 font-bold">{row.totalCount}</td>
+                    {/* Daily Average */}
+                    <td className="border border-black p-1">{row.avgDailyAttendanceMale}</td>
+                    <td className="border border-black p-1">{row.avgDailyAttendanceFemale}</td>
+                    <td className="border border-black p-1 font-bold">{row.avgDailyAttendanceTotal}</td>
+                    {/* Percentage */}
+                    <td className="border border-black p-1">{row.attendancePctMale}%</td>
+                    <td className="border border-black p-1">{row.attendancePctFemale}%</td>
+                    <td className="border border-black p-1 font-bold">{row.attendancePctTotal}%</td>
+
+                    {/* NLPA / Dropped */}
+                    <td className="border border-black p-1">{row.nlpaPrevMale || 0}</td>
+                    <td className="border border-black p-1">{row.nlpaPrevFemale || 0}</td>
+                    <td className="border border-black p-1 font-bold">{(row.nlpaPrevMale || 0) + (row.nlpaPrevFemale || 0)}</td>
+                    <td className="border border-black p-1">{row.nlpaMonthMale || 0}</td>
+                    <td className="border border-black p-1">{row.nlpaMonthFemale || 0}</td>
+                    <td className="border border-black p-1 font-bold">{(row.nlpaMonthMale || 0) + (row.nlpaMonthFemale || 0)}</td>
+                    <td className="border border-black p-1">{(row.nlpaPrevMale || 0) + (row.nlpaMonthMale || 0)}</td>
+                    <td className="border border-black p-1">{(row.nlpaPrevFemale || 0) + (row.nlpaMonthFemale || 0)}</td>
+                    <td className="border border-black p-1 font-bold">{(row.nlpaPrevMale || 0) + (row.nlpaMonthMale || 0) + (row.nlpaPrevFemale || 0) + (row.nlpaMonthFemale || 0)}</td>
+
+                    {/* Transferred Out */}
+                    <td className="border border-black p-1">{row.tOutPrevMale || 0}</td>
+                    <td className="border border-black p-1">{row.tOutPrevFemale || 0}</td>
+                    <td className="border border-black p-1 font-bold">{(row.tOutPrevMale || 0) + (row.tOutPrevFemale || 0)}</td>
+                    <td className="border border-black p-1">{row.tOutMonthMale || 0}</td>
+                    <td className="border border-black p-1">{row.tOutMonthFemale || 0}</td>
+                    <td className="border border-black p-1 font-bold">{(row.tOutMonthMale || 0) + (row.tOutMonthFemale || 0)}</td>
+                    <td className="border border-black p-1">{(row.tOutPrevMale || 0) + (row.tOutMonthMale || 0)}</td>
+                    <td className="border border-black p-1">{(row.tOutPrevFemale || 0) + (row.tOutMonthFemale || 0)}</td>
+                    <td className="border border-black p-1 font-bold">{(row.tOutPrevMale || 0) + (row.tOutMonthMale || 0) + (row.tOutPrevFemale || 0) + (row.tOutMonthFemale || 0)}</td>
+
+                    {/* Transferred In */}
+                    <td className="border border-black p-1">{row.tInPrevMale || 0}</td>
+                    <td className="border border-black p-1">{row.tInPrevFemale || 0}</td>
+                    <td className="border border-black p-1 font-bold">{(row.tInPrevMale || 0) + (row.tInPrevFemale || 0)}</td>
+                    <td className="border border-black p-1">{row.tInMonthMale || 0}</td>
+                    <td className="border border-black p-1">{row.tInMonthFemale || 0}</td>
+                    <td className="border border-black p-1 font-bold">{(row.tInMonthMale || 0) + (row.tInMonthFemale || 0)}</td>
+                    <td className="border border-black p-1">{(row.tInPrevMale || 0) + (row.tInMonthMale || 0)}</td>
+                    <td className="border border-black p-1">{(row.tInPrevFemale || 0) + (row.tInMonthFemale || 0)}</td>
+                    <td className="border border-black p-1 font-bold">{(row.tInPrevMale || 0) + (row.tInMonthMale || 0) + (row.tInPrevFemale || 0) + (row.tInMonthFemale || 0)}</td>
+                  </tr>
+                ))}
+
+                {/* Summary / Totals Row */}
+                {(() => {
+                  const totMaleReg = sections.reduce((sum, s) => sum + (s.maleCount || 0), 0);
+                  const totFemaleReg = sections.reduce((sum, s) => sum + (s.femaleCount || 0), 0);
+                  const totReg = totMaleReg + totFemaleReg;
+
+                  const totAvgMale = sections.reduce((sum, s) => sum + (s.avgDailyAttendanceMale || 0), 0);
+                  const totAvgFemale = sections.reduce((sum, s) => sum + (s.avgDailyAttendanceFemale || 0), 0);
+                  const totAvg = totAvgMale + totAvgFemale;
+
+                  const totPctMale = totMaleReg > 0 ? Math.min(100, Math.round((totAvgMale / totMaleReg) * 100)) : 0;
+                  const totPctFemale = totFemaleReg > 0 ? Math.min(100, Math.round((totAvgFemale / totFemaleReg) * 100)) : 0;
+                  const totPctTotal = totReg > 0 ? Math.min(100, Math.round((totAvg / totReg) * 100)) : 0;
+
+                  const sumCol = (key: keyof typeof sections[0]) => sections.reduce((sum, s) => sum + ((s[key] as number) || 0), 0);
+
+                  return (
+                    <tr className="bg-gray-200 font-black border-t-2 border-black">
+                      <td className="border border-black p-1 text-center" colSpan={3}>TOTAL</td>
+                      <td className="border border-black p-1">{totMaleReg}</td>
+                      <td className="border border-black p-1">{totFemaleReg}</td>
+                      <td className="border border-black p-1">{totReg}</td>
+
+                      <td className="border border-black p-1">{totAvgMale}</td>
+                      <td className="border border-black p-1">{totAvgFemale}</td>
+                      <td className="border border-black p-1">{totAvg}</td>
+
+                      <td className="border border-black p-1">{totPctMale}%</td>
+                      <td className="border border-black p-1">{totPctFemale}%</td>
+                      <td className="border border-black p-1">{totPctTotal}%</td>
+
+                      <td className="border border-black p-1">{sumCol('nlpaPrevMale')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaPrevFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaPrevTotal')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaMonthMale')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaMonthFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaMonthTotal')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaEndMale')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaEndFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('nlpaEndTotal')}</td>
+
+                      <td className="border border-black p-1">{sumCol('tOutPrevMale')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutPrevFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutPrevTotal')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutMonthMale')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutMonthFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutMonthTotal')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutEndMale')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutEndFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('tOutEndTotal')}</td>
+
+                      <td className="border border-black p-1">{sumCol('tInPrevMale')}</td>
+                      <td className="border border-black p-1">{sumCol('tInPrevFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('tInPrevTotal')}</td>
+                      <td className="border border-black p-1">{sumCol('tInMonthMale')}</td>
+                      <td className="border border-black p-1">{sumCol('tInMonthFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('tInMonthTotal')}</td>
+                      <td className="border border-black p-1">{sumCol('tInEndMale')}</td>
+                      <td className="border border-black p-1">{sumCol('tInEndFemale')}</td>
+                      <td className="border border-black p-1">{sumCol('tInEndTotal')}</td>
+                    </tr>
+                  );
+                })()}
+              </>
             ) : (
               <tr>
                 <td className="border border-black p-2 font-medium italic text-center" colSpan={42}>

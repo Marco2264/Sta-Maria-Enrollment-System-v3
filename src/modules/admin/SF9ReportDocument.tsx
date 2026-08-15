@@ -4,6 +4,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { ChevronDown, Search } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { getGlobalSettings } from '../../lib/services/settingsService';
 
 interface SF9ReportDocumentProps {
   onClose: () => void;
@@ -25,6 +26,27 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
 
   const [loadedGradeConfigs, setLoadedGradeConfigs] = useState<any[]>([]);
   const [advisorId, setAdvisorId] = useState('');
+  const [principalName, setPrincipalName] = useState<string>((data as any).schoolHead || (data as any).principalName || 'MRS. LEPIDAPTERA VILLANUEVA');
+  const [schoolInfo, setSchoolInfo] = useState({
+    schoolId: (data as any).schoolId || '199006',
+    region: (data as any).region || 'IX',
+    division: (data as any).division || 'ZAMBOANGA',
+    district: (data as any).district || 'STA. MARIA CENTRAL',
+    schoolName: (data as any).schoolName || 'STA. MARIA CS SPED CENTER'
+  });
+
+  useEffect(() => {
+    getGlobalSettings().then(settings => {
+      setSchoolInfo({
+        schoolId: (data as any).schoolId || settings.schoolId || '199006',
+        region: (data as any).region || settings.region || 'IX',
+        division: ((data as any).division || settings.division || 'ZAMBOANGA').toUpperCase(),
+        district: ((data as any).district || settings.district || 'STA. MARIA CENTRAL').toUpperCase(),
+        schoolName: ((data as any).schoolName || settings.schoolName || 'STA. MARIA CS SPED CENTER').toUpperCase()
+      });
+      if (settings.principalName) setPrincipalName(settings.principalName);
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const firstStudent = students[0];
@@ -672,7 +694,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
                     <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Teacher</p>
                   </div>
                   <div className="text-center w-5/12">
-                    <p className="font-bold border-b border-slate-800 pb-0.5">MRS. LEPIDAPTERA VILLANUEVA</p>
+                    <p className="font-bold border-b border-slate-800 pb-0.5">{principalName}</p>
                     <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Principal I</p>
                   </div>
                 </div>
@@ -688,7 +710,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
                     <p>Date: <span className="border-b border-slate-400 w-24 inline-block"></span></p>
                   </div>
                   <div className="text-center w-5/12">
-                    <p className="border-b border-slate-400 pb-0.5 font-bold">MRS. LEPIDAPTERA VILLANUEVA</p>
+                    <p className="border-b border-slate-400 pb-0.5 font-bold">{principalName}</p>
                     <p className="text-[8px] text-slate-400 font-semibold mt-0.5">Principal I</p>
                   </div>
                 </div>
@@ -706,14 +728,14 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
                   <p className="text-[12px] font-extrabold text-blue-800 uppercase leading-tight">Department of Education</p>
                 </div>
               </div>
-              <p className="text-[10px] font-bold text-slate-600 mt-1">REGION IX</p>
-              <p className="text-[10px] font-bold text-slate-600">DIVISION OF ZAMBOANGA</p>
-              <p className="text-[10px] font-bold text-slate-600">DISTRICT OF STA. MARIA CENTRAL</p>
+              <p className="text-[10px] font-bold text-slate-600 mt-1">REGION {schoolInfo.region.replace(/^region\s*/i, '')}</p>
+              <p className="text-[10px] font-bold text-slate-600">DIVISION OF {schoolInfo.division.replace(/^division of\s*/i, '')}</p>
+              <p className="text-[10px] font-bold text-slate-600">DISTRICT OF {schoolInfo.district.replace(/^district of\s*/i, '')}</p>
 
               <h2 className="text-xs font-black uppercase text-slate-800 mt-4 tracking-wider leading-none">
-                STA. MARIA CS SPED CENTER
+                {schoolInfo.schoolName}
               </h2>
-              <p className="text-[8px] font-bold text-slate-400">School ID: 199006</p>
+              <p className="text-[8px] font-bold text-slate-400">School ID: {schoolInfo.schoolId}</p>
 
               <div className="border-b border-slate-200 my-4"></div>
 
@@ -772,7 +794,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
                 <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Adviser</p>
               </div>
               <div className="text-center w-5/12">
-                <p className="font-bold border-b border-slate-800 pb-0.5 text-slate-850">MRS. LEPIDAPTERA VILLANUEVA</p>
+                <p className="font-bold border-b border-slate-800 pb-0.5 text-slate-850">{principalName}</p>
                 <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Principal I</p>
               </div>
             </div>

@@ -51,7 +51,7 @@ const coreValuesList = [
 
 export function ObservedValuesView() {
   const { students, updateStudentObservedValue, loading, currentGradeLevel, currentSectionName } = useTeacherData();
-  const enrolled = useMemo(() => students.filter((s) => s.status === 'Enrolled'), [students]);
+  const enrolled = useMemo(() => students.filter((s) => s.status !== 'Pending' && s.status !== 'Rejected'), [students]);
   
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedQuarter, setSelectedQuarter] = useState<'q1' | 'q2' | 'q3'>('q1');
@@ -69,8 +69,10 @@ export function ObservedValuesView() {
     return enrolled.find(s => s.id === selectedStudentId);
   }, [enrolled, selectedStudentId]);
 
+  const isSelectedInactive = selectedStudent?.status === 'Transferred Out' || selectedStudent?.status === 'Dropped' || selectedStudent?.status === 'Transferred';
+
   const handleRatingChange = async (statementKey: string, val: RatingValue) => {
-    if (!selectedStudentId) return;
+    if (!selectedStudentId || isSelectedInactive) return;
     setIsSaving(true);
     setSaveSuccess(false);
 

@@ -3,7 +3,10 @@ import { Badge } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/Tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/Table";
-import { ArrowLeft, CheckCircle2, CircleDashed, XCircle, AlertCircle, User, HeartPulse, CalendarCheck, Edit, MapPin, BarChart3, GraduationCap, Loader2, Camera, Search, FileText, Lock, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleDashed, XCircle, AlertCircle, User, HeartPulse, CalendarCheck, Edit, MapPin, BarChart3, GraduationCap, Loader2, Camera, Search, FileText, Lock, ShieldCheck, Users, Ruler, Scale, Save, X } from "lucide-react";
+import { Input } from "../../components/ui/Input";
+import { Label } from "../../components/ui/Label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/Select";
 import { db } from "../../lib/firebase";
 import { doc, updateDoc, collection, query, where, onSnapshot } from "firebase/firestore";
 import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from "../../lib/services/imageUploadService";
@@ -14,6 +17,63 @@ interface Props { student: any; onBack: () => void; }
 export function AdminStudentDetailView({ student: child, onBack }: Props) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
+
+  // Card editing state
+  const [isEditingCard, setIsEditingCard] = useState(false);
+  const [cardHeight, setCardHeight] = useState(child?.medical?.height || '');
+  const [cardWeight, setCardWeight] = useState(child?.medical?.weight || '');
+  const [cardStatus, setCardStatus] = useState(child?.status || 'Enrolled');
+  const [cardTransferredOutSchoolName, setCardTransferredOutSchoolName] = useState(child?.transferredOutSchoolName || '');
+  const [cardTransferredOutSchoolType, setCardTransferredOutSchoolType] = useState(child?.transferredOutSchoolType || 'Public');
+  const [cardTransferredOutDate, setCardTransferredOutDate] = useState(child?.transferredOutDate || '');
+  const [cardTransferredInSchoolName, setCardTransferredInSchoolName] = useState(child?.transferredInSchoolName || '');
+  const [cardTransferredInSchoolType, setCardTransferredInSchoolType] = useState(child?.transferredInSchoolType || 'Public');
+  const [cardTransferredInDate, setCardTransferredInDate] = useState(child?.transferredInDate || '');
+  const [cardDroppedReason, setCardDroppedReason] = useState(child?.droppedReason || '');
+  const [cardDroppedDate, setCardDroppedDate] = useState(child?.droppedDate || '');
+  const [isSavingCard, setIsSavingCard] = useState(false);
+
+  useEffect(() => {
+    if (child) {
+      setCardHeight(child.medical?.height || '');
+      setCardWeight(child.medical?.weight || '');
+      setCardStatus(child.status || 'Enrolled');
+      setCardTransferredOutSchoolName(child.transferredOutSchoolName || '');
+      setCardTransferredOutSchoolType(child.transferredOutSchoolType || 'Public');
+      setCardTransferredOutDate(child.transferredOutDate || '');
+      setCardTransferredInSchoolName(child.transferredInSchoolName || '');
+      setCardTransferredInSchoolType(child.transferredInSchoolType || 'Public');
+      setCardTransferredInDate(child.transferredInDate || '');
+      setCardDroppedReason(child.droppedReason || '');
+      setCardDroppedDate(child.droppedDate || '');
+    }
+  }, [child]);
+
+  const handleSaveCardDetails = async () => {
+    if (!child?.id) return;
+    setIsSavingCard(true);
+    try {
+      const updates: any = {
+        status: cardStatus,
+        'medical.height': cardHeight,
+        'medical.weight': cardWeight,
+        transferredOutSchoolName: cardTransferredOutSchoolName,
+        transferredOutSchoolType: cardTransferredOutSchoolType,
+        transferredOutDate: cardTransferredOutDate,
+        transferredInSchoolName: cardTransferredInSchoolName,
+        transferredInSchoolType: cardTransferredInSchoolType,
+        transferredInDate: cardTransferredInDate,
+        droppedReason: cardDroppedReason,
+        droppedDate: cardDroppedDate
+      };
+      await updateDoc(doc(db, 'enrollments', child.id), updates);
+      setIsEditingCard(false);
+    } catch (err) {
+      console.error('Error saving student card details:', err);
+    } finally {
+      setIsSavingCard(false);
+    }
+  };
 
   useEffect(() => {
     if (!child?.id) return;
@@ -125,14 +185,175 @@ export function AdminStudentDetailView({ student: child, onBack }: Props) {
               </div>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full border border-slate-200/60">Grade {child.gradeLevel}</span>
-                <span className="px-3 py-1 bg-red-50 text-[#D8232A] text-xs font-medium rounded-full border border-red-100">SY 2026-2027</span>
+                <span className="px-3 py-1 bg-red-50 text-[#D8232A] text-xs font-semibold rounded-full border border-red-100">{cardStatus || child.status || "Enrolled"}</span>
+              </div>
+
+              {/* Height & Weight Display on Admin Student Card */}
+              <div className="w-full grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100/80">
+                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                    <Ruler className="w-3.5 h-3.5 text-blue-500" /> HEIGHT
+                  </p>
+                  {isEditingCard ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <Input 
+                        type="number" 
+                        value={cardHeight} 
+                        onChange={e => setCardHeight(e.target.value)} 
+                        className="h-8 text-center text-xs font-bold w-16 bg-white" 
+                        placeholder="cm" 
+                      />
+                      <span className="text-xs font-bold text-slate-500">cm</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-black text-slate-800">
+                      {cardHeight ? `${cardHeight} cm` : (child.medical?.height ? `${child.medical.height} cm` : '--')}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100/80">
+                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                    <Scale className="w-3.5 h-3.5 text-emerald-500" /> WEIGHT
+                  </p>
+                  {isEditingCard ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <Input 
+                        type="number" 
+                        value={cardWeight} 
+                        onChange={e => setCardWeight(e.target.value)} 
+                        className="h-8 text-center text-xs font-bold w-16 bg-white" 
+                        placeholder="kg" 
+                      />
+                      <span className="text-xs font-bold text-slate-500">kg</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-black text-slate-800">
+                      {cardWeight ? `${cardWeight} kg` : (child.medical?.weight ? `${child.medical.weight} kg` : '--')}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Editing Controls on Card when Editing */}
+              {isEditingCard && (
+                <div className="w-full space-y-3 pt-3 border-t border-slate-100 text-left">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Student Status</Label>
+                    <Select value={cardStatus} onValueChange={v => setCardStatus(v)}>
+                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue placeholder="Select Status" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Enrolled">Enrolled</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Transferred Out">Transferred Out (T/O)</SelectItem>
+                        <SelectItem value="Transferred In">Transferred In (T/I)</SelectItem>
+                        <SelectItem value="Dropped">Dropped (DRP)</SelectItem>
+                        <SelectItem value="Rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(cardStatus === 'Transferred Out' || cardStatus === 'Transferred') && (
+                    <div className="space-y-2 p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 text-xs">
+                      <div>
+                        <Label className="text-[11px] font-bold text-indigo-900">Transferred To (School)</Label>
+                        <Input value={cardTransferredOutSchoolName} onChange={e => setCardTransferredOutSchoolName(e.target.value)} className="h-8 text-xs bg-white mt-1" placeholder="School Name" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[11px] font-bold text-indigo-900">School Type</Label>
+                          <Select value={cardTransferredOutSchoolType} onValueChange={v => setCardTransferredOutSchoolType(v)}>
+                            <SelectTrigger className="h-8 text-xs bg-white mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Public">Public (P)</SelectItem>
+                              <SelectItem value="Private">Private (PR)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[11px] font-bold text-indigo-900">Date</Label>
+                          <Input type="date" value={cardTransferredOutDate} onChange={e => setCardTransferredOutDate(e.target.value)} className="h-8 text-xs bg-white mt-1" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {cardStatus === 'Transferred In' && (
+                    <div className="space-y-2 p-3 bg-blue-50/70 rounded-xl border border-blue-100 text-xs">
+                      <div>
+                        <Label className="text-[11px] font-bold text-blue-900">Transferred From (School)</Label>
+                        <Input value={cardTransferredInSchoolName} onChange={e => setCardTransferredInSchoolName(e.target.value)} className="h-8 text-xs bg-white mt-1" placeholder="School Name" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[11px] font-bold text-blue-900">School Type</Label>
+                          <Select value={cardTransferredInSchoolType} onValueChange={v => setCardTransferredInSchoolType(v)}>
+                            <SelectTrigger className="h-8 text-xs bg-white mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Public">Public (P)</SelectItem>
+                              <SelectItem value="Private">Private (PR)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[11px] font-bold text-blue-900">Date</Label>
+                          <Input type="date" value={cardTransferredInDate} onChange={e => setCardTransferredInDate(e.target.value)} className="h-8 text-xs bg-white mt-1" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {cardStatus === 'Dropped' && (
+                    <div className="space-y-2 p-3 bg-rose-50/70 rounded-xl border border-rose-100 text-xs">
+                      <div>
+                        <Label className="text-[11px] font-bold text-rose-900">Reason for Dropping</Label>
+                        <Input value={cardDroppedReason} onChange={e => setCardDroppedReason(e.target.value)} className="h-8 text-xs bg-white mt-1" placeholder="Reason" />
+                      </div>
+                      <div>
+                        <Label className="text-[11px] font-bold text-rose-900">Effectivity Date</Label>
+                        <Input type="date" value={cardDroppedDate} onChange={e => setCardDroppedDate(e.target.value)} className="h-8 text-xs bg-white mt-1" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Button to Edit or Save Card Details */}
+              <div className="w-full pt-2">
+                {isEditingCard ? (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={handleSaveCardDetails} 
+                      disabled={isSavingCard}
+                      className="flex-1 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      {isSavingCard ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      Save Card
+                    </button>
+                    <button 
+                      onClick={() => setIsEditingCard(false)} 
+                      className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setIsEditingCard(true)} 
+                    className="w-full h-9 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-slate-500" /> Edit Card Details
+                  </button>
+                )}
               </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 space-y-4">
               <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">STUDENT SUMMARY</h3>
               <div className="space-y-3.5 text-xs">
-                <div className="flex items-center justify-between"><span className="text-slate-500 font-medium">Enrollment Status</span><span className="font-extrabold text-[#D8232A] bg-red-50 px-2.5 py-0.5 rounded-full border border-red-100">{child.status || "Active"}</span></div>
+                <div className="flex items-center justify-between"><span className="text-slate-500 font-medium">Enrollment Status</span><span className="font-extrabold text-[#D8232A] bg-red-50 px-2.5 py-0.5 rounded-full border border-red-100">{cardStatus || child.status || "Active"}</span></div>
+                <div className="flex items-center justify-between"><span className="text-slate-500 font-medium">Height</span><span className="font-bold text-slate-900">{cardHeight ? `${cardHeight} cm` : (child.medical?.height ? `${child.medical.height} cm` : '--')}</span></div>
+                <div className="flex items-center justify-between"><span className="text-slate-500 font-medium">Weight</span><span className="font-bold text-slate-900">{cardWeight ? `${cardWeight} kg` : (child.medical?.weight ? `${child.medical.weight} kg` : '--')}</span></div>
                 <div className="flex items-center justify-between"><span className="text-slate-500 font-medium">Grade Level</span><span className="font-bold text-slate-900">Grade {child.gradeLevel}</span></div>
                 <div className="flex items-center justify-between"><span className="text-slate-500 font-medium">Section</span><span className="font-bold text-slate-900">{(child as any).sectionName || (child as any).section || "N/A"}</span></div>
                 <div className="flex items-center justify-between"><span className="text-slate-500 font-medium">LRN Number</span><span className="font-bold text-slate-900 font-mono">{child.lrn || "N/A"}</span></div>

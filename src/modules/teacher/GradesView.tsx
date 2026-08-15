@@ -200,7 +200,7 @@ function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () =>
 
 export function GradesView() {
   const { students, attendance, updateDynamicStudentGrade, addGradeColumn, editGradeColumn, deleteGradeColumn, submitGradesToAdviser, requestUnlockGrades, grantUnlockGrades, gradeConfigurations, loading, currentGradeLevel, currentSectionName, isAdvisorForCurrentSection, assignedSections, setCurrentSection, currentSection, allTeachers, subjects, advisorSectionSchedules } = useTeacherData();
-  const enrolled = useMemo(() => students.filter((s) => s.status === 'Enrolled'), [students]);
+  const enrolled = useMemo(() => students.filter((s) => s.status !== 'Pending' && s.status !== 'Rejected'), [students]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 25;
@@ -1034,19 +1034,34 @@ export function GradesView() {
                       const computedTermGrade = hasGrade ? termTotal : null;
                       const isFailing = computedTermGrade !== null && computedTermGrade < 75;
 
+                      const isTransferredIn = s.status === 'Transferred In';
+                      const isInactiveStudent = s.status === 'Transferred Out' || s.status === 'Dropped' || s.status === 'Transferred';
+
                       return (
                         <TableRow key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-100 ${isFailing ? 'bg-red-50/10' : 'bg-white'}`}>
                           <TableCell className={`pl-6 py-3 sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] ${isFailing ? 'bg-red-50/80' : 'bg-white'}`}>
-                            <span className={`font-bold text-[13px] ${isFailing ? 'text-rose-700' : 'text-slate-800'} whitespace-nowrap`}>
-                              {formatStudentName(s.firstName, s.lastName)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold text-[13px] ${isFailing ? 'text-rose-700' : 'text-slate-800'} whitespace-nowrap`}>
+                                {formatStudentName(s.firstName, s.lastName)}
+                              </span>
+                              {isTransferredIn && (
+                                <Badge variant="outline" className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border-blue-200 uppercase tracking-wider shrink-0">
+                                  T/I
+                                </Badge>
+                              )}
+                              {isInactiveStudent && (
+                                <Badge variant="outline" className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border-slate-200 uppercase tracking-wider shrink-0">
+                                  {s.status === 'Dropped' ? 'DRP (Locked)' : 'T/O (Locked)'}
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           {gradeConfigs.map(col => (
                             <TableCell key={col.id} className="py-2.5 px-3">
                               <Input
                                 type="number"
                                 value={studentGrades[col.id] || ''}
-                                disabled={!isAuthorized || col.isAttendance}
+                                disabled={!isAuthorized || col.isAttendance || isInactiveStudent}
                                 onChange={(e) => handleCellChange(s.id, col.id, e.target.value)}
                                 onBlur={() => {
                                   if (isAuthorized) handleBlur(s.id, col.id, studentGrades[col.id] || '');

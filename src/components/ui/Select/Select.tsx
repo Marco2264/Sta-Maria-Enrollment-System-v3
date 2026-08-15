@@ -189,10 +189,11 @@ SelectContent.displayName = "SelectContent";
 
 interface SelectItemProps extends React.HTMLAttributes<HTMLDivElement> {
   value: string;
+  disabled?: boolean;
 }
 
 const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
-  ({ className, children, value: itemValue, ...props }, ref) => {
+  ({ className, children, value: itemValue, disabled, ...props }, ref) => {
     const { value, onValueChange } = React.useContext(SelectContext);
     const isSelected = value === itemValue;
 
@@ -202,9 +203,11 @@ const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
         data-slot="select-item"
         role="option"
         aria-selected={isSelected}
-        onClick={() => onValueChange?.(itemValue)}
+        aria-disabled={disabled}
+        onClick={() => !disabled && onValueChange?.(itemValue)}
         className={cn(
-          "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground",
+          "relative flex w-full items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-none select-none",
+          disabled ? "opacity-50 pointer-events-none cursor-not-allowed bg-slate-50 text-slate-400 font-medium" : "hover:bg-accent hover:text-accent-foreground cursor-pointer",
           className
         )}
         {...props}>

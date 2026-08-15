@@ -27,7 +27,15 @@ export type Student = {
   section?: string;
   adviser?: string;
   birthDate: string;
-  status: 'Enrolled' | 'Dropped' | 'Transferred' | 'Pending' | 'Rejected';
+  status: 'Enrolled' | 'Dropped' | 'Transferred' | 'Transferred Out' | 'Transferred In' | 'Pending' | 'Rejected' | string;
+  transferredOutSchoolName?: string;
+  transferredOutSchoolType?: string;
+  transferredOutDate?: string;
+  transferredInSchoolName?: string;
+  transferredInSchoolType?: string;
+  transferredInDate?: string;
+  droppedReason?: string;
+  droppedDate?: string;
   enrollmentDate?: string;
   grades?: Record<string, number>;
   observedValues?: Record<string, any>;
@@ -375,7 +383,7 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         const qEnrolled = query(
           collection(db, 'enrollments'),
           where('sectionId', '==', currentSection),
-          where('status', 'in', ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR', 'Dropped', 'Transferred'])
+          where('status', 'in', ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR', 'Dropped', 'Transferred', 'Transferred Out', 'Transferred In'])
         );
         unsubEnrolled = onSnapshot(qEnrolled, (sSnap) => {
           enrolledStudents = sSnap.docs

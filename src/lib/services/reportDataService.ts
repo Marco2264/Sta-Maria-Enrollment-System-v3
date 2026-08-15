@@ -89,6 +89,39 @@ export interface SF4SectionRow {
   attendancePctMale: number;
   attendancePctFemale: number;
   attendancePctTotal: number;
+
+  // NLPA / Dropped Out
+  nlpaPrevMale?: number;
+  nlpaPrevFemale?: number;
+  nlpaPrevTotal?: number;
+  nlpaMonthMale?: number;
+  nlpaMonthFemale?: number;
+  nlpaMonthTotal?: number;
+  nlpaEndMale?: number;
+  nlpaEndFemale?: number;
+  nlpaEndTotal?: number;
+
+  // Transferred Out
+  tOutPrevMale?: number;
+  tOutPrevFemale?: number;
+  tOutPrevTotal?: number;
+  tOutMonthMale?: number;
+  tOutMonthFemale?: number;
+  tOutMonthTotal?: number;
+  tOutEndMale?: number;
+  tOutEndFemale?: number;
+  tOutEndTotal?: number;
+
+  // Transferred In
+  tInPrevMale?: number;
+  tInPrevFemale?: number;
+  tInPrevTotal?: number;
+  tInMonthMale?: number;
+  tInMonthFemale?: number;
+  tInMonthTotal?: number;
+  tInEndMale?: number;
+  tInEndFemale?: number;
+  tInEndTotal?: number;
 }
 
 export interface SF4Data {
@@ -125,12 +158,81 @@ function calcAge(birthDateStr: string | undefined): number | undefined {
 
 function formatBirthDate(str: string | undefined): string {
   if (!str) return '';
-  const d = new Date(str);
-  if (isNaN(d.getTime())) return '';
+  const d = new Date(str.includes('T') ? str : `${str}T00:00:00`);
+  if (isNaN(d.getTime())) return str;
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   const yy = String(d.getFullYear()).slice(-2);
   return `${mm}/${dd}/${yy}`;
+}
+
+export function buildSF1Remarks(data: any): string {
+  if (data.remarks && typeof data.remarks === 'string' && data.remarks.trim()) {
+    return data.remarks.trim();
+  }
+
+  const status = (data.status || '').trim();
+
+  // 1. Transferred Out -> T/O
+  if (status === 'Transferred Out' || status === 'Transferred' || status === 'T/O') {
+    const schName = data.transferredOutSchoolName || data.schoolName || '';
+    const schType = data.transferredOutSchoolType || data.schoolType || '';
+    const dateStr = formatBirthDate(data.transferredOutDate || data.effectivityDate);
+    const typeLabel = schType === 'Private' || schType === 'PR' ? 'PR' : schType === 'Public' || schType === 'P' ? 'P' : '';
+
+    let parts = ['T/O'];
+    if (schName) {
+      parts.push(`- ${schName}${typeLabel ? ` (${typeLabel})` : ''}`);
+    }
+    if (dateStr) {
+      parts.push(dateStr);
+    }
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  // 2. Transferred IN -> T/I
+  if (status === 'Transferred In' || status === 'T/I') {
+    const schName = data.transferredInSchoolName || data.schoolName || '';
+    const schType = data.transferredInSchoolType || data.schoolType || '';
+    const dateStr = formatBirthDate(data.transferredInDate || data.effectivityDate);
+    const typeLabel = schType === 'Private' || schType === 'PR' ? 'PR' : schType === 'Public' || schType === 'P' ? 'P' : '';
+
+    let parts = ['T/I'];
+    if (schName) {
+      parts.push(`- ${schName}${typeLabel ? ` (${typeLabel})` : ''}`);
+    }
+    if (dateStr) {
+      parts.push(dateStr);
+    }
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  // 3. Dropped -> DRP
+  if (status === 'Dropped' || status === 'DRP') {
+    const reason = data.droppedReason || data.reason || '';
+    const dateStr = formatBirthDate(data.droppedDate || data.effectivityDate);
+
+    let parts = ['DRP'];
+    if (reason) {
+      parts.push(`- ${reason}`);
+    }
+    if (dateStr) {
+      parts.push(dateStr);
+    }
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  // 4. Late Enrollment -> LE
+  if (status === 'Late Enrollment' || status === 'LE' || data.isLateEnrollment === true) {
+    const dateStr = formatBirthDate(data.lateEnrollmentDate || data.enrollmentDate || data.effectivityDate);
+    let parts = ['LE'];
+    if (dateStr) {
+      parts.push(`- ${dateStr}`);
+    }
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  return '';
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -149,9 +251,9 @@ export class ReportDataService {
     try {
       const enrollRef = collection(db, 'enrollments');
 
-      // Fetch all enrolled students to avoid Firestore composite index errors
+      // Fetch enrolled, transferred, and dropped students
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const constraints: any[] = [where('status', 'in', ['Enrolled', 'enrolled'])];
+      const constraints: any[] = [where('status', 'in', ['Enrolled', 'enrolled', 'Transferred Out', 'Transferred In', 'Dropped', 'Transferred'])];
 
       const snap = await getDocs(query(enrollRef, ...constraints));
 
@@ -202,7 +304,7 @@ export class ReportDataService {
           guardianName: data.medical?.emergencyContact ?? data.guardianName ?? '',
           guardianRelationship: data.guardianRelationship ?? 'Parent',
           contactNumber: data.medical?.emergencyPhone ?? data.contactNumber ?? '',
-          remarks: data.remarks ?? '',
+          remarks: buildSF1Remarks(data),
         };
       });
 
@@ -267,9 +369,9 @@ export class ReportDataService {
    */
   static async getSF2Data(schoolYear: string, sectionId: string, monthName: string) {
     try {
-      // Fetch enrolled students for the section
+      // Fetch enrolled and transferred/dropped students for the section
       const enrollRef = collection(db, 'enrollments');
-      const constraints: any[] = [where('status', 'in', ['Enrolled', 'enrolled'])];
+      const constraints: any[] = [where('status', 'in', ['Enrolled', 'enrolled', 'Transferred Out', 'Transferred In', 'Dropped', 'Transferred'])];
       const q = query(enrollRef, ...constraints);
       const enrollSnap = await getDocs(q);
       
@@ -386,14 +488,21 @@ export class ReportDataService {
    */
   static async getSF4Data(schoolYear: string, reportMonth: string, assignedGrade?: string, sectionId?: string): Promise<SF4Data> {
     try {
-      // Fetch all enrolled students to avoid index issues
       const enrollRef = collection(db, 'enrollments');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enrollConstraints: any[] = [where('status', 'in', ['Enrolled', 'enrolled'])];
-      const enrollSnap = await getDocs(query(enrollRef, ...enrollConstraints));
+      const enrollSnap = await getDocs(query(enrollRef));
 
-      // Filter in memory
       let docs = enrollSnap.docs;
+
+      // Elementary School Grade Filter: Exclude Kinder, Kindergarten, and Grade 7 through Grade 12
+      docs = docs.filter(d => {
+        const rawG = (d.data().gradeLevel || '').toString().trim();
+        const numG = rawG.replace(/Grade /i, '').trim();
+        const num = parseInt(numG, 10);
+        if (rawG.toLowerCase().includes('kinder')) return false;
+        if (!isNaN(num) && (num < 1 || num > 6)) return false;
+        return true;
+      });
+
       if (assignedGrade) {
         const numGrade = assignedGrade.replace(/Grade /i, '').trim();
         const fullGrade = `Grade ${numGrade}`;
@@ -407,73 +516,175 @@ export class ReportDataService {
         docs = docs.filter(d => d.data().sectionId === sectionId);
       }
 
+      const monthIndex = [
+        'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+        'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'
+      ].indexOf(reportMonth.toUpperCase());
+
       // Group enrollment counts by sectionId
       const sectionEnrollMap: Record<
         string,
-        { gradeLevel: string; sectionName: string; males: number; females: number; advisorName: string; }
+        {
+          gradeLevel: string;
+          sectionName: string;
+          advisorName: string;
+          males: number;
+          females: number;
+          tOutPrevMale: number;
+          tOutPrevFemale: number;
+          tOutMonthMale: number;
+          tOutMonthFemale: number;
+          tInPrevMale: number;
+          tInPrevFemale: number;
+          tInMonthMale: number;
+          tInMonthFemale: number;
+          nlpaPrevMale: number;
+          nlpaPrevFemale: number;
+          nlpaMonthMale: number;
+          nlpaMonthFemale: number;
+        }
       > = {};
 
-      // Fetch all sections to map section ID to section Name and Adviser Name
       const sectionsRef = collection(db, 'sections');
       const sectionsSnap = await getDocs(query(sectionsRef));
 
-      // Fetch all assignments and users to find section teachers dynamically
       const assignmentsSnap = await getDocs(collection(db, 'assignments'));
       const usersSnap = await getDocs(collection(db, 'users'));
       const teacherMap: Record<string, string> = {};
       usersSnap.docs.forEach(u => {
         const uData = u.data();
-        teacherMap[u.id] = `${uData.firstName || ''} ${uData.lastName || ''}`.trim();
+        const fName = (uData.firstName || uData.givenName || '').trim();
+        const lName = (uData.lastName || uData.familyName || '').trim();
+        const name = `${fName} ${lName}`.trim() || uData.displayName || uData.fullName || '';
+        teacherMap[u.id] = name;
+        if (uData.uid) teacherMap[uData.uid] = name;
       });
+
       const sectionTeacherMap: Record<string, string> = {};
       assignmentsSnap.docs.forEach(a => {
         const aData = a.data();
-        if (aData.sectionId && aData.teacherId) {
-          sectionTeacherMap[aData.sectionId] = teacherMap[aData.teacherId] || '';
+        if (aData.sectionId) {
+          const tName = teacherMap[aData.teacherId] || teacherMap[aData.adviserId] || aData.teacherName || aData.adviserName || '';
+          if (tName) {
+            sectionTeacherMap[aData.sectionId] = tName;
+          }
         }
       });
 
       const sectionInfo: Record<string, { name: string; adviser: string }> = {};
       sectionsSnap.docs.forEach(d => {
+        const sData = d.data();
+        let rawName = sData.name || sData.sectionName || sData.title || d.id;
+        if (rawName.includes('sec_') || rawName.includes('section_')) {
+          const parts = rawName.split('_');
+          const last = parts[parts.length - 1];
+          rawName = last.charAt(0).toUpperCase() + last.slice(1);
+        }
         sectionInfo[d.id] = {
-          name: d.data().name || d.data().sectionName || d.id,
-          adviser: sectionTeacherMap[d.id] || d.data().adviserName || ''
+          name: rawName,
+          adviser: sectionTeacherMap[d.id] || teacherMap[sData.adviserId] || teacherMap[sData.teacherId] || sData.adviserName || sData.advisorName || sData.teacherName || ''
         };
       });
 
       docs.forEach(d => {
         const data = d.data();
         const sid = data.sectionId || 'unknown';
+
+        let resolvedSecName = data.sectionName || sectionInfo[sid]?.name || sid;
+        if (resolvedSecName === sid || resolvedSecName.includes('sec_') || resolvedSecName.includes('section_') || resolvedSecName === 'unknown' || (resolvedSecName.length > 20 && !resolvedSecName.includes(' '))) {
+          if (sectionInfo[sid]?.name && sectionInfo[sid].name !== sid && !sectionInfo[sid].name.includes('sec_')) {
+            resolvedSecName = sectionInfo[sid].name;
+          } else if (sid.includes('_')) {
+            const parts = sid.split('_');
+            const last = parts[parts.length - 1];
+            resolvedSecName = last.charAt(0).toUpperCase() + last.slice(1);
+          } else {
+            resolvedSecName = 'Section';
+          }
+        }
+
+        let resolvedAdvName = sectionInfo[sid]?.adviser || teacherMap[data.advisorName] || teacherMap[data.adviserName] || data.advisorName || data.adviserName || '';
+        if (teacherMap[resolvedAdvName]) {
+          resolvedAdvName = teacherMap[resolvedAdvName];
+        }
+        if (!resolvedAdvName || resolvedAdvName === sid || (resolvedAdvName.length > 20 && !resolvedAdvName.includes(' '))) {
+          resolvedAdvName = 'TBA';
+        }
+
         if (!sectionEnrollMap[sid]) {
           sectionEnrollMap[sid] = {
             gradeLevel: data.gradeLevel || '',
-            sectionName: data.sectionName || sectionInfo[sid]?.name || sid,
-            advisorName: sectionInfo[sid]?.adviser || '',
+            sectionName: resolvedSecName,
+            advisorName: resolvedAdvName,
             males: 0,
             females: 0,
+            tOutPrevMale: 0,
+            tOutPrevFemale: 0,
+            tOutMonthMale: 0,
+            tOutMonthFemale: 0,
+            tInPrevMale: 0,
+            tInPrevFemale: 0,
+            tInMonthMale: 0,
+            tInMonthFemale: 0,
+            nlpaPrevMale: 0,
+            nlpaPrevFemale: 0,
+            nlpaMonthMale: 0,
+            nlpaMonthFemale: 0,
           };
         }
         const gender = (data.gender || '').toLowerCase();
-        if (gender === 'male' || gender === 'm') {
-          sectionEnrollMap[sid].males++;
+        const isMale = gender === 'male' || gender === 'm';
+        const st = (data.status || '').toString().trim();
+
+        // Determine date of event
+        const statusDateVal = data.transferredOutDate || data.transferredInDate || data.droppedDate || data.statusDate || data.updatedAt || data.submittedAt || data.createdAt;
+        const sDate = toDate(statusDateVal);
+        let isForMonth = true;
+        let isPrevMonth = false;
+        if (sDate && monthIndex !== -1) {
+          const sMonth = sDate.getMonth();
+          if (sMonth === monthIndex) {
+            isForMonth = true;
+            isPrevMonth = false;
+          } else if (sMonth < monthIndex) {
+            isForMonth = false;
+            isPrevMonth = true;
+          }
+        }
+
+        if (st === 'Transferred Out' || st === 'Transferred') {
+          if (isPrevMonth) {
+            if (isMale) sectionEnrollMap[sid].tOutPrevMale++; else sectionEnrollMap[sid].tOutPrevFemale++;
+          } else {
+            if (isMale) sectionEnrollMap[sid].tOutMonthMale++; else sectionEnrollMap[sid].tOutMonthFemale++;
+          }
+        } else if (st === 'Transferred In') {
+          if (isMale) {
+            sectionEnrollMap[sid].males++;
+            if (isPrevMonth) sectionEnrollMap[sid].tInPrevMale++; else sectionEnrollMap[sid].tInMonthMale++;
+          } else {
+            sectionEnrollMap[sid].females++;
+            if (isPrevMonth) sectionEnrollMap[sid].tInPrevFemale++; else sectionEnrollMap[sid].tInMonthFemale++;
+          }
+        } else if (st === 'Dropped' || st === 'NLPA') {
+          if (isPrevMonth) {
+            if (isMale) sectionEnrollMap[sid].nlpaPrevMale++; else sectionEnrollMap[sid].nlpaPrevFemale++;
+          } else {
+            if (isMale) sectionEnrollMap[sid].nlpaMonthMale++; else sectionEnrollMap[sid].nlpaMonthFemale++;
+          }
         } else {
-          sectionEnrollMap[sid].females++;
+          // Enrolled / Active / Promoted / Retained
+          if (isMale) sectionEnrollMap[sid].males++; else sectionEnrollMap[sid].females++;
         }
       });
 
       // 2. Get attendance for the report month
-      const monthIndex = [
-        'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
-        'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'
-      ].indexOf(reportMonth.toUpperCase());
-
       const attendRef = collection(db, 'attendance');
       const attendSnap = await getDocs(query(attendRef));
 
-      // Group attendance by sectionId
       const sectionAttendMap: Record<
         string,
-        { presentDays: number; totalDays: number }
+        { malePresentDays: number; femalePresentDays: number; uniqueDates: Set<string> }
       > = {};
 
       attendSnap.docs.forEach(d => {
@@ -483,11 +694,30 @@ export class ReportDataService {
 
         const sid = data.sectionId ?? 'unknown';
         if (!sectionAttendMap[sid]) {
-          sectionAttendMap[sid] = { presentDays: 0, totalDays: 0 };
+          sectionAttendMap[sid] = { malePresentDays: 0, femalePresentDays: 0, uniqueDates: new Set() };
         }
-        sectionAttendMap[sid].totalDays++;
-        const status = (data.status ?? '').toLowerCase();
-        if (status === 'present') sectionAttendMap[sid].presentDays++;
+        if (data.date) {
+          sectionAttendMap[sid].uniqueDates.add(data.date);
+        }
+
+        const am = (data.amStatus || data.status || '').toLowerCase();
+        const pm = (data.pmStatus || data.status || '').toLowerCase();
+        const isPresent = (am === 'present' || pm === 'present' || am === 'late' || pm === 'late') && am !== 'absent' && pm !== 'absent';
+
+        if (isPresent) {
+          const studentDoc = docs.find(doc =>
+            doc.id === data.studentId ||
+            doc.data().studentId === data.studentId ||
+            doc.data().lrn === data.studentId ||
+            doc.data().id === data.studentId
+          );
+          const gender = (data.studentGender || data.gender || studentDoc?.data()?.gender || '').toLowerCase();
+          if (gender === 'male' || gender === 'm') {
+            sectionAttendMap[sid].malePresentDays++;
+          } else {
+            sectionAttendMap[sid].femalePresentDays++;
+          }
+        }
       });
 
       // 3. Compose per-section rows
@@ -495,14 +725,31 @@ export class ReportDataService {
         ([sid, info]) => {
           const total = info.males + info.females;
           const attend = sectionAttendMap[sid];
-          const pct =
-            attend && attend.totalDays > 0
-              ? Math.round((attend.presentDays / attend.totalDays) * 100)
-              : 0;
-          const avgDays =
-            attend && attend.totalDays > 0
-              ? Math.round(attend.presentDays / Math.max(1, attend.totalDays / Math.max(1, total)))
-              : 0;
+          const hasAttendanceLogs = Boolean(attend && attend.uniqueDates.size > 0);
+          const schoolDays = hasAttendanceLogs ? attend!.uniqueDates.size : 0;
+
+          const avgMale = (hasAttendanceLogs && schoolDays > 0) ? Math.round(attend!.malePresentDays / schoolDays) : 0;
+          const avgFemale = (hasAttendanceLogs && schoolDays > 0) ? Math.round(attend!.femalePresentDays / schoolDays) : 0;
+          const avgTotal = avgMale + avgFemale;
+
+          const pctMale = (hasAttendanceLogs && info.males > 0) ? Math.min(100, Math.round((avgMale / info.males) * 100)) : 0;
+          const pctFemale = (hasAttendanceLogs && info.females > 0) ? Math.min(100, Math.round((avgFemale / info.females) * 100)) : 0;
+          const pctTotal = (hasAttendanceLogs && total > 0) ? Math.min(100, Math.round((avgTotal / total) * 100)) : 0;
+
+          const nlpaPrevT = info.nlpaPrevMale + info.nlpaPrevFemale;
+          const nlpaMonthT = info.nlpaMonthMale + info.nlpaMonthFemale;
+          const nlpaEndM = info.nlpaPrevMale + info.nlpaMonthMale;
+          const nlpaEndF = info.nlpaPrevFemale + info.nlpaMonthFemale;
+
+          const tOutPrevT = info.tOutPrevMale + info.tOutPrevFemale;
+          const tOutMonthT = info.tOutMonthMale + info.tOutMonthFemale;
+          const tOutEndM = info.tOutPrevMale + info.tOutMonthMale;
+          const tOutEndF = info.tOutPrevFemale + info.tOutMonthFemale;
+
+          const tInPrevT = info.tInPrevMale + info.tInPrevFemale;
+          const tInMonthT = info.tInMonthMale + info.tInMonthFemale;
+          const tInEndM = info.tInPrevMale + info.tInMonthMale;
+          const tInEndF = info.tInPrevFemale + info.tInMonthFemale;
 
           return {
             gradeLevel: info.gradeLevel,
@@ -511,22 +758,60 @@ export class ReportDataService {
             maleCount: info.males,
             femaleCount: info.females,
             totalCount: total,
-            avgDailyAttendanceMale: Math.round(avgDays * (info.males / Math.max(1, total))),
-            avgDailyAttendanceFemale: Math.round(avgDays * (info.females / Math.max(1, total))),
-            avgDailyAttendanceTotal: avgDays,
-            attendancePctMale: pct,
-            attendancePctFemale: pct,
-            attendancePctTotal: pct,
+            avgDailyAttendanceMale: avgMale,
+            avgDailyAttendanceFemale: avgFemale,
+            avgDailyAttendanceTotal: avgTotal,
+            attendancePctMale: pctMale,
+            attendancePctFemale: pctFemale,
+            attendancePctTotal: pctTotal,
+
+            nlpaPrevMale: info.nlpaPrevMale,
+            nlpaPrevFemale: info.nlpaPrevFemale,
+            nlpaPrevTotal: nlpaPrevT,
+            nlpaMonthMale: info.nlpaMonthMale,
+            nlpaMonthFemale: info.nlpaMonthFemale,
+            nlpaMonthTotal: nlpaMonthT,
+            nlpaEndMale: nlpaEndM,
+            nlpaEndFemale: nlpaEndF,
+            nlpaEndTotal: nlpaEndM + nlpaEndF,
+
+            tOutPrevMale: info.tOutPrevMale,
+            tOutPrevFemale: info.tOutPrevFemale,
+            tOutPrevTotal: tOutPrevT,
+            tOutMonthMale: info.tOutMonthMale,
+            tOutMonthFemale: info.tOutMonthFemale,
+            tOutMonthTotal: tOutMonthT,
+            tOutEndMale: tOutEndM,
+            tOutEndFemale: tOutEndF,
+            tOutEndTotal: tOutEndM + tOutEndF,
+
+            tInPrevMale: info.tInPrevMale,
+            tInPrevFemale: info.tInPrevFemale,
+            tInPrevTotal: tInPrevT,
+            tInMonthMale: info.tInMonthMale,
+            tInMonthFemale: info.tInMonthFemale,
+            tInMonthTotal: tInMonthT,
+            tInEndMale: tInEndM,
+            tInEndFemale: tInEndF,
+            tInEndTotal: tInEndM + tInEndF,
           };
         }
       );
 
-      // Sort by grade level then section name
-      sections.sort((a, b) =>
+      const filteredSections = sections.filter(sec => {
+        const rawG = (sec.gradeLevel || '').toString().trim();
+        const numG = rawG.replace(/Grade /i, '').trim();
+        const num = parseInt(numG, 10);
+        if (rawG.toLowerCase().includes('kinder')) return false;
+        if (!isNaN(num) && (num < 1 || num > 6)) return false;
+        return true;
+      });
+
+      filteredSections.sort((a, b) =>
         a.gradeLevel.localeCompare(b.gradeLevel) || a.section.localeCompare(b.section)
       );
 
-      return { schoolYear, reportMonth, sections };
+      return { schoolYear, reportMonth, sections: filteredSections };
     } catch (err) {
       console.error('[ReportDataService] getSF4Data error:', err);
       return { schoolYear, reportMonth, sections: [] };
