@@ -244,7 +244,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
       setTargetSubjectCode(itemToEdit.subjectCode || '');
       setTargetStudentId(itemToEdit.targetStudentId || '');
       setTargetStudentName(itemToEdit.targetStudentName || '');
-      setFormIsPinned(!!itemToEdit.isPinned);
+      setFormIsPinned(!isTeacher && !!itemToEdit.isPinned);
     } else {
       setEditingId(null);
       setFormCategory('General');
@@ -380,7 +380,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
           targetStudentId: finalTargetType === 'student' ? targetStudentId : null,
           targetStudentName: finalTargetType === 'student' ? targetStudentName : null,
           subjectCode: teacherBroadcastRole === 'subject' ? targetSubjectCode : null,
-          isPinned: formIsPinned,
+          isPinned: !isTeacher ? formIsPinned : false,
           updatedAt: serverTimestamp()
         });
         toast.success('Announcement updated successfully');
@@ -400,7 +400,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
           targetStudentId: finalTargetType === 'student' ? targetStudentId : null,
           targetStudentName: finalTargetType === 'student' ? targetStudentName : null,
           subjectCode: teacherBroadcastRole === 'subject' ? targetSubjectCode : null,
-          isPinned: formIsPinned,
+          isPinned: !isTeacher ? formIsPinned : false,
           isArchived: false,
           createdAt: serverTimestamp()
         });
@@ -1000,24 +1000,26 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                       </div>
                     </div>
 
-                    {/* Pin to Top Option */}
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-2 bg-amber-50 rounded-xl text-amber-700 border border-amber-200/60">
-                          <Pin className="w-4 h-4" />
+                    {/* Pin to Top Option (Admin Only) */}
+                    {!isTeacher && (
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-amber-50 rounded-xl text-amber-700 border border-amber-200/60">
+                            <Pin className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-extrabold text-slate-900">Pin Announcement to Top</p>
+                            <p className="text-[10px] text-slate-400 font-medium">Keep stickied at the very top of all student feeds</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-extrabold text-slate-900">Pin Announcement to Top</p>
-                          <p className="text-[10px] text-slate-400 font-medium">Keep stickied at the very top of all student feeds</p>
-                        </div>
+                        <input
+                          type="checkbox"
+                          checked={formIsPinned}
+                          onChange={(e) => setFormIsPinned(e.target.checked)}
+                          className="w-5 h-5 rounded border-slate-300 text-[#D8232A] focus:ring-[#D8232A] cursor-pointer"
+                        />
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={formIsPinned}
-                        onChange={(e) => setFormIsPinned(e.target.checked)}
-                        className="w-5 h-5 rounded border-slate-300 text-[#D8232A] focus:ring-[#D8232A] cursor-pointer"
-                      />
-                    </div>
+                    )}
 
                   </div>
 
@@ -1038,10 +1040,10 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
 
                 {/* Simulated Luxury Card */}
                 <div className="p-1 rounded-3xl bg-gradient-to-br from-slate-200/60 via-slate-100 to-slate-200/60 shadow-lg">
-                  <div className="bg-white rounded-[22px] border border-slate-200/80 shadow-[0_8px_30px_rgba(0,0,0,0.06)] overflow-hidden relative">
+                  <div className="bg-white rounded-[22px] border border-slate-200/90 overflow-hidden shadow-sm">
                     
-                    {/* Simulated Pinned Ribbon */}
-                    {formIsPinned && (
+                    {/* Simulated Pinned Ribbon (Admin Only) */}
+                    {!isTeacher && formIsPinned && (
                       <div className="bg-gradient-to-r from-amber-500/15 via-amber-400/5 to-transparent px-4 py-1.5 border-b border-amber-200/60 flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-amber-800 text-[10px] font-black tracking-wider uppercase">
                           <Pin className="w-3 h-3 text-amber-600 fill-amber-500" />
@@ -1155,7 +1157,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#D8232A] leading-none">Sta. Maria Elementary</span>
-                    {metrics.pinned > 0 && viewStatus === 'active' && (
+                    {!isTeacher && metrics.pinned > 0 && viewStatus === 'active' && (
                       <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded-md">
                         {metrics.pinned} Pinned
                       </span>
@@ -1441,7 +1443,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                                 </span>
                               )}
 
-                              {(!isTeacher || item.author === authorName) && !item.isArchived && (
+                              {!isTeacher && !item.isArchived && (
                                 <button
                                   onClick={() => handleTogglePin(item)}
                                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
