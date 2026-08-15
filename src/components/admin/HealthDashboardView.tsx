@@ -23,6 +23,7 @@ import { NutritionalStatsChart } from './analytics/NutritionalStatsChart';
 import { useAuth } from '../../lib/AuthContext';
 import { normalizeRole } from '../../lib/roles';
 import { generateAdminSF8 } from '../../lib/excelGenerator';
+import { motion } from 'framer-motion';
 
 export function HealthDashboardView() {
   const [activeTab, setActiveTab] = useState<'analytics' | 'feeding' | 'roster'>('analytics');
@@ -250,8 +251,8 @@ export function HealthDashboardView() {
       <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[450px] h-[450px] bg-teal-500/5 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
 
-      {/* Header Panel */}
-      <header className="h-[76px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center shadow-2xs relative z-10">
+      {/* Header Panel (Exactly aligned with h-[72px] Sidebar Header) */}
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center shadow-2xs relative z-10">
         <div className="flex flex-row items-center justify-between gap-6 w-full max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600 border border-emerald-100/50 shadow-2xs">
@@ -344,38 +345,33 @@ export function HealthDashboardView() {
           </Card>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex border-b border-slate-200 gap-6">
-          <button
-            onClick={() => { setActiveTab('analytics'); handleResetFilters(); }}
-            className={`pb-4 text-sm font-bold tracking-tight border-b-2 transition-all cursor-pointer ${
-              activeTab === 'analytics' 
-                ? 'border-emerald-600 text-emerald-600' 
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Overview & Charts
-          </button>
-          <button
-            onClick={() => { setActiveTab('feeding'); handleResetFilters(); }}
-            className={`pb-4 text-sm font-bold tracking-tight border-b-2 transition-all cursor-pointer ${
-              activeTab === 'feeding' 
-                ? 'border-emerald-600 text-emerald-600' 
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Feeding Candidates ({metrics.feedingEligible})
-          </button>
-          <button
-            onClick={() => { setActiveTab('roster'); handleResetFilters(); }}
-            className={`pb-4 text-sm font-bold tracking-tight border-b-2 transition-all cursor-pointer ${
-              activeTab === 'roster' 
-                ? 'border-emerald-600 text-emerald-600' 
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            All Student Roster
-          </button>
+        {/* Tab Controls (Aligned & Seamless Active Indicator) */}
+        <div className="flex items-center border-b border-slate-200 gap-8">
+          {[
+            { id: 'analytics' as const, label: 'Overview & Charts' },
+            { id: 'feeding' as const, label: `Feeding Candidates (${metrics.feedingEligible})` },
+            { id: 'roster' as const, label: 'All Student Roster' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); handleResetFilters(); }}
+                className={`relative pb-3.5 text-sm font-bold tracking-tight transition-colors cursor-pointer ${
+                  isActive ? 'text-emerald-700 font-extrabold' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="healthActiveTabIndicatorComponent"
+                    className="absolute -bottom-px left-0 right-0 h-0.5 bg-emerald-600 rounded-full"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab Content 1: Overview & Analytics */}

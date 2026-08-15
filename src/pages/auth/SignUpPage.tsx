@@ -351,71 +351,70 @@ export function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-50">
-      {/* Dynamic 3D Mesh Background (Navy, Red, Gold) */}
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-[#F8FAFC]">
+      {/* Soothing Dynamic Ambient Glow Background */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-[-5%] w-[40%] h-[50%] rounded-full bg-[#0f172a] blur-[140px] opacity-40 mix-blend-multiply" />
-        <div className="absolute top-[30%] right-[-5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[140px] opacity-30 mix-blend-multiply" />
-        <div className="absolute bottom-[-5%] left-[20%] w-[50%] h-[40%] rounded-full bg-[#F59E0B] blur-[140px] opacity-30 mix-blend-multiply" />
+        <div className="absolute -top-[10%] -left-[5%] w-[45%] h-[55%] rounded-full bg-slate-900 blur-[160px] opacity-15 mix-blend-multiply" />
+        <div className="absolute top-[30%] -right-[5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[160px] opacity-12 mix-blend-multiply" />
+        <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[45%] rounded-full bg-amber-500 blur-[160px] opacity-10 mix-blend-multiply" />
       </div>
 
       {/* Floating Centered Split-Card */}
       <motion.div
-        initial={{ opacity: 0.5, scale: 0.98, y: 8 }}
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-5xl overflow-hidden flex flex-col md:flex-row my-6"
-        style={{ borderRadius: '28px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-5xl overflow-hidden flex flex-col md:flex-row bg-white rounded-[2rem] border border-slate-200/80 shadow-[0_25px_70px_rgba(15,23,42,0.09)] my-6"
       >
-        {/* ── LEFT PANEL (EXACTLY PRESERVED BRANDING) ── */}
+        {/* ── LEFT PANEL ── Soothing Midnight Slate Luxury Canvas (Zero Eye Strain) ── */}
         <div
-          className="hidden md:flex md:w-[38%] flex-col justify-between p-10 text-white relative overflow-hidden shrink-0"
-          style={{ background: 'linear-gradient(145deg, #2a0202 0%, #6b0f12 50%, #991b1e 100%)' }}
+          className="hidden md:flex md:w-[38%] flex-col justify-between p-10 lg:p-12 text-white relative overflow-hidden shrink-0"
+          style={{ background: 'linear-gradient(155deg, #070c18 0%, #0f172a 50%, #1e293b 100%)' }}
         >
-          {/* Ambient lighting & sleek visual accents */}
-          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-red-400/20 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
+          {/* Subtle Ambient Lighting Overlays */}
+          <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-slate-700/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-rose-500/15 blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/[0.06] via-transparent to-transparent pointer-events-none" />
 
           {/* TOP: Both logos + school name */}
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
+            <div className="flex items-center gap-3.5 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-white p-1.5 shadow-md flex items-center justify-center shrink-0 border border-white/90">
                 <img src="/images/deped_logo.png" alt="DepEd Logo" className="w-full h-full object-contain" />
               </div>
-              <div className="w-px h-10 bg-white/20" />
-              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
-                <img src="/images/sta_maria_school_logo.jpg" alt="School Logo" className="w-full h-full object-cover rounded-lg" />
+              <div className="w-px h-9 bg-white/15" />
+              <div className="w-12 h-12 rounded-2xl bg-white p-1 shadow-md flex items-center justify-center shrink-0 border border-white/90">
+                <img src="/images/sta_maria_school_logo.jpg" alt="School Logo" className="w-full h-full object-cover rounded-xl" />
               </div>
-              <div className="flex flex-col leading-tight">
-                <span className="font-black text-sm text-white uppercase tracking-wide">STA. MARIA</span>
-                <span className="font-black text-sm text-white uppercase tracking-wide">CENTRAL SCHOOL</span>
-                <span className="text-[11px] font-bold text-red-200 uppercase tracking-widest mt-0.5">SPED Center</span>
+              <div className="flex flex-col leading-tight min-w-0">
+                <span className="font-black text-xs sm:text-sm text-white uppercase tracking-wider">STA. MARIA</span>
+                <span className="font-black text-xs sm:text-sm text-white uppercase tracking-wider">CENTRAL SCHOOL</span>
+                <span className="text-[10px] font-extrabold text-red-400 uppercase tracking-widest mt-0.5">SPED CENTER</span>
               </div>
             </div>
-            <div className="h-px bg-white/15 w-full" />
+            <div className="h-px bg-white/10 w-full" />
           </div>
 
           {/* MIDDLE: Main content */}
-          <div className="relative z-10 space-y-5 my-auto">
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-300/30 bg-amber-400/10 text-[10px] font-extrabold uppercase tracking-[0.15em] text-amber-300 backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
+          <div className="relative z-10 space-y-5 my-auto py-6">
+            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/15 bg-white/[0.08] text-[10px] font-extrabold uppercase tracking-[0.15em] text-amber-300 backdrop-blur-md shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
               Parent Portal
             </span>
-            <h3 className="text-3xl font-black leading-tight tracking-tight text-white">
+            <h3 className="text-3xl lg:text-4xl font-black leading-tight tracking-tight text-white">
               Create Parent<br />
-              <span className="text-red-200">Account</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-rose-400">Account</span>
             </h3>
-            <p className="text-sm text-red-100/90 font-medium leading-relaxed max-w-[260px]">
+            <p className="text-sm text-slate-300 font-medium leading-relaxed max-w-[260px]">
               Join the portal to register students, monitor academic progress, track attendance, and receive school announcements.
             </p>
           </div>
 
           {/* BOTTOM: Founded */}
           <div className="relative z-10">
-            <div className="h-px bg-white/15 w-full mb-4" />
-            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
-              <p className="text-[10px] font-extrabold text-white uppercase tracking-[0.18em]">Founded Since 1920</p>
+            <div className="h-px bg-white/10 w-full mb-4" />
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md">
+              <p className="text-[10px] font-extrabold text-slate-300 uppercase tracking-[0.18em]">Founded Since 1920</p>
             </div>
           </div>
         </div>
@@ -969,11 +968,22 @@ export function SignUpPage() {
                 <Button
                   variant="outline"
                   type="button"
-                  className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#D8232A] hover:bg-red-50 hover:border-red-200 transition-all active:scale-[0.98]"
+                  className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#D8232A] hover:bg-red-50 hover:border-red-200 transition-all active:scale-[0.98] cursor-pointer"
                   onClick={() => navigate('/login')}
                 >
                   Already have an account? Sign In
                 </Button>
+
+                {/* Neat Back to Home Link */}
+                <div className="pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#D8232A] transition-colors cursor-pointer uppercase tracking-wider py-1"
+                  >
+                    <span>← Back to Home Page</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

@@ -489,8 +489,8 @@ export function GradesView() {
         <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-red-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[450px] h-[450px] bg-red-500/5 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
 
-        {/* Dashboard Header */}
-        <header className="h-[76px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center shadow-2xs relative z-10">
+        {/* Dashboard Header (Exactly aligned with h-[72px] Sidebar Header) */}
+        <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center shadow-2xs relative z-10">
           <div className="flex flex-row items-center justify-between gap-6 w-full max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-red-50 rounded-xl text-[#D8232A] border border-red-100/50 shadow-2xs">

@@ -110,17 +110,24 @@ export function ParentDashboardView({
       q,
       (snapshot) => {
         if (!snapshot.empty) {
-          const list: AnnouncementItem[] = snapshot.docs.map((docSnap) => {
-            const data = docSnap.data();
-            return {
-              id: docSnap.id,
-              category: data.category || 'General',
-              title: data.title || 'School Announcement',
-              author: data.author || 'School Administration',
-              date: formatDate(data.date || data.createdAt || 'Recent'),
-              content: data.content || ''
-            };
-          });
+          const list: AnnouncementItem[] = snapshot.docs
+            .filter((docSnap) => {
+              const data = docSnap.data();
+              if (data.isArchived) return false;
+              if (data.targetType === 'all_teachers' || data.targetType === 'specific_teacher') return false;
+              return true;
+            })
+            .map((docSnap) => {
+              const data = docSnap.data();
+              return {
+                id: docSnap.id,
+                category: data.category || 'General',
+                title: data.title || 'School Announcement',
+                author: data.author || 'School Administration',
+                date: formatDate(data.date || data.createdAt || 'Recent'),
+                content: data.content || ''
+              };
+            });
           setAnnouncements(list);
         }
       },
@@ -243,28 +250,53 @@ export function ParentDashboardView({
     return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200' };
   };
 
+  // Helper to get requirements list for a child
+  const getRequiredDocsForChild = (child: any): { key: DocumentType; name: string }[] => {
+    const classification = (child as any).studentClassification || (child.isReturning ? 'Transferee' : 'New Student');
+    let requiredList: { key: DocumentType; name: string }[] = [
+      { key: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, name: 'PSA Birth Certificate' }
+    ];
+    if (classification === 'Transferee') {
+      requiredList.push(
+        { key: DOCUMENT_TYPES.REPORT_CARD, name: 'Report Card (SF9)' },
+        { key: DOCUMENT_TYPES.GOOD_MORAL, name: 'Good Moral Certificate' }
+      );
+    } else if (classification === 'Balik-Aral') {
+      requiredList.push(
+        { key: DOCUMENT_TYPES.REPORT_CARD, name: 'Most Recent Report Card' }
+      );
+    }
+    return requiredList;
+  };
+
+  // Helper to resolve document status for a child and docType
+  const resolveDocStatus = (child: any, docType: DocumentType): 'Approved' | 'Under Review' | 'Missing' | 'Rejected' => {
+    const reqKey = documentTypeToRequirementKey(docType);
+    const uploadMeta = (child as any)?.requirementUploads?.[reqKey];
+    const docItem = documents.find((d) => d.enrollmentId === child.id && d.documentType === docType)
+      || documents.find((d) => d.studentName && child.firstName && d.studentName.toLowerCase().includes(child.firstName.toLowerCase()) && d.documentType === docType);
+
+    const status = uploadMeta?.status || docItem?.status;
+    if (status === 'APPROVED') return 'Approved';
+    if (status === 'REJECTED') return 'Rejected';
+    if (status === 'PENDING' || uploadMeta || docItem) return 'Under Review';
+    return 'Missing';
+  };
+
   // Helper for Student Requirements Status
   const getStudentRequirementStatus = (child: any) => {
-    const classification = (child as any).studentClassification || (child.isReturning ? 'Transferee' : 'New Student');
-    
-    let requiredTypes: DocumentType[] = [DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE];
-    if (classification === 'Transferee') {
-      requiredTypes = [
-        DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE,
-        DOCUMENT_TYPES.REPORT_CARD,
-        DOCUMENT_TYPES.GOOD_MORAL
-      ];
-    } else if (classification === 'Balik-Aral') {
-      requiredTypes = [
-        DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE,
-        DOCUMENT_TYPES.REPORT_CARD
-      ];
+    if (child.requirements === 'Complete') {
+      return { 
+        label: 'Approved', 
+        color: 'bg-emerald-50 text-emerald-700 border-emerald-200', 
+        statusKey: 'COMPLETE' 
+      };
     }
 
-    const childDocs = documents.filter((d) => d.enrollmentId === child.id || (d.studentName && child.firstName && d.studentName.toLowerCase().includes(child.firstName.toLowerCase())));
-    const uploadedRequiredTypes = requiredTypes.filter((reqType) => childDocs.some((d) => d.documentType === reqType));
+    const requiredList = getRequiredDocsForChild(child);
+    const statuses = requiredList.map((req) => resolveDocStatus(child, req.key));
     
-    if (uploadedRequiredTypes.length < requiredTypes.length) {
+    if (statuses.some((s) => s === 'Missing' || s === 'Rejected')) {
       return { 
         label: 'Missing', 
         color: 'bg-rose-50 text-rose-700 border-rose-200', 
@@ -272,12 +304,8 @@ export function ParentDashboardView({
       };
     }
 
-    const allApproved = requiredTypes.every((reqType) => {
-      const docMatch = childDocs.find((d) => d.documentType === reqType);
-      return docMatch && docMatch.status === 'APPROVED';
-    });
-
-    if (allApproved || child.requirements === 'Complete') {
+    const allApproved = statuses.every((s) => s === 'Approved');
+    if (allApproved) {
       return { 
         label: 'Approved', 
         color: 'bg-emerald-50 text-emerald-700 border-emerald-200', 
@@ -298,12 +326,17 @@ export function ParentDashboardView({
   const pendingRequirementsCount = useMemo(() => {
     let unverified = 0;
     children.forEach((child) => {
-      if (child.requirements !== 'Complete') {
-        unverified++;
-      }
+      if (child.requirements === 'Complete') return;
+      const requiredList = getRequiredDocsForChild(child);
+      requiredList.forEach((req) => {
+        const st = resolveDocStatus(child, req.key);
+        if (st !== 'Approved') {
+          unverified++;
+        }
+      });
     });
     return unverified;
-  }, [children]);
+  }, [children, documents]);
 
   const attendanceRate = useMemo(() => {
     let totalDays = 0;
@@ -455,67 +488,31 @@ export function ParentDashboardView({
 
     children.forEach((c) => {
       const studentFullName = `${c.firstName || ''} ${c.lastName || ''}`.trim().toUpperCase() || 'LEARNER';
-      const classification = (c as any).studentClassification || (c.isReturning ? 'Transferee' : 'New Student');
-
-      let requiredList: { key: DocumentType; name: string }[] = [
-        { key: DOCUMENT_TYPES.PSA_BIRTH_CERTIFICATE, name: 'PSA Birth Certificate' }
-      ];
-
-      if (classification === 'Transferee') {
-        requiredList.push(
-          { key: DOCUMENT_TYPES.REPORT_CARD, name: 'Report Card (SF9)' },
-          { key: DOCUMENT_TYPES.GOOD_MORAL, name: 'Good Moral Certificate' }
-        );
-      } else if (classification === 'Balik-Aral') {
-        requiredList.push(
-          { key: DOCUMENT_TYPES.REPORT_CARD, name: 'Most Recent Report Card' }
-        );
-      }
-
-      const reqUploads = (c as any).requirementUploads || {};
+      const requiredList = getRequiredDocsForChild(c);
 
       requiredList.forEach((req) => {
-        const reqKey = documentTypeToRequirementKey(req.key);
-        const docMatch = reqUploads[reqKey];
-
-        if (!docMatch) {
-          records.push({
-            id: `${c.id}-${req.key}`,
-            studentName: studentFullName,
-            docName: req.name,
-            statusText: 'Missing',
-            statusColor: 'bg-rose-50 text-rose-700 border-rose-200'
-          });
-        } else if (docMatch.status === 'APPROVED') {
-          records.push({
-            id: `${c.id}-${req.key}`,
-            studentName: studentFullName,
-            docName: req.name,
-            statusText: 'Approved',
-            statusColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-          });
-        } else if (docMatch.status === 'REJECTED') {
-          records.push({
-            id: `${c.id}-${req.key}`,
-            studentName: studentFullName,
-            docName: req.name,
-            statusText: 'Rejected',
-            statusColor: 'bg-rose-50 text-rose-700 border-rose-200'
-          });
-        } else {
-          records.push({
-            id: `${c.id}-${req.key}`,
-            studentName: studentFullName,
-            docName: req.name,
-            statusText: 'Under Review',
-            statusColor: 'bg-amber-50 text-amber-700 border-amber-200'
-          });
+        const statusText = resolveDocStatus(c, req.key);
+        let statusColor = 'bg-slate-100 text-slate-700 border-slate-200';
+        if (statusText === 'Approved') {
+          statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        } else if (statusText === 'Rejected' || statusText === 'Missing') {
+          statusColor = 'bg-rose-50 text-rose-700 border-rose-200';
+        } else if (statusText === 'Under Review') {
+          statusColor = 'bg-amber-50 text-amber-700 border-amber-200';
         }
+
+        records.push({
+          id: `${c.id}-${req.key}`,
+          studentName: studentFullName,
+          docName: req.name,
+          statusText,
+          statusColor
+        });
       });
     });
 
     return records;
-  }, [children]);
+  }, [children, documents]);
 
   if (loading) {
     return (
@@ -587,13 +584,23 @@ export function ParentDashboardView({
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
             <div className="flex justify-between items-start">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Actions</p>
-              <div className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600 shrink-0 border border-rose-100">
-                <AlertCircle className="w-4 h-4" />
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                pendingRequirementsCount === 0 
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                  : 'bg-rose-50 text-rose-600 border-rose-100'
+              }`}>
+                {pendingRequirementsCount === 0 ? (
+                  <CheckCircle2 className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
               </div>
             </div>
             <div>
               <h3 className="text-3xl font-black text-slate-900 mb-0.5">{pendingRequirementsCount}</h3>
-              <p className="text-xs text-slate-400 font-medium truncate">
+              <p className={`text-xs font-medium truncate ${
+                pendingRequirementsCount === 0 ? 'text-emerald-600 font-semibold' : 'text-slate-400'
+              }`}>
                 {pendingRequirementsCount === 0 ? 'All clear' : 'Missing / Unverified docs'}
               </p>
             </div>

@@ -38,7 +38,8 @@ export interface AnnouncementItem {
   date: string;
   time: string;
   content: string;
-  targetType?: 'all' | 'section' | 'student' | 'all_teachers' | 'specific_teacher';
+  targetType?: 'all' | 'section' | 'student' | 'all_teachers' | 'specific_teacher' | 'grade_level';
+  targetGradeLevel?: string;
   targetSectionId?: string;
   targetStudentId?: string;
   targetStudentIds?: string[];
@@ -47,6 +48,8 @@ export interface AnnouncementItem {
   attachmentUrl?: string;
   isNew?: boolean;
   isRead?: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
   targetGrade?: string;
   createdAt?: any;
 }
@@ -94,11 +97,14 @@ export function AnnouncementsView() {
               time: data.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
               content: data.content || '',
               targetType: data.targetType || 'all',
+              targetGradeLevel: data.targetGradeLevel,
               targetSectionId: data.targetSectionId,
               targetStudentId: data.targetStudentId,
               targetStudentIds: data.targetStudentIds,
               attachmentName: data.attachmentName || undefined,
               targetGrade: data.targetGrade || undefined,
+              isPinned: !!data.isPinned,
+              isArchived: !!data.isArchived,
               isNew: !readIds.includes(docSnap.id),
               isRead: readIds.includes(docSnap.id)
             };
@@ -124,7 +130,18 @@ export function AnnouncementsView() {
   const updatedAnnouncements = useMemo(() => {
     return announcements
       .filter(a => {
+        // Exclude archived announcements
+        if (a.isArchived) return false;
+        // Exclude faculty-only memos from parents
+        if (a.targetType === 'all_teachers' || a.targetType === 'specific_teacher') return false;
+        // Public broadcast
         if (!a.targetType || a.targetType === 'all') return true;
+        // Grade level targeting
+        if (a.targetType === 'grade_level') {
+          if (!a.targetGradeLevel) return true;
+          return (children || []).some(s => (s as any).gradeLevel === a.targetGradeLevel || (s as any).grade === a.targetGradeLevel);
+        }
+        // Specific student targeting
         if (a.targetType === 'student') {
           if (a.targetStudentIds && a.targetStudentIds.length > 0) {
             return a.targetStudentIds.some(id => myStudentIds.includes(id));
@@ -133,6 +150,7 @@ export function AnnouncementsView() {
           }
           return false;
         }
+        // Section targeting
         if (a.targetType === 'section' && a.targetSectionId) return mySectionIds.includes(a.targetSectionId);
         return false;
       })
@@ -140,8 +158,13 @@ export function AnnouncementsView() {
         ...a,
         isRead: readIds.includes(a.id),
         isNew: !readIds.includes(a.id)
-      }));
-  }, [announcements, readIds, myStudentIds, mySectionIds]);
+      }))
+      .sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return 0;
+      });
+  }, [announcements, readIds, myStudentIds, mySectionIds, children]);
 
   const badgeCounts = useMemo(() => {
     return {

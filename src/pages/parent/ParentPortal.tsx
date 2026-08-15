@@ -102,14 +102,14 @@ function ParentPortalContent() {
     const collapsed = isMobile ? false : sidebarCollapsed;
     return (
       <div className="flex flex-col h-full bg-white font-sans border-r border-slate-100 z-50 overflow-x-hidden">
-        {/* Brand Header */}
-          <div className="h-16 lg:h-28 border-b border-slate-100 flex items-center px-4 shrink-0 overflow-hidden relative cursor-pointer" onClick={() => handleNavigate('dashboard')}>
-            <div className="p-1.5 bg-[#D32F2F]/5 rounded-xl border border-[#D32F2F]/10 shadow-sm shrink-0 transition-all duration-200">
-              <img src="/pasted-image.jpg" alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
+        {/* Brand Header (Exactly aligned with lg:h-28 view navbar headers) */}
+          <div className="h-20 lg:h-28 border-b border-slate-100 flex items-center px-4.5 shrink-0 overflow-hidden relative cursor-pointer" onClick={() => handleNavigate('dashboard')}>
+            <div className="p-2 bg-[#D32F2F]/5 rounded-2xl border border-[#D32F2F]/15 shadow-sm shrink-0 transition-all duration-200">
+              <img src="/pasted-image.jpg" alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
             </div>
-            <div className={`ml-3 flex flex-col text-left overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-36 opacity-100'}`}>
-              <span className="font-extrabold text-sm text-slate-800 tracking-tight leading-none">Sta. Maria</span>
-              <span className="text-[10px] font-bold text-[#D8232A] uppercase tracking-widest leading-none mt-1 truncate">Parent Portal</span>
+            <div className={`ml-3.5 flex flex-col text-left overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0' : 'w-44 opacity-100'}`}>
+              <span className="font-black text-base text-slate-900 tracking-tight leading-tight">Sta. Maria</span>
+              <span className="text-[11px] font-extrabold text-[#D8232A] uppercase tracking-widest leading-none mt-1 truncate">Parent Portal</span>
             </div>
           </div>
 

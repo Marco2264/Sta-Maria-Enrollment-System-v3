@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
   Users, LineChart, ClipboardCheck, Megaphone, ClipboardList, Settings,
   UserPlus, LayoutDashboard, ClipboardEdit, Send, ShieldCheck, PartyPopper,
-  LogIn, Menu, X, Check, GraduationCap, ArrowRight, LucideIcon,
+  LogIn, Menu, X, Check, GraduationCap, ArrowRight, LucideIcon, Sparkles,
+  School, CheckCircle2, ChevronLeft, ChevronRight, BarChart3, FileCheck,
+  FileText, Bell, Layers, Database, ArrowUpRight, Award, Calendar, Clock
 } from 'lucide-react';
 
 // Icon lookup map for string-keyed icon names
@@ -53,9 +55,9 @@ const featureData: Record<string, FeatureData> = {
   },
   'student-insight': {
     icon: 'lucide:line-chart', color: 'indigo-600', title: 'Student Performance Monitoring',
-    desc: 'Gain valuable insights into student learning and development. This feature provides a complete overview of academic performance, helping parents and teachers identify strengths, monitor progress, and support continuous improvement.',
+    desc: 'Gain valuable insights into student learning and development. This feature provides a complete overview of academic performance, helping parents and teachers track progress across DepEd 3-Term grading periods and support continuous improvement.',
     benefits: [
-      'Academic performance tracking', 'Quarterly grade monitoring', 'Attendance analytics',
+      'Academic performance tracking', 'DepEd 3-Term grade monitoring (Term 1, 2, 3)', 'Attendance analytics',
       'Learning progress reports', 'Student achievement records', 'Performance history archive',
       'Easy-to-read summaries', 'Data-driven student insights',
     ],
@@ -98,30 +100,24 @@ const featureData: Record<string, FeatureData> = {
   },
 };
 
-// ── 3D Tilt Card ───────────────────────────────────────────────────────────────
+// ── 3D Tilt Card for Feature & Timeline Items ──────────────────────────────────
 function TiltCard({ children, className = '', onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  // Snappier springs for a more premium, responsive feel
   const mouseXSpring = useSpring(x, { stiffness: 400, damping: 25 });
   const mouseYSpring = useSpring(y, { stiffness: 400, damping: 25 });
   
-  // Increased rotation for a more dramatic 3D effect
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["15deg", "-15deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-15deg", "15deg"]);
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["10deg", "-10deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-10deg", "10deg"]);
   
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
-    x.set(xPct);
-    y.set(yPct);
+    x.set(mouseX / rect.width - 0.5);
+    y.set(mouseY / rect.height - 0.5);
   };
   
   const handleMouseLeave = () => {
@@ -138,20 +134,723 @@ function TiltCard({ children, className = '', onClick }: { children: React.React
       style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
       className={`relative rounded-[2rem] transition-all cursor-pointer ${className}`}
     >
-      {/* Glare effect */}
       <motion.div
-        className="pointer-events-none absolute inset-0 rounded-[2rem] z-20 mix-blend-overlay"
+        className="pointer-events-none absolute inset-0 rounded-[2rem] z-20 mix-blend-overlay opacity-60"
         style={{
           background: useTransform(
-            () => `radial-gradient(circle at ${(x.get() + 0.5) * 100}% ${(y.get() + 0.5) * 100}%, rgba(255,255,255,0.8) 0%, transparent 60%)`
+            () => `radial-gradient(circle at ${(x.get() + 0.5) * 100}% ${(y.get() + 0.5) * 100}%, rgba(255,255,255,0.7) 0%, transparent 60%)`
           )
         }}
       />
-      {/* Content wrapper with depth */}
       <div style={{ transform: "translateZ(30px)", transformStyle: "preserve-3d" }} className="w-full h-full relative z-10">
         {children}
       </div>
     </motion.div>
+  );
+}
+
+// ── Clean & Unobscured Floating Hero Photo Composition (Static to Cursor) ──────
+function HeroPhotoComposition() {
+  return (
+    <div className="hidden lg:flex relative h-[620px] w-full items-center justify-center select-none pointer-events-none">
+      <div className="relative w-full h-full flex items-center justify-center">
+        
+        {/* 1. Main Centerpiece Campus Photo */}
+        <div className="absolute z-20 lp-floating-main shadow-[0_30px_60px_-10px_rgba(0,0,0,0.22)] rounded-[2.5rem] overflow-hidden border-[5px] border-white bg-white">
+          <img
+            src="/images/sta_maria_new.jpg"
+            onError={(e) => { e.currentTarget.src = '/images/sta_maria_bg.jpg'; }}
+            alt="Sta Maria Central School Main Campus"
+            className="w-76 h-[400px] object-cover pointer-events-none"
+          />
+        </div>
+
+        {/* 2. Floating Top-Left School Crest Badge */}
+        <div className="absolute top-10 -left-6 z-30 lp-floating-alt-3 shadow-[0_20px_40px_rgba(0,0,0,0.18)] rounded-full overflow-hidden border-[4px] border-white bg-white w-24 h-24 flex items-center justify-center">
+          <img
+            src="/images/sta_maria_school_logo.jpg"
+            alt="School Crest Logo"
+            className="w-full h-full object-cover pointer-events-none"
+          />
+        </div>
+
+        {/* 3. Floating Top-Right Satellite Photo */}
+        <div className="absolute -top-4 -right-12 z-10 lp-floating-alt-1 shadow-[0_20px_45px_rgba(0,0,0,0.14)] rounded-3xl overflow-hidden border-[4px] border-white transform rotate-6 bg-white">
+          <img
+            src="/images/hero_bg_2.jpg"
+            alt="Learners at Sta. Maria"
+            className="w-56 h-40 object-cover pointer-events-none"
+          />
+        </div>
+
+        {/* 4. Floating Bottom-Left Satellite Photo */}
+        <div className="absolute -bottom-8 -left-12 z-10 lp-floating-alt-2 shadow-[0_25px_50px_rgba(0,0,0,0.16)] rounded-3xl overflow-hidden border-[4px] border-white transform -rotate-6 bg-white">
+          <img
+            src="/images/hero_bg_3.jpg"
+            alt="Classroom & Learning Activities"
+            className="w-64 h-44 object-cover pointer-events-none"
+          />
+        </div>
+
+        {/* 5. Floating Bottom-Right Satellite Photo */}
+        <div
+          className="absolute -bottom-6 -right-6 z-30 lp-floating-main shadow-[0_20px_40px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden border-[4px] border-white transform rotate-12 bg-white"
+          style={{ animationDelay: '-3s' }}
+        >
+          <img
+            src="/images/blaba.jpg"
+            alt="School Activity"
+            className="w-48 h-36 object-cover pointer-events-none"
+          />
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── 3D Feature Showcase Slides Definition ──────────────────────────────────────
+interface FeatureSlide {
+  key: string;
+  tabLabel: string;
+  badge: string;
+  title: string;
+  desc: string;
+  highlights: string[];
+  color: string;
+  accentBg: string;
+  accentText: string;
+  accentBorder: string;
+  iconName: string;
+}
+
+const FEATURE_SLIDES: FeatureSlide[] = [
+  {
+    key: 'parent-hub',
+    tabLabel: 'Parent Portal',
+    badge: 'Real-Time Guardian Hub',
+    title: 'Your Child’s Education, Tracked in Real-Time',
+    desc: 'Empowers parents and guardians with continuous, transparent access to learner grades, live daily attendance, school announcements, and digital requirements.',
+    highlights: [
+      'Live Subject Grades & Quarterly Honor Standing',
+      'Daily Attendance Clock-in & Absence Alerts',
+      'Instant Document Verification & Status Tracking'
+    ],
+    color: '#D8232A',
+    accentBg: 'bg-red-50',
+    accentText: 'text-[#D8232A]',
+    accentBorder: 'border-red-100',
+    iconName: 'lucide:users'
+  },
+  {
+    key: 'student-insight',
+    tabLabel: 'Performance',
+    badge: 'Academic Analytics',
+    title: 'Visual Insights into Learning & Progress',
+    desc: 'Transforms complex grading sheets into easy-to-understand visual progress reports. Identify subject strengths, track term-by-term performance (Terms 1, 2, and 3), and support student success.',
+    highlights: [
+      '3-Term Progression (Term 1, Term 2, Term 3)',
+      'Subject-by-Subject Mastery & Rating Breakdown',
+      'Automated Honor Roll & Academic Standing'
+    ],
+    color: '#4F46E5',
+    accentBg: 'bg-indigo-50',
+    accentText: 'text-indigo-600',
+    accentBorder: 'border-indigo-100',
+    iconName: 'lucide:line-chart'
+  },
+  {
+    key: 'smart-uploads',
+    tabLabel: 'Enrollment',
+    badge: 'Zero-Paperwork Online',
+    title: 'Fast, Hassle-Free Digital Registration',
+    desc: 'Eliminate long campus queues and manual paper handling. Submit student requirements online, monitor registrar approvals, and secure official enrollment.',
+    highlights: [
+      'Digital PSA, SF9, & Medical Document Uploads',
+      'Automated Document Verification Workflows',
+      'Instant Application Status Notifications'
+    ],
+    color: '#059669',
+    accentBg: 'bg-emerald-50',
+    accentText: 'text-emerald-600',
+    accentBorder: 'border-emerald-100',
+    iconName: 'lucide:clipboard-check'
+  },
+  {
+    key: 'live-bulletins',
+    tabLabel: 'Broadcasts',
+    badge: 'Campus Communication',
+    title: 'Instant Multi-Channel School Announcements',
+    desc: 'Keep the entire school community unified and informed. Receive urgent weather advisories, PTA assembly notices, and academic reminders in one central feed.',
+    highlights: [
+      'Urgent Class Suspension & Weather Alerts',
+      'General PTA Assemblies & Campus Event Schedules',
+      'Multi-Channel Web & Portal Broadcasts'
+    ],
+    color: '#D97706',
+    accentBg: 'bg-amber-50',
+    accentText: 'text-amber-600',
+    accentBorder: 'border-amber-100',
+    iconName: 'lucide:megaphone'
+  },
+  {
+    key: 'vault-security',
+    tabLabel: 'Teacher Suite',
+    badge: 'Educator Productivity',
+    title: 'Automated Official DepEd Forms & Grading',
+    desc: 'Relieve educators from tedious manual paperwork. Automatically compute grades, record daily attendance, and generate official DepEd forms in a single click.',
+    highlights: [
+      '1-Click Export for DepEd SF1, SF2, & SF9',
+      'Automated Quarterly Grade & Weight Calculations',
+      'Centralized Class Masterlists & Learner Data'
+    ],
+    color: '#0284C7',
+    accentBg: 'bg-sky-50',
+    accentText: 'text-sky-600',
+    accentBorder: 'border-sky-100',
+    iconName: 'lucide:clipboard-list'
+  },
+  {
+    key: 'agile-ops',
+    tabLabel: 'Administration',
+    badge: 'Smart School Management',
+    title: 'Centralized Administrative Control & Operations',
+    desc: 'A unified operations platform for school administrators. Monitor campus enrollment quotas, manage sectioning, oversee faculty rosters, and sync cloud data.',
+    highlights: [
+      'Real-Time Enrollment Capacity & Demographics',
+      'Automated Sectioning & Class Allocations',
+      'High-Security Cloud Database Architecture'
+    ],
+    color: '#E11D48',
+    accentBg: 'bg-rose-50',
+    accentText: 'text-rose-600',
+    accentBorder: 'border-rose-100',
+    iconName: 'lucide:settings'
+  }
+];
+
+// ── 3D Live UI Mockups for Feature Slides ─────────────────────────────────────
+function FeatureMockupCard({ slideKey }: { slideKey: string }) {
+  switch (slideKey) {
+    case 'parent-hub':
+      return (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.08)] space-y-4 w-full max-w-md mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-[#D8232A] font-black">
+                <Users size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase">CARL TTEST</h4>
+                <p className="text-[11px] font-bold text-slate-400">Grade 6 • SY 2026-2027</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-extrabold uppercase">
+              Enrolled Active
+            </span>
+          </div>
+
+          {/* Metric Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+              <p className="text-[10px] font-bold uppercase text-slate-400">General Average</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-slate-900">94.2</span>
+                <span className="text-[10px] font-bold text-emerald-600">With Honors</span>
+              </div>
+            </div>
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+              <p className="text-[10px] font-bold uppercase text-slate-400">Attendance Rate</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-slate-900">100%</span>
+                <span className="text-[10px] font-bold text-emerald-600">22 / 22 Days</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Document Status Item */}
+          <div className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-slate-800">PSA Birth Certificate</p>
+                <p className="text-[10px] text-emerald-700 font-medium">Verified by Registrar</p>
+              </div>
+            </div>
+            <span className="text-xs font-black text-emerald-700">Approved ✓</span>
+          </div>
+
+          {/* Live Notification Item */}
+          <div className="flex items-center gap-2.5 text-slate-500 text-[11px] font-medium pt-1 px-1">
+            <span className="w-2 h-2 rounded-full bg-[#D8232A] animate-pulse" />
+            <span>Term 1 progress report synchronized today</span>
+          </div>
+        </div>
+      );
+
+    case 'student-insight':
+      return (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.08)] space-y-4 w-full max-w-md mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black">
+                <LineChart size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase">3-Term Academic Progress</h4>
+                <p className="text-[11px] font-bold text-slate-400">Academic Trajectory Analysis</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-extrabold uppercase">
+              Top 5% Rank
+            </span>
+          </div>
+
+          {/* Visual Progress Bars for 3 Terms */}
+          <div className="space-y-3 pt-1">
+            {[
+              { term: 'Term 1 (Prelims)', score: 91, width: '91%', color: 'from-indigo-400 to-indigo-600' },
+              { term: 'Term 2 (Midterms)', score: 93, width: '93%', color: 'from-indigo-500 to-indigo-600' },
+              { term: 'Term 3 (Finals)', score: 96, width: '96%', color: 'from-[#D8232A] to-red-600' },
+            ].map(item => (
+              <div key={item.term} className="space-y-1">
+                <div className="flex justify-between text-[11px] font-bold text-slate-700">
+                  <span>{item.term}</span>
+                  <span className="font-black text-slate-900">{item.score}%</span>
+                </div>
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full bg-gradient-to-r ${item.color} rounded-full`}
+                    initial={{ width: 0 }}
+                    animate={{ width: item.width }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Subject Pills */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="p-2.5 bg-slate-50 rounded-xl text-center border border-slate-100">
+              <p className="text-[9px] font-bold text-slate-400 uppercase">Mathematics</p>
+              <p className="text-sm font-black text-slate-800">95 (High)</p>
+            </div>
+            <div className="p-2.5 bg-slate-50 rounded-xl text-center border border-slate-100">
+              <p className="text-[9px] font-bold text-slate-400 uppercase">Science</p>
+              <p className="text-sm font-black text-slate-800">94 (High)</p>
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'smart-uploads':
+      return (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.08)] space-y-4 w-full max-w-md mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 font-black">
+                <ClipboardCheck size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase">Digital Checklist</h4>
+                <p className="text-[11px] font-bold text-slate-400">Enrollment Document Center</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-extrabold uppercase">
+              100% Uploaded
+            </span>
+          </div>
+
+          {/* Document Upload Items */}
+          <div className="space-y-2.5">
+            {[
+              { name: 'PSA Birth Certificate', size: '1.8 MB PDF', status: 'Approved', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+              { name: 'Report Card (SF9 Form)', size: '2.4 MB PDF', status: 'Approved', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+              { name: 'Certificate of Good Moral', size: '1.1 MB JPG', status: 'Verified', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            ].map((doc, idx) => (
+              <div key={doc.name} className="p-3 bg-slate-50/80 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 leading-tight">{doc.name}</p>
+                    <p className="text-[10px] text-slate-400 font-medium">{doc.size}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${doc.color}`}>
+                  {doc.status} ✓
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Submission Bar */}
+          <div className="p-3 bg-slate-900 text-white rounded-2xl flex items-center justify-between text-xs font-bold shadow-md">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Application Verified
+            </span>
+            <span className="text-slate-400 font-medium text-[11px]">Ready for Sectioning</span>
+          </div>
+        </div>
+      );
+
+    case 'live-bulletins':
+      return (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.08)] space-y-4 w-full max-w-md mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-black">
+                <Megaphone size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase">Live Broadcast Feed</h4>
+                <p className="text-[11px] font-bold text-slate-400">Campus Notices & Bulletins</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-extrabold uppercase">
+              2 New Updates
+            </span>
+          </div>
+
+          {/* Broadcast Item 1 */}
+          <div className="p-3.5 bg-rose-50/60 rounded-2xl border border-rose-100 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 text-[9px] font-extrabold uppercase">
+                Class Suspension
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">Just Now</span>
+            </div>
+            <p className="text-xs font-black text-slate-900">Weather Advisory: Modular Learning</p>
+            <p className="text-[11px] text-slate-500 line-clamp-1">Heavy rainfall advisory in effect. Classes transition online.</p>
+          </div>
+
+          {/* Broadcast Item 2 */}
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[9px] font-extrabold uppercase">
+                General Assembly
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">July 25</span>
+            </div>
+            <p className="text-xs font-black text-slate-900">1st Quarter General PTA Assembly</p>
+            <p className="text-[11px] text-slate-500 line-clamp-1">All parents are invited to the Covered Court on Aug 5.</p>
+          </div>
+
+          {/* Broadcast Tag */}
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 pt-1">
+            <span>Broadcast Scope: All Guardians</span>
+            <span className="text-emerald-600 font-extrabold">Instant Notification Sync</span>
+          </div>
+        </div>
+      );
+
+    case 'vault-security':
+      return (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.08)] space-y-4 w-full max-w-md mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 font-black">
+                <ClipboardList size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase">DepEd School Forms</h4>
+                <p className="text-[11px] font-bold text-slate-400">1-Click Automation Suite</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-extrabold uppercase">
+              Auto-Calculated
+            </span>
+          </div>
+
+          {/* Form Generation Cards */}
+          <div className="space-y-2.5">
+            {[
+              { form: 'DepEd Form SF2', desc: 'Daily Attendance Register', badge: 'Auto-Synced' },
+              { form: 'DepEd Form SF9', desc: 'Learner Progress Report Card', badge: 'Computed' },
+              { form: 'DepEd Form SF1', desc: 'School Register Masterlist', badge: 'Cloud Ready' },
+            ].map(f => (
+              <div key={f.form} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black text-slate-900">{f.form}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">{f.desc}</p>
+                </div>
+                <button className="px-3 py-1 bg-white hover:bg-slate-100 text-sky-700 border border-slate-200 rounded-xl text-[10px] font-bold shadow-2xs transition-colors">
+                  {f.badge}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-3 bg-sky-50 text-sky-900 rounded-2xl flex items-center justify-between text-xs font-bold border border-sky-100">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-sky-600" /> Zero Manual Math
+            </span>
+            <span className="text-[11px] text-sky-700 font-medium">Saves 4+ Hours / Week</span>
+          </div>
+        </div>
+      );
+
+    case 'agile-ops':
+      return (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.08)] space-y-4 w-full max-w-md mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 font-black">
+                <Settings size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 uppercase">Admin Command Center</h4>
+                <p className="text-[11px] font-bold text-slate-400">Campus Operations Monitor</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold uppercase">
+              100% Operational
+            </span>
+          </div>
+
+          {/* Metric Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+              <p className="text-[10px] font-bold uppercase text-slate-400">Enrolled Learners</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-slate-900">1,280</span>
+                <span className="text-[10px] text-slate-400 font-medium">/ 1,350</span>
+              </div>
+            </div>
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+              <p className="text-[10px] font-bold uppercase text-slate-400">Active Sections</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-slate-900">24</span>
+                <span className="text-[10px] text-emerald-600 font-bold">Grades 1-6</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cloud Health Metric */}
+          <div className="p-3.5 bg-slate-900 text-white rounded-2xl space-y-2 shadow-sm">
+            <div className="flex justify-between items-center text-[11px] font-bold">
+              <span className="text-slate-300">Enrollment Capacity Load</span>
+              <span className="text-emerald-400 font-black">94.8%</span>
+            </div>
+            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 w-[94.8%] rounded-full" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 pt-1">
+            <span className="flex items-center gap-1.5 text-emerald-600">
+              <Database size={13} /> Firestore Cloud Synced
+            </span>
+            <span>Real-Time Audit Log</span>
+          </div>
+        </div>
+      );
+
+    default:
+      return null;
+  }
+}
+
+// ── 3D Feature Showcase Interactive Carousel ───────────────────────────────────
+function FeatureShowcaseCarousel({ onOpenModal }: { onOpenModal: (key: string) => void }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
+
+  const currentSlide = FEATURE_SLIDES[currentIndex];
+
+  const handleNext = () => {
+    setDirection(1);
+    setCurrentIndex((prev) => (prev + 1) % FEATURE_SLIDES.length);
+  };
+
+  const handlePrev = () => {
+    setDirection(-1);
+    setCurrentIndex((prev) => (prev - 1 + FEATURE_SLIDES.length) % FEATURE_SLIDES.length);
+  };
+
+  const handleSelectTab = (index: number) => {
+    setDirection(index > currentIndex ? 1 : -1);
+    setCurrentIndex(index);
+  };
+
+  // Motion variants for directional slide transitions
+  const slideVariants = {
+    enter: (dir: number) => ({
+      x: dir > 0 ? 60 : -60,
+      opacity: 0,
+      scale: 0.98,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      scale: 1,
+      transition: {
+        x: { type: 'spring', stiffness: 350, damping: 32 },
+        opacity: { duration: 0.3 },
+        scale: { duration: 0.3 },
+      },
+    },
+    exit: (dir: number) => ({
+      x: dir < 0 ? 60 : -60,
+      opacity: 0,
+      scale: 0.98,
+      transition: { duration: 0.2 },
+    }),
+  };
+
+  return (
+    <div className="w-full space-y-8">
+      
+      {/* ── 1. Top Category Status Bar (Read-Only Stage Tracker) ── */}
+      <div className="flex items-center justify-start sm:justify-center overflow-x-auto no-scrollbar gap-2 sm:gap-3 pb-2 px-2 select-none">
+        {FEATURE_SLIDES.map((slide, idx) => {
+          const isActive = idx === currentIndex;
+          return (
+            <div
+              key={slide.key}
+              className={`relative px-4 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider transition-all whitespace-nowrap select-none flex items-center gap-2 ${
+                isActive
+                  ? 'text-white shadow-md shadow-red-500/25'
+                  : 'bg-slate-100/80 text-slate-500 border border-slate-200/60'
+              }`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="featureActiveStatus"
+                  className="absolute inset-0 bg-[#D8232A] rounded-2xl -z-10"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="text-[10px] opacity-80">0{idx + 1}</span>
+              <span>{slide.tabLabel}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── 2. Main 3D Feature Stage (Locked Height for Zero Button Jitter) ── */}
+      <div className="relative bg-gradient-to-b from-slate-50/80 to-white rounded-[2.5rem] border border-slate-200/90 shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden min-h-[580px] sm:min-h-[520px] lg:h-[480px] p-6 sm:p-10 lg:p-12 flex items-center">
+        
+        {/* Soft Ambient Background Glow Tailored to Slide Theme */}
+        <div
+          className="absolute -top-20 -right-20 w-80 h-80 rounded-full blur-[100px] opacity-30 pointer-events-none transition-colors duration-700"
+          style={{ backgroundColor: currentSlide.color }}
+        />
+
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={currentSlide.key}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            className="w-full grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8 lg:gap-12 items-center z-10"
+          >
+            
+            {/* Left Column: Narrative Content */}
+            <div className="space-y-5">
+              
+              {/* Badge & Index */}
+              <div className="flex items-center gap-2.5">
+                <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${currentSlide.accentBg} ${currentSlide.accentText} ${currentSlide.accentBorder}`}>
+                  {currentSlide.badge}
+                </span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Module 0{currentIndex + 1} of 06
+                </span>
+              </div>
+
+              {/* Title & Description with Consistent Min-Heights */}
+              <div className="space-y-2.5">
+                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-[1.1] uppercase min-h-[2.5rem] sm:min-h-[3rem] flex items-center">
+                  {currentSlide.title}
+                </h3>
+                <p className="text-slate-500 text-sm sm:text-base font-medium leading-relaxed min-h-[3.5rem]">
+                  {currentSlide.desc}
+                </p>
+              </div>
+
+              {/* Checklist Highlights */}
+              <div className="space-y-2.5 pt-1">
+                {currentSlide.highlights.map((h, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                      <Check size={12} strokeWidth={3} />
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold text-slate-700">{h}</span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
+            {/* Right Column: Dedicated 3D UI Preview Mockup */}
+            <div className="w-full flex items-center justify-center">
+              <FeatureMockupCard slideKey={currentSlide.key} />
+            </div>
+
+          </motion.div>
+        </AnimatePresence>
+
+      </div>
+
+      {/* ── 3. Bottom Carousel Controls & Slide Segment Indicator (Locked Position) ── */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 pt-1 h-12">
+        
+        {/* Slide Counter */}
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <span className="font-black text-slate-900 text-base">0{currentIndex + 1}</span>
+          <span>/</span>
+          <span>06</span>
+          <span className="ml-2 text-slate-400 font-medium">• {currentSlide.tabLabel}</span>
+        </div>
+
+        {/* Segmented Progress Bars (Clickable) */}
+        <div className="flex items-center gap-2">
+          {FEATURE_SLIDES.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSelectTab(idx)}
+              className="group py-2 cursor-pointer"
+              aria-label={`Jump to slide ${idx + 1}`}
+            >
+              <div className={`h-2 rounded-full transition-all duration-300 ${
+                idx === currentIndex
+                  ? 'w-10 bg-[#D8232A]'
+                  : 'w-3 bg-slate-200 group-hover:bg-slate-300'
+              }`} />
+            </button>
+          ))}
+        </div>
+
+        {/* Next / Prev Navigation Buttons (Anchored Solidly in One Place) */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={handlePrev}
+            className="w-11 h-11 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+            aria-label="Previous Slide"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            onClick={handleNext}
+            className="w-11 h-11 rounded-2xl bg-[#D8232A] hover:bg-red-700 text-white flex items-center justify-center shadow-md shadow-red-500/25 hover:shadow-red-500/40 transition-all active:scale-95 cursor-pointer"
+            aria-label="Next Slide"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+      </div>
+
+    </div>
   );
 }
 
@@ -160,14 +859,12 @@ function FeatureModal({ featureKey, onClose }: { featureKey: string | null; onCl
   const data = featureKey ? featureData[featureKey] : null;
   const isActive = !!data;
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Lock body scroll
   useEffect(() => {
     if (isActive) document.body.classList.add('overflow-hidden');
     else document.body.classList.remove('overflow-hidden');
@@ -182,43 +879,40 @@ function FeatureModal({ featureKey, onClose }: { featureKey: string | null; onCl
     <div
       onClick={(e) => { if ((e.target as HTMLElement).id === 'feature-modal-overlay') onClose(); }}
       id="feature-modal-overlay"
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300 ${isActive ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all duration-300 ${isActive ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
     >
-      <div className={`w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col transition-all duration-500 ${isActive ? 'scale-100 translate-y-0' : 'scale-95 translate-y-6'}`}>
-        {/* Close button */}
+      <div className={`w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col transition-all duration-500 border border-slate-100 ${isActive ? 'scale-100 translate-y-0' : 'scale-95 translate-y-6'}`}>
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-[#D8232A] hover:text-white transition-all z-20"
+          className="absolute top-5 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-[#D8232A] hover:text-white transition-all z-20 cursor-pointer"
         >
           <X size={18} />
         </button>
 
         {data && (
           <>
-            {/* Scrollable content area */}
             <div className="p-6 md:p-12 overflow-y-auto flex-1 pb-4">
-              <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl ${iconBgClass} flex items-center justify-center mb-6 md:mb-8`}>
+              <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl ${iconBgClass} flex items-center justify-center mb-6 md:mb-8 shadow-sm`}>
                 <Icon name={data.icon} size={36} />
               </div>
               <h3 className="font-black text-2xl md:text-4xl uppercase mb-4 md:mb-6 pr-8 text-slate-900 leading-tight">{data.title}</h3>
-              <p className="text-slate-500 text-sm md:text-lg leading-relaxed mb-6 md:mb-8">{data.desc}</p>
+              <p className="text-slate-500 text-sm md:text-lg leading-relaxed mb-6 md:mb-8 font-medium">{data.desc}</p>
               <div className="space-y-3 md:space-y-4">
                 {data.benefits.map((b) => (
                   <div key={b} className="flex items-center gap-4">
                     <div className={`w-6 h-6 rounded-full ${iconBgClass} flex items-center justify-center shrink-0`}>
                       <Check size={12} />
                     </div>
-                    <span className="text-slate-600 text-xs md:text-base font-medium">{b}</span>
+                    <span className="text-slate-600 text-xs md:text-base font-semibold">{b}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Pinned Get Started button — always visible at bottom */}
             <div className="px-6 md:px-12 pb-6 md:pb-10 pt-4 border-t border-slate-100 bg-white">
               <button
                 onClick={onClose}
-                className="w-full py-3.5 md:py-4 bg-[#D8232A] text-white rounded-xl font-bold uppercase tracking-widest text-xs md:text-sm hover:bg-[#a61a20] transition-all shadow-lg"
+                className="w-full py-4 bg-[#D8232A] hover:bg-red-700 text-white rounded-2xl font-bold uppercase tracking-widest text-xs md:text-sm transition-all shadow-lg shadow-red-500/25 hover:shadow-red-500/40 cursor-pointer active:scale-98"
               >
                 Get Started with {data.title}
               </button>
@@ -235,22 +929,45 @@ export function LandingPage() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [contentReady, setContentReady] = useState(false);
-  // Track which elements have been revealed — persists across React re-renders
-  const revealedElements = useRef<WeakSet<Element>>(new WeakSet());
+  const [showNavLogin, setShowNavLogin] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
 
-  // Simulate skeleton loading then show content
+  // Track scroll position to trigger navbar Login button and active nav section
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setContentReady(true);
-    }, 1200);
-    return () => clearTimeout(timer);
+    const handleScroll = () => {
+      // 1. Navbar Login CTA Visibility based on hero buttons
+      const heroCta = document.getElementById('hero-cta-group');
+      if (heroCta) {
+        const rect = heroCta.getBoundingClientRect();
+        // Login button appears smoothly once hero CTA scrolls past top
+        setShowNavLogin(rect.bottom < 80);
+      } else {
+        setShowNavLogin(window.scrollY > 280);
+      }
+
+      // 2. Active Section Tracking
+      const sections = ['home', 'registration-process', 'features', 'about'];
+      const scrollPos = window.scrollY + 200;
+      for (const s of sections) {
+        const el = document.getElementById(s);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPos >= top && scrollPos < top + height) {
+            setActiveSection(s);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-
-  // Scroll reveal — fades in on enter, fades out on leave, works both scroll directions
+  // Smooth scroll reveal observer initialized immediately
   useEffect(() => {
-    if (!contentReady) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -261,61 +978,58 @@ export function LandingPage() {
           }
         });
       },
-      { threshold: 0.1, rootMargin: '0px 0px -30px 0px' }
+      { threshold: 0.06, rootMargin: '0px 0px -30px 0px' }
     );
     const raf = requestAnimationFrame(() => {
       document.querySelectorAll('.landing-reveal').forEach((el) => observer.observe(el));
     });
     return () => { observer.disconnect(); cancelAnimationFrame(raf); };
-  }, [contentReady]);
+  }, []);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <>
-      {/* Google Font */}
       <link
-        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap"
         rel="stylesheet"
       />
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
 
         .landing-page * { font-family: 'Plus Jakarta Sans', sans-serif; }
 
         @keyframes lp-float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-15px) rotate(2deg); }
+          50% { transform: translateY(-12px) rotate(1.5deg); }
         }
         @keyframes lp-float-reverse {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(12px) rotate(-1deg); }
+          50% { transform: translateY(10px) rotate(-1.5deg); }
         }
         .lp-floating-main { animation: lp-float 7s ease-in-out infinite; }
         .lp-floating-alt-1 { animation: lp-float-reverse 8s ease-in-out infinite; animation-delay: -2s; }
         .lp-floating-alt-2 { animation: lp-float 6s ease-in-out infinite; animation-delay: -4s; }
         .lp-floating-alt-3 { animation: lp-float-reverse 9s ease-in-out infinite; animation-delay: -1s; }
 
-        /* Scroll reveal — fades in/out smoothly on every viewport enter/leave */
         .landing-reveal {
           opacity: 0;
-          transform: translateY(40px) scale(0.95) rotateX(10deg);
-          transform-origin: top center;
+          transform: translateY(35px) scale(0.97);
           transition:
-            opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-            transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+            transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
           will-change: opacity, transform;
         }
         .landing-reveal.landing-active {
           opacity: 1;
-          transform: translateY(0) scale(1) rotateX(0deg);
+          transform: translateY(0) scale(1);
         }
-        .lp-stagger-1 { transition-delay: 0.06s; }
-        .lp-stagger-2 { transition-delay: 0.12s; }
-        .lp-stagger-3 { transition-delay: 0.18s; }
-        .lp-stagger-4 { transition-delay: 0.24s; }
-        .lp-stagger-5 { transition-delay: 0.30s; }
+        .lp-stagger-1 { transition-delay: 0.05s; }
+        .lp-stagger-2 { transition-delay: 0.10s; }
+        .lp-stagger-3 { transition-delay: 0.15s; }
+        .lp-stagger-4 { transition-delay: 0.20s; }
+        .lp-stagger-5 { transition-delay: 0.25s; }
 
         .lp-skeleton {
           background: #f1f5f9; position: relative; overflow: hidden; border-radius: 0.75rem;
@@ -333,396 +1047,405 @@ export function LandingPage() {
           transition-delay: 350ms;
         }
         .group:hover .lp-timeline-line { transform: scaleY(1); }
-
-        .lp-hero-shadow { text-shadow: 0 4px 24px rgba(0,0,0,0.85); }
-
-        .lp-nav-active { color: #D8232A !important; position: relative; }
-        .lp-nav-active::after {
-          content: ''; position: absolute; bottom: -4px; left: 0; right: 0;
-          height: 2px; border-radius: 99px; background: #D8232A;
-        }
       `}</style>
 
-      <div className="landing-page relative min-h-screen text-slate-900 selection:bg-red-600 selection:text-white bg-slate-50 overflow-hidden">
+      <div className="landing-page relative min-h-screen text-slate-900 selection:bg-red-600 selection:text-white bg-[#F8FAFC] overflow-x-hidden">
         
-        {/* Dynamic 3D Mesh Background (Navy, Red, Gold) */}
+        {/* Dynamic 3D Mesh Background */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 left-[-5%] w-[40%] h-[50%] rounded-full bg-[#0f172a] blur-[140px] opacity-40 mix-blend-multiply" />
-          <div className="absolute top-[30%] right-[-5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[140px] opacity-30 mix-blend-multiply" />
-          <div className="absolute bottom-[-5%] left-[20%] w-[50%] h-[40%] rounded-full bg-[#F59E0B] blur-[140px] opacity-30 mix-blend-multiply" />
+          <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[55%] rounded-full bg-[#0f172a] blur-[160px] opacity-25 mix-blend-multiply" />
+          <div className="absolute top-[25%] right-[-10%] w-[50%] h-[60%] rounded-full bg-[#D8232A] blur-[170px] opacity-20 mix-blend-multiply" />
+          <div className="absolute bottom-[-10%] left-[20%] w-[55%] h-[45%] rounded-full bg-[#F59E0B] blur-[160px] opacity-20 mix-blend-multiply" />
         </div>
-        {/* ── FLOATING PILL NAVBAR ── */}
-        <header className="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-50 bg-white/90 backdrop-blur-xl border border-slate-200 shadow-sm rounded-full">
-          <div className="flex justify-between items-center px-4 sm:px-6 h-14 sm:h-16 w-full">
-            {/* Logo */}
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+
+        {/* ── ALIGNED FLOATING NAVBAR (Matches Container Width & Corner Radius rounded-[2.5rem] sm:rounded-[3rem]) ── */}
+        <header className="fixed top-4 sm:top-5 left-1/2 -translate-x-1/2 w-[96%] max-w-[1400px] z-50 bg-white/85 backdrop-blur-2xl border border-white/70 shadow-[0_10px_35px_rgba(0,0,0,0.06)] rounded-[2.5rem] sm:rounded-[3rem] transition-all duration-300">
+          <div className="flex justify-between items-center px-6 sm:px-10 h-16 sm:h-18 w-full">
+            
+            {/* Logo Section */}
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <button
-                className="md:hidden shrink-0 p-2 text-[#D8232A] hover:bg-slate-50 rounded-lg transition-colors"
+                className="lg:hidden shrink-0 p-2 text-[#D8232A] hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle Navigation Menu"
               >
                 {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
-              <a className="flex items-center gap-2 sm:gap-3 min-w-0" href="#home">
-                <img alt="Logo" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full shadow-sm object-cover shrink-0" src="/images/sta_maria_school_logo.jpg" />
+              <a className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 group" href="#home">
+                <div className="relative shrink-0">
+                  <img
+                    alt="Sta Maria Central School SPED Center Logo"
+                    className="w-9 h-9 sm:w-11 sm:h-11 rounded-full shadow-md object-cover border-2 border-white group-hover:scale-105 transition-transform"
+                    src="/images/sta_maria_school_logo.jpg"
+                  />
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+                </div>
                 <div className="min-w-0 leading-tight">
-                  <span className="block font-black text-[#D8232A] uppercase tracking-wide text-[11px] sm:text-sm md:text-base leading-none whitespace-nowrap">Sta Maria Central School</span>
-                  <span className="block font-bold text-[#D8232A]/70 uppercase tracking-wide text-[10px] sm:text-xs md:text-sm leading-none whitespace-nowrap">SPED Center</span>
+                  <span className="block font-black text-[#D8232A] uppercase tracking-wider text-xs sm:text-sm md:text-base leading-none whitespace-nowrap">
+                    Sta Maria Central School
+                  </span>
+                  <span className="block font-bold text-[#D8232A]/70 uppercase tracking-wide text-[10px] sm:text-xs md:text-sm leading-none whitespace-nowrap mt-1">
+                    SPED Center
+                  </span>
                 </div>
               </a>
             </div>
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-8 lg:gap-10 shrink-0">
-              {(['Home', 'Registration', 'Features', 'About'] as const).map((label) => {
-                const href = label === 'Home' ? '#home' : label === 'Registration' ? '#registration-process' : `#${label.toLowerCase()}`;
-                return (
-                  <a key={label} href={href} className="text-slate-600 hover:text-[#D8232A] transition-colors text-sm font-bold uppercase tracking-widest">
-                    {label}
-                  </a>
-                );
-              })}
-            </nav>
+
+            {/* Right-Aligned Desktop Navigation Links & Animated Login CTA */}
+            <motion.div layout className="hidden lg:flex items-center gap-8 lg:gap-10 shrink-0">
+              <nav className="flex items-center gap-8 lg:gap-10">
+                {(['Home', 'Registration', 'Features', 'About'] as const).map((label) => {
+                  const href = label === 'Home' ? '#home' : label === 'Registration' ? '#registration-process' : `#${label.toLowerCase()}`;
+                  const id = label === 'Home' ? 'home' : label === 'Registration' ? 'registration-process' : label.toLowerCase();
+                  const isActive = activeSection === id;
+                  return (
+                    <a
+                      key={label}
+                      href={href}
+                      className={`transition-colors text-sm font-bold uppercase tracking-widest relative py-1 ${
+                        isActive ? 'text-[#D8232A]' : 'text-slate-600 hover:text-[#D8232A]'
+                      }`}
+                    >
+                      {label}
+                      {isActive && (
+                        <motion.div
+                          layoutId="navActiveIndicator"
+                          className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D8232A] rounded-full"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                    </a>
+                  );
+                })}
+              </nav>
+
+              {/* Scroll-Reactive Navbar Login CTA */}
+              <AnimatePresence>
+                {showNavLogin && (
+                  <motion.button
+                    initial={{ opacity: 0, x: 25, scale: 0.9 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: 25, scale: 0.9 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    onClick={() => navigate('/login')}
+                    className="px-6 py-2.5 bg-gradient-to-r from-[#D8232A] to-red-600 hover:from-red-600 hover:to-[#D8232A] text-white rounded-2xl text-xs font-extrabold uppercase tracking-wider shadow-lg shadow-red-500/25 hover:shadow-red-500/40 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer shrink-0"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Login</span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-0.5 opacity-80" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
           </div>
         </header>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-x-4 top-24 z-40 bg-white/95 backdrop-blur-lg border border-slate-200 rounded-2xl shadow-xl">
-            <nav className="flex flex-col p-6 gap-4">
-              {[
-                { label: 'Home', href: '#home' },
-                { label: 'Registration', href: '#registration-process' },
-                { label: 'Features', href: '#features' },
-                { label: 'About', href: '#about' },
-              ].map(({ label, href }) => (
-                <a key={label} href={href} onClick={closeMobileMenu}
-                  className="text-slate-600 hover:text-[#D8232A] transition-all text-base font-bold uppercase tracking-widest py-2 border-b border-slate-50 last:border-0">
-                  {label}
-                </a>
-              ))}
-            </nav>
-          </div>
-        )}
-
-        {/* ── MASSIVE WHITE CONTENT CONTAINER ── */}
-        <main className="max-w-[1400px] mx-auto w-[96%] bg-white/90 backdrop-blur-3xl rounded-[3rem] border border-slate-200 shadow-sm mt-24 mb-16 overflow-hidden relative z-10">
-          {/* ── HERO ── */}
-          <section className="relative min-h-[85vh] flex items-center overflow-visible bg-transparent pt-10" id="home">
-
-            {/* Skeleton — sits on top while loading */}
-            {!contentReady && (
-              <div className="absolute inset-0 z-[2] flex items-center">
-                <div className="max-w-7xl mx-auto px-6 md:px-12 w-full grid grid-cols-1 lg:grid-cols-2 gap-12">
-                  <div>
-                    <div className="lp-skeleton w-48 h-8 mb-6 opacity-40" />
-                    <div className="lp-skeleton w-full max-w-xl h-20 md:h-32 mb-6 opacity-40" />
-                    <div className="lp-skeleton w-3/4 max-w-md h-6 mb-10 opacity-40" />
-                    <div className="flex gap-4">
-                      <div className="lp-skeleton w-40 h-14 opacity-40" />
-                      <div className="lp-skeleton w-40 h-14 opacity-40" />
-                    </div>
-                  </div>
-                  <div className="hidden lg:block relative">
-                     <div className="lp-skeleton absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-96 rounded-[2.5rem] opacity-40" />
-                  </div>
-                </div>
+        {/* Mobile Menu Dropdown */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -15, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -15, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
+              className="lg:hidden fixed inset-x-4 top-24 z-40 bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-3xl shadow-2xl p-6 space-y-4"
+            >
+              <nav className="flex flex-col gap-2">
+                {[
+                  { label: 'Home', href: '#home' },
+                  { label: 'Registration Process', href: '#registration-process' },
+                  { label: 'System Features', href: '#features' },
+                  { label: 'About SPED Center', href: '#about' },
+                ].map(({ label, href }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    onClick={closeMobileMenu}
+                    className="text-slate-700 hover:text-[#D8232A] hover:bg-red-50 px-4 py-3 rounded-2xl text-sm font-bold uppercase tracking-wider transition-all"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </nav>
+              <div className="pt-4 border-t border-slate-100 flex gap-3">
+                <button
+                  onClick={() => { closeMobileMenu(); navigate('/login'); }}
+                  className="flex-1 py-3 bg-[#D8232A] text-white rounded-xl font-bold uppercase text-xs tracking-wider text-center shadow-md flex items-center justify-center gap-2"
+                >
+                  <LogIn size={16} /> Login
+                </button>
+                <button
+                  onClick={() => { closeMobileMenu(); navigate('/signup'); }}
+                  className="flex-1 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider text-center"
+                >
+                  Sign Up
+                </button>
               </div>
-            )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* Hero content */}
-            {contentReady && (
-              <div className="relative z-[2] w-full py-20 lg:py-0">
-                <div className="max-w-7xl mx-auto px-6 md:px-12 w-full grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-8 items-center min-h-[70vh]">
-                  {/* Left Column (Text) */}
-                  <div className="max-w-2xl text-slate-900 z-10">
-                    <div className="landing-reveal inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest mb-6 md:mb-8">
-                      <span className="w-2 h-2 rounded-full bg-[#D8232A] animate-pulse shadow-[0_0_8px_#D8232A]" />
-                      <span>ALIVIO - STA MARIA CENTRAL SCHOOL SYSTEM</span>
-                    </div>
-                    <h1 className="landing-reveal lp-stagger-1 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.05] mb-6 text-slate-900">
-                      <span className="block">Your School,</span>
-                      <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#D8232A] to-red-500">In Your Hands.</span>
-                    </h1>
-                    <p className="landing-reveal lp-stagger-2 text-lg md:text-xl text-slate-500 mb-10 max-w-xl font-medium leading-relaxed">
-                      Skip the lines. Enroll online, check grades, and get the latest school updates—all from your phone or computer.
-                    </p>
-                    <div className="landing-reveal lp-stagger-3 flex flex-wrap gap-4">
-                      <button
-                        id="cta-login"
-                        onClick={() => navigate('/login')}
-                        className="px-10 py-4 bg-gradient-to-r from-[#D8232A] to-red-600 hover:to-red-700 text-white rounded-2xl font-bold uppercase tracking-wider transition-all shadow-[0_8px_30px_rgb(0,74,198,0.3)] hover:shadow-[0_10px_40px_rgb(0,74,198,0.4)] hover:-translate-y-1 flex items-center gap-2"
-                      >
-                        <LogIn size={20} /> Login
-                      </button>
-                      <button
-                        id="cta-signup"
-                        onClick={() => navigate('/signup')}
-                        className="px-10 py-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-                      >
-                        <UserPlus size={20} /> Sign Up
-                      </button>
-                    </div>
+        {/* ── MASSIVE MAIN CONTENT CONTAINER ── */}
+        <motion.main
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          className="max-w-[1400px] mx-auto w-[96%] bg-white/90 backdrop-blur-3xl rounded-[2.5rem] sm:rounded-[3rem] border border-slate-200 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] mt-24 sm:mt-28 mb-16 overflow-hidden relative z-10"
+        >
+          
+          {/* ── 1. HERO SECTION ── */}
+          <section className="relative min-h-[85vh] flex items-center overflow-visible bg-transparent pt-8 sm:pt-12 pb-16" id="home">
+            <div className="relative z-[2] w-full">
+              <div className="max-w-7xl mx-auto px-6 md:px-12 w-full grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-8 items-center min-h-[70vh]">
+                
+                {/* Left Column (Headline + SaaS CTAs) */}
+                <div className="max-w-2xl text-slate-900 z-10 space-y-6 sm:space-y-8">
+                  
+                  {/* Live Indicator Pill */}
+                  <div className="landing-reveal inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/80 shadow-sm text-[10px] sm:text-xs font-extrabold text-slate-700 uppercase tracking-widest">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#D8232A] animate-pulse shadow-[0_0_10px_#D8232A]" />
+                    <span>ALIVIO • STA MARIA CENTRAL SCHOOL SYSTEM</span>
+                  </div>
+                  
+                  {/* Headline */}
+                  <h1 className="landing-reveal lp-stagger-1 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight font-black leading-[1.04] text-slate-950">
+                    <span className="block">Your School,</span>
+                    <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#D8232A] via-red-600 to-rose-600">
+                      In Your Hands.
+                    </span>
+                  </h1>
+                  
+                  {/* Subtitle */}
+                  <p className="landing-reveal lp-stagger-2 text-base sm:text-lg md:text-xl text-slate-500 max-w-xl font-medium leading-relaxed">
+                    Skip the lines. Enroll online, check grades, and get the latest school updates—all from your phone or computer.
+                  </p>
+
+                  {/* Primary Hero CTA Group */}
+                  <div id="hero-cta-group" className="landing-reveal lp-stagger-3 flex flex-wrap gap-4 pt-2">
+                    <button
+                      id="cta-login"
+                      onClick={() => navigate('/login')}
+                      className="px-8 sm:px-10 py-4 bg-gradient-to-r from-[#D8232A] to-red-600 hover:from-red-600 hover:to-[#D8232A] text-white rounded-2xl font-extrabold uppercase tracking-wider transition-all shadow-[0_10px_30px_rgba(216,35,42,0.35)] hover:shadow-[0_15px_40px_rgba(216,35,42,0.45)] hover:-translate-y-1 active:translate-y-0 flex items-center gap-2.5 cursor-pointer text-sm sm:text-base"
+                    >
+                      <LogIn size={20} />
+                      <span>Login</span>
+                    </button>
+                    <button
+                      id="cta-signup"
+                      onClick={() => navigate('/signup')}
+                      className="px-8 sm:px-10 py-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl font-extrabold uppercase tracking-wider transition-all shadow-sm hover:shadow-md hover:-translate-y-1 active:translate-y-0 flex items-center gap-2.5 cursor-pointer text-sm sm:text-base"
+                    >
+                      <UserPlus size={20} />
+                      <span>Sign Up</span>
+                    </button>
                   </div>
 
-                  {/* Right Column (3D Photo Composition) */}
-                  <div className="hidden lg:block relative h-[600px] w-full perspective-1000 z-0">
-                    <div className="absolute inset-0 flex items-center justify-center transform-style-3d">
-                      
-                      {/* Main Centerpiece */}
-                      <div className="absolute z-20 lp-floating-main shadow-[0_30px_60px_rgba(0,0,0,0.2)] rounded-[2.5rem] overflow-hidden border-4 border-white">
-                        <img 
-                          src="/images/sta_maria_new.jpg" 
-                          onError={(e) => { e.currentTarget.src = '/images/sta_maria_bg.jpg'; }}
-                          alt="Sta Maria" 
-                          className="w-72 h-96 object-cover pointer-events-none" 
-                        />
-                      </div>
-
-                      {/* 1. Floating Element (Top Left) - Avatar */}
-                      <div className="absolute top-10 -left-6 z-30 lp-floating-alt-3 shadow-xl rounded-full overflow-hidden border-[3px] border-white transform -rotate-12 bg-white flex items-center justify-center w-24 h-24">
-                        <img src="/images/sta_maria_school_logo.jpg" alt="Logo" className="w-full h-full object-cover pointer-events-none" />
-                      </div>
-
-                      {/* 2. Floating Element (Top Right) */}
-                      <div className="absolute -top-4 -right-12 z-10 lp-floating-alt-1 shadow-[0_15px_35px_rgba(0,0,0,0.12)] rounded-3xl overflow-hidden border-[3px] border-white transform rotate-6">
-                        <img src="/images/hero_bg_2.jpg" alt="Students" className="w-56 h-40 object-cover pointer-events-none" />
-                      </div>
-
-                      {/* 3. Floating Element (Bottom Left) */}
-                      <div className="absolute -bottom-8 -left-12 z-10 lp-floating-alt-2 shadow-[0_25px_45px_rgba(0,0,0,0.18)] rounded-3xl overflow-hidden border-[3px] border-white transform -rotate-6">
-                        <img src="/images/hero_bg_3.jpg" alt="Classroom" className="w-64 h-44 object-cover pointer-events-none" />
-                      </div>
-
-                      {/* 4. Floating Element (Bottom Right) */}
-                      <div className="absolute -bottom-6 -right-6 z-30 lp-floating-main shadow-[0_20px_40px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden border-[3px] border-white transform rotate-12" style={{ animationDelay: '-3s' }}>
-                        <img src="/images/blaba.jpg" alt="Activity" className="w-48 h-36 object-cover pointer-events-none" />
-                      </div>
-
-                    </div>
-                  </div>
                 </div>
+
+                {/* Right Column (Clean & Unobscured Floating Photo Composition) */}
+                <HeroPhotoComposition />
+
               </div>
-            )}
-          </section>
-
-          {/* ── REGISTRATION PROCESS ── */}
-          <section className="py-24 bg-slate-50 relative border-t border-slate-100" id="registration-process">
-            <div className="max-w-7xl mx-auto px-6">
-              {!contentReady ? (
-                <div className="flex flex-col lg:flex-row gap-20">
-                  <div className="lg:w-1/3">
-                    <div className="lp-skeleton w-32 h-6 mb-4" />
-                    <div className="lp-skeleton w-full h-20 mb-6" />
-                    <div className="lp-skeleton w-3/4 h-16" />
-                  </div>
-                  <div className="lg:w-2/3 space-y-8">
-                    <div className="lp-skeleton w-full h-32" />
-                    <div className="lp-skeleton w-full h-32" />
-                    <div className="lp-skeleton w-full h-32" />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col lg:flex-row gap-20">
-                  {/* Left */}
-                  <div className="lg:w-1/3 landing-reveal">
-                    <h4 className="text-[#D8232A] font-bold uppercase tracking-widest text-sm mb-4">Step-by-Step</h4>
-                    <h2 className="text-[32px] sm:text-5xl lg:text-6xl uppercase leading-none font-black mb-6 text-slate-900">
-                      Registration<br />Process
-                    </h2>
-                    <p className="text-slate-500 leading-relaxed mb-10 text-lg">
-                      Follow our simplified vertical timeline to register, upload documents, and complete your child's enrollment seamlessly.
-                    </p>
-                    <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-lg">
-                      <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-2">For School Year</p>
-                      <p className="text-xl font-bold text-[#D8232A]">2026-2027 Registration</p>
-                    </div>
-                  </div>
-                  {/* Timeline */}
-                  <div className="lg:w-2/3 space-y-12 relative">
-                    {[
-                      { icon: 'lucide:user-plus',       label: 'Create Parent Account',        desc: 'Register a secure parent account to access the online registration system.',                              primary: true  },
-                      { icon: 'lucide:layout-dashboard', label: 'Register Student',               desc: 'Enter student information and begin the registration application.',                                       primary: false },
-                      { icon: 'lucide:clipboard-edit',   label: 'Complete Registration Form',    desc: 'Fill out the required personal, academic, and contact information.',                                      primary: false },
-                      { icon: 'lucide:send',             label: 'Submit Application',             desc: 'Review and submit the registration application for school processing.',                                   primary: false },
-                      { icon: 'lucide:shield-check',     label: 'School Review & Verification',  desc: 'The school evaluates submitted information and verifies application requirements.',                      primary: false },
-                      { icon: 'lucide:party-popper',     label: 'Official Enrollment',           desc: 'Upon approval, the student becomes officially enrolled in Sta. Maria Elementary School.',               primary: false, final: true },
-                    ].map((step, i) => (
-                      <div key={step.label} className={`landing-reveal lp-stagger-${Math.min(i + 1, 5)} group relative flex items-start gap-6 perspective-1000`}>
-                        <TiltCard className="flex items-start gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-red-200 transition-all duration-300 w-full z-10">
-                          <div className={`relative z-10 w-12 h-12 shrink-0 ${step.primary ? 'bg-[#D8232A]' : step.final ? 'bg-emerald-500' : 'bg-slate-50 group-hover:bg-[#D8232A]'} rounded-xl flex items-center justify-center ${step.primary || step.final ? 'text-white' : 'text-[#D8232A] group-hover:text-white'} border ${step.primary || step.final ? 'border-transparent' : 'border-slate-100'} shadow-md transition-all duration-300`} style={{ transform: "translateZ(20px)" }}>
-                            <Icon name={step.icon} size={20} />
-                          </div>
-                          <div style={{ transform: "translateZ(10px)" }}>
-                            <h3 className={`text-lg font-bold tracking-wide mb-1.5 ${step.final ? 'text-emerald-600' : 'text-slate-900 group-hover:text-[#D8232A]'} transition-colors`}>{step.label}</h3>
-                            <p className="text-slate-500 text-sm leading-relaxed">{step.desc}</p>
-                          </div>
-                        </TiltCard>
-                        {!step.final && (
-                          <div className="absolute left-12 top-full h-12 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
-                            <div className="lp-timeline-line w-[3px] h-8 bg-gradient-to-b from-red-300 to-red-400 opacity-50" />
-                            <svg width="14" height="12" viewBox="0 0 14 12" fill="none" className="text-red-400 opacity-50">
-                              <path d="M2.5 3 L7 7.5 L11.5 3" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </section>
 
-          {/* ── FEATURES ── */}
-          <section className="py-24 bg-white border-t border-slate-100" id="features">
-            <div className="max-w-7xl mx-auto px-6">
-              {!contentReady ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {[...Array(6)].map((_, i) => <div key={i} className="lp-skeleton w-full h-80" />)}
-                </div>
-              ) : (
-                <>
-                  <div className="text-center max-w-3xl mx-auto mb-20 landing-reveal">
-                    <h4 className="text-[#D8232A] font-bold uppercase tracking-widest text-sm mb-4">System features</h4>
-                    <h2 className="text-[32px] sm:text-5xl lg:text-6xl uppercase font-black text-slate-900">
-                      Making Every School Process Simpler
-                    </h2>
-                    <p className="text-slate-500 mt-6 text-lg">From registration to student progress tracking, manage everything through one connected platform.</p>
+          {/* ── 2. REGISTRATION PROCESS SECTION ── */}
+          <section className="py-24 bg-slate-50/60 relative border-t border-slate-100" id="registration-process">
+            <div className="max-w-7xl mx-auto px-6 md:px-12">
+              <div className="flex flex-col lg:flex-row gap-16 lg:gap-20">
+                
+                {/* Left Column (Process Introduction) */}
+                <div className="lg:w-1/3 landing-reveal space-y-6">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#D8232A] text-xs font-black uppercase tracking-wider">
+                    <GraduationCap className="w-4 h-4" />
+                    <span>Step-by-Step</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {[
-                      { key: 'parent-hub',      icon: 'lucide:users',           label: 'Parent Portal',                  desc: "Stay connected with your child's academic journey through real-time access to grades, attendance, announcements, and school updates.",        textColor: 'text-[#D8232A]',   bgColor: 'bg-[#D8232A]/10 group-hover:bg-[#D8232A] text-[#D8232A] group-hover:text-white' },
-                      { key: 'student-insight', icon: 'lucide:line-chart',       label: 'Student Performance Monitoring', desc: 'Monitor student achievement, attendance records, and academic growth through detailed progress tracking tools.',                               textColor: 'text-indigo-600',  bgColor: 'bg-indigo-50 group-hover:bg-indigo-600 text-indigo-600 group-hover:text-white' },
-                      { key: 'smart-uploads',   icon: 'lucide:clipboard-check',  label: 'Digital Enrollment',             desc: 'Simplify the enrollment process through secure online registration and digital application management.',                                        textColor: 'text-red-600',    bgColor: 'bg-red-50 group-hover:bg-red-600 text-red-600 group-hover:text-white' },
-                      { key: 'live-bulletins',  icon: 'lucide:megaphone',        label: 'School Communication Center',    desc: 'Receive important school announcements, event updates, reminders, and notifications in one centralized platform.',                              textColor: 'text-amber-600',   bgColor: 'bg-amber-50 group-hover:bg-amber-600 text-amber-600 group-hover:text-white' },
-                      { key: 'vault-security',  icon: 'lucide:clipboard-list',   label: 'Teacher Productivity Suite',     desc: 'Automate routine administrative tasks and reduce paperwork to allow teachers to focus more on teaching.',                                          textColor: 'text-emerald-600', bgColor: 'bg-emerald-50 group-hover:bg-emerald-600 text-emerald-600 group-hover:text-white' },
-                      { key: 'agile-ops',       icon: 'lucide:settings',         label: 'Smart School Administration',    desc: 'Manage school operations, schedules, records, and administrative processes through an integrated management platform.',                          textColor: 'text-rose-600',    bgColor: 'bg-rose-50 group-hover:bg-rose-600 text-rose-600 group-hover:text-white' },
-                    ].map((f, i) => (
-                      <div key={f.key} className={`landing-reveal lp-stagger-${(i % 3) + 1} group perspective-1000`}>
-                        <TiltCard 
-                          onClick={() => setActiveModal(f.key)}
-                          className="bg-white border-2 border-transparent hover:border-slate-100 p-8 sm:p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] transition-all h-full flex flex-col relative overflow-hidden"
+                  <h2 className="text-3xl sm:text-5xl lg:text-6xl uppercase leading-none font-black text-slate-900 tracking-tight">
+                    Registration<br />Process
+                  </h2>
+                  <p className="text-slate-500 leading-relaxed text-base sm:text-lg font-medium">
+                    Follow our simplified vertical timeline to register, upload documents, and complete your child's enrollment seamlessly.
+                  </p>
+                  <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-1">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Academic Year</p>
+                    <p className="text-xl font-black text-[#D8232A]">2026–2027 Registration</p>
+                  </div>
+                </div>
+
+                {/* Right Column (Timeline Cards with 3D Tilt) */}
+                <div className="lg:w-2/3 space-y-8 relative">
+                  {[
+                    { icon: 'lucide:user-plus',       label: 'Create Parent Account',        desc: 'Register a secure parent account to access the online registration system.',                              primary: true  },
+                    { icon: 'lucide:layout-dashboard', label: 'Register Student',               desc: 'Enter student information and begin the registration application.',                                       primary: false },
+                    { icon: 'lucide:clipboard-edit',   label: 'Complete Registration Form',    desc: 'Fill out the required personal, academic, and contact information.',                                      primary: false },
+                    { icon: 'lucide:send',             label: 'Submit Application',             desc: 'Review and submit the registration application for school processing.',                                   primary: false },
+                    { icon: 'lucide:shield-check',     label: 'School Review & Verification',  desc: 'The school evaluates submitted information and verifies application requirements.',                      primary: false },
+                    { icon: 'lucide:party-popper',     label: 'Official Enrollment',           desc: 'Upon approval, the student becomes officially enrolled in Sta. Maria Elementary School.',               primary: false, final: true },
+                  ].map((step, i) => (
+                    <div key={step.label} className={`landing-reveal lp-stagger-${Math.min(i + 1, 5)} group relative flex items-start gap-6 perspective-1000`}>
+                      <TiltCard className="flex items-start gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-red-200 transition-all duration-300 w-full z-10">
+                        <div
+                          className={`relative z-10 w-14 h-14 shrink-0 ${
+                            step.primary ? 'bg-[#D8232A]' : step.final ? 'bg-emerald-500' : 'bg-slate-50 group-hover:bg-[#D8232A]'
+                          } rounded-2xl flex items-center justify-center ${
+                            step.primary || step.final ? 'text-white' : 'text-[#D8232A] group-hover:text-white'
+                          } border ${step.primary || step.final ? 'border-transparent' : 'border-slate-100'} shadow-md transition-all duration-300`}
+                          style={{ transform: "translateZ(25px)" }}
                         >
-                          {/* Colored glowing orb behind the icon for premium feel */}
-                          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full ${f.bgColor.split(' ')[0]} blur-[60px] opacity-0 group-hover:opacity-40 transition-opacity duration-500`} style={{ transform: "translateZ(10px)" }} />
-                          
-                          <div className={`w-16 h-16 rounded-2xl ${f.bgColor} flex items-center justify-center mb-10 transition-all shadow-sm`} style={{ transform: "translateZ(40px)" }}>
-                            <Icon name={f.icon} size={32} />
+                          <Icon name={step.icon} size={24} />
+                        </div>
+                        <div style={{ transform: "translateZ(15px)" }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Step 0{i + 1}</span>
                           </div>
-                          <h3 className="text-2xl lg:text-3xl uppercase font-black mb-4 text-slate-900 leading-tight" style={{ transform: "translateZ(30px)" }}>{f.label}</h3>
-                          <p className="text-slate-500 font-medium leading-relaxed mb-10 flex-1" style={{ transform: "translateZ(20px)" }}>{f.desc}</p>
-                          <div className={`inline-flex items-center gap-2 ${f.textColor} font-bold uppercase tracking-widest text-xs group-hover:gap-4 transition-all`} style={{ transform: "translateZ(30px)" }}>
-                            Explore Module <ArrowRight size={14} />
-                          </div>
-                        </TiltCard>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+                          <h3 className={`text-lg sm:text-xl font-black tracking-tight mb-2 ${
+                            step.final ? 'text-emerald-600' : 'text-slate-900 group-hover:text-[#D8232A]'
+                          } transition-colors`}>
+                            {step.label}
+                          </h3>
+                          <p className="text-slate-500 text-sm font-medium leading-relaxed">{step.desc}</p>
+                        </div>
+                      </TiltCard>
+                      {!step.final && (
+                        <div className="absolute left-13 top-full h-8 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
+                          <div className="lp-timeline-line w-[2.5px] h-full bg-gradient-to-b from-red-400 to-red-200 opacity-60" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+              </div>
             </div>
           </section>
 
-          {/* ── ABOUT ── */}
-          <section className="py-24 bg-slate-50 relative overflow-visible border-t border-slate-100" id="about">
-            <div className="max-w-7xl mx-auto px-6">
-              {!contentReady ? (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-                  <div className="lg:col-span-5"><div className="lp-skeleton w-full h-[500px]" /></div>
-                  <div className="lg:col-span-7">
-                    <div className="lp-skeleton w-1/4 h-6 mb-4" />
-                    <div className="lp-skeleton w-full h-20 mb-8" />
-                    <div className="lp-skeleton w-full h-32" />
+          {/* ── 3. SYSTEM FEATURES SECTION (PREMIUM 3D SHOWCASE CAROUSEL) ── */}
+          <section className="py-24 bg-white border-t border-slate-100" id="features">
+            <div className="max-w-7xl mx-auto px-6 md:px-12">
+              <div className="space-y-12">
+                
+                {/* Section Headline */}
+                <div className="text-center max-w-3xl mx-auto space-y-4 landing-reveal">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#D8232A] text-xs font-black uppercase tracking-wider">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Interactive System Showcase</span>
                   </div>
+                  <h2 className="text-3xl sm:text-5xl lg:text-6xl uppercase font-black text-slate-900 tracking-tight leading-[1.05]">
+                    Making Every School Process Simpler
+                  </h2>
+                  <p className="text-slate-500 text-base sm:text-lg font-medium">
+                    Explore how Sta. Maria Central School's integrated portal empowers parents, teachers, and administrators.
+                  </p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
-                  {/* School image — card matching reference screenshot */}
-                  <div className="lg:col-span-5 landing-reveal perspective-1000">
-                    <TiltCard className="bg-white rounded-[2rem] shadow-xl overflow-visible border border-slate-100 pb-4">
-                      {/* Photo wrapper — rounded + clipped */}
-                      <div className="relative rounded-[1.5rem] overflow-hidden" style={{ height: '280px', transform: "translateZ(20px)" }}>
-                        <img
-                          src="/images/sta_maria_new.jpg"
-                          alt="Sta Maria School Building"
-                          className="w-full h-full object-cover"
-                        />
 
-                        {/* Colorful wave overlay — bottom of photo */}
-                        <div className="absolute bottom-0 left-0 right-0" style={{ height: '72px' }}>
-                          <svg viewBox="0 0 500 72" preserveAspectRatio="none" className="w-full h-full">
-                            {/* Teal wave — back */}
-                            <path d="M0,72 L0,38 Q125,5 250,28 Q375,50 500,20 L500,72 Z" fill="#06b6d4" opacity="0.85"/>
-                            {/* Pink wave — front */}
-                            <path d="M0,72 L0,50 Q125,15 250,40 Q375,62 500,35 L500,72 Z" fill="#ec4899" opacity="0.9"/>
-                          </svg>
-                        </div>
-                      </div>
+                {/* 3D Showcase Carousel Component */}
+                <div className="landing-reveal lp-stagger-1">
+                  <FeatureShowcaseCarousel onOpenModal={setActiveModal} />
+                </div>
 
-                      {/* Bottom row — EST. 1920 badge only, full width */}
-                      <div className="px-3 pt-3 pb-2" style={{ transform: "translateZ(30px)" }}>
-                        <div className="bg-[#D8232A] text-white rounded-xl shadow-lg w-full" style={{ padding: '0.85rem 1.25rem' }}>
-                          <p style={{ fontSize: '1.6rem', fontWeight: 900, lineHeight: 1, margin: 0 }}>EST. 1920</p>
-                          <p style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#fbbf24', marginTop: '4px' }}>Serving Generations of Learners</p>
-                        </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── 4. ABOUT SECTION ── */}
+          <section className="py-24 bg-slate-50/60 relative overflow-visible border-t border-slate-100" id="about">
+            <div className="max-w-7xl mx-auto px-6 md:px-12">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+                
+                {/* School Badge Showcase */}
+                <div className="lg:col-span-5 landing-reveal perspective-1000">
+                  <TiltCard className="bg-white rounded-[2.5rem] shadow-xl overflow-visible border border-slate-100 pb-4">
+                    <div className="relative rounded-[2rem] overflow-hidden" style={{ height: '300px', transform: "translateZ(20px)" }}>
+                      <img
+                        src="/images/sta_maria_new.jpg"
+                        alt="Sta Maria Central School Building"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0" style={{ height: '72px' }}>
+                        <svg viewBox="0 0 500 72" preserveAspectRatio="none" className="w-full h-full">
+                          <path d="M0,72 L0,38 Q125,5 250,28 Q375,50 500,20 L500,72 Z" fill="#06b6d4" opacity="0.85"/>
+                          <path d="M0,72 L0,50 Q125,15 250,40 Q375,62 500,35 L500,72 Z" fill="#ec4899" opacity="0.9"/>
+                        </svg>
                       </div>
+                    </div>
+
+                    <div className="px-4 pt-4 pb-2" style={{ transform: "translateZ(30px)" }}>
+                      <div className="bg-[#D8232A] text-white rounded-2xl shadow-lg w-full p-4 flex justify-between items-center">
+                        <div>
+                          <p className="text-2xl font-black leading-none">EST. 1920</p>
+                          <p className="text-[10px] font-extrabold tracking-widest uppercase text-amber-300 mt-1">Serving Generations of Learners</p>
+                        </div>
+                        <School className="w-8 h-8 text-white/80" />
+                      </div>
+                    </div>
+                  </TiltCard>
+                </div>
+
+                {/* About Content */}
+                <div className="lg:col-span-7 space-y-6">
+                  <div className="landing-reveal inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#D8232A] text-xs font-black uppercase tracking-wider">
+                    <School className="w-4 h-4" />
+                    <span>About Our Institution</span>
+                  </div>
+                  <h2 className="landing-reveal lp-stagger-1 text-3xl sm:text-5xl lg:text-6xl uppercase leading-none font-black text-slate-900 tracking-tight">
+                    Sta. Maria Central School SPED Center
+                  </h2>
+                  <p className="landing-reveal lp-stagger-2 text-slate-500 leading-relaxed text-base sm:text-lg font-medium">
+                    Sta. Maria Central School SPED Center is a public elementary school dedicated to providing quality education to all students, including those with special educational needs. Our management system supports teachers, parents, and administrators in creating a seamless learning environment.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 perspective-1000 pt-2">
+                    <TiltCard className="landing-reveal lp-stagger-2 p-8 bg-white rounded-3xl border border-slate-100 shadow-sm h-full flex flex-col">
+                      <div className="w-12 h-12 bg-[#D8232A]/10 rounded-2xl flex items-center justify-center text-[#D8232A] mb-5 shrink-0" style={{ transform: "translateZ(20px)" }}>
+                        <Users size={24} />
+                      </div>
+                      <h5 className="text-xl uppercase font-black mb-2 text-slate-900" style={{ transform: "translateZ(10px)" }}>Parent Management</h5>
+                      <p className="text-slate-500 text-xs sm:text-sm leading-relaxed font-medium" style={{ transform: "translateZ(5px)" }}>
+                        Helping parents stay actively involved through real-time access to grades, attendance, announcements, and digital requirements.
+                      </p>
+                    </TiltCard>
+                    <TiltCard className="landing-reveal lp-stagger-3 p-8 bg-white rounded-3xl border border-slate-100 shadow-sm h-full flex flex-col">
+                      <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-5 shrink-0" style={{ transform: "translateZ(20px)" }}>
+                        <GraduationCap size={24} />
+                      </div>
+                      <h5 className="text-xl uppercase font-black mb-2 text-slate-900" style={{ transform: "translateZ(10px)" }}>Teacher Productivity</h5>
+                      <p className="text-slate-500 text-xs sm:text-sm leading-relaxed font-medium" style={{ transform: "translateZ(5px)" }}>
+                        Empowering educators with digital tools that streamline attendance management, automated grading, and official school records.
+                      </p>
                     </TiltCard>
                   </div>
-
-                  {/* Text */}
-                  <div className="lg:col-span-7 mt-8 lg:mt-0">
-                    <h4 className="landing-reveal text-[#D8232A] font-bold uppercase tracking-widest text-sm mb-4">About Us</h4>
-                    <h2 className="landing-reveal lp-stagger-1 text-[32px] sm:text-5xl lg:text-6xl uppercase leading-none font-black mb-8 text-slate-900">
-                      Sta. Maria Central School SPED Center
-                    </h2>
-                    <p className="landing-reveal lp-stagger-2 text-slate-500 leading-relaxed text-lg mb-10">
-                      Sta. Maria Central School SPED Center is a public elementary school dedicated to providing quality education to all students, including those with special educational needs. Our management system supports teachers, parents, and administrators in creating a seamless learning environment.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 perspective-1000">
-                      <TiltCard className="landing-reveal lp-stagger-2 p-8 bg-white rounded-3xl border border-slate-100 shadow-lg h-full flex flex-col">
-                        <div className="w-12 h-12 bg-[#D8232A]/10 rounded-xl flex items-center justify-center text-[#D8232A] mb-6" style={{ transform: "translateZ(20px)" }}>
-                          <Users size={24} />
-                        </div>
-                        <h5 className="text-2xl uppercase font-black mb-3" style={{ transform: "translateZ(10px)" }}>Parent Management</h5>
-                        <p className="text-slate-500 text-sm leading-relaxed italic" style={{ transform: "translateZ(5px)" }}>Helping parents stay actively involved in their child's education through real-time access to grades, attendance records, announcements, and enrollment information.</p>
-                      </TiltCard>
-                      <TiltCard className="landing-reveal lp-stagger-3 p-8 bg-white rounded-3xl border border-slate-100 shadow-lg h-full flex flex-col">
-                        <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 mb-6" style={{ transform: "translateZ(20px)" }}>
-                          <GraduationCap size={24} />
-                        </div>
-                        <h5 className="text-2xl uppercase font-black mb-3" style={{ transform: "translateZ(10px)" }}>Teacher Productivity</h5>
-                        <p className="text-slate-500 text-sm leading-relaxed italic" style={{ transform: "translateZ(5px)" }}>Empowering educators with digital tools that streamline attendance management, automate school forms, and reduce administrative workload.</p>
-                      </TiltCard>
-                    </div>
-                  </div>
                 </div>
-              )}
+
+              </div>
             </div>
           </section>
-        {/* ── FOOTER ── */}
-        <footer className="bg-slate-900 py-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-col items-center gap-8 text-center landing-reveal">
-              <div className="flex gap-4">
-                <div className="h-16 w-16 bg-white rounded-xl flex items-center justify-center p-1.5 shadow hover:opacity-90 transition-opacity">
-                  <img alt="DepEd Logo" className="h-full w-full object-contain" src="/images/deped_logo.png" />
+
+          {/* ── FOOTER ── */}
+          <footer className="bg-slate-950 text-white py-16 border-t border-slate-900">
+            <div className="max-w-7xl mx-auto px-6 md:px-12">
+              <div className="flex flex-col items-center gap-8 text-center landing-reveal">
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-transform">
+                    <img alt="DepEd Seal Logo" className="h-full w-full object-contain" src="/images/deped_logo.png" />
+                  </div>
+                  <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-transform">
+                    <img alt="Sta Maria School Crest Logo" className="h-full w-full object-contain rounded-xl" src="/images/sta_maria_school_logo.jpg" />
+                  </div>
                 </div>
-                <div className="h-16 w-16 bg-white rounded-xl flex items-center justify-center p-1.5 shadow hover:opacity-90 transition-opacity">
-                  <img alt="Sta Maria School Logo" className="h-full w-full object-contain rounded-lg" src="/images/sta_maria_school_logo.jpg" />
+                <div>
+                  <p className="text-2xl sm:text-3xl text-white uppercase font-black tracking-tight">Sta Maria SPED Center</p>
+                  <p className="text-slate-400 text-xs sm:text-sm tracking-widest uppercase mt-2 font-bold">Official DepEd School Management Portal</p>
                 </div>
               </div>
-              <div>
-                <p className="text-3xl text-white uppercase font-black">Sta Maria SPED Center</p>
-                <p className="text-slate-400 text-sm tracking-widest uppercase mt-2">Official Management Portal</p>
+              <div className="mt-12 pt-8 border-t border-slate-800/80 text-center">
+                <p className="text-slate-500 text-xs uppercase tracking-widest font-bold">
+                  &copy; {new Date().getFullYear()} Sta Maria Central School SPED Center. All Rights Reserved.
+                </p>
               </div>
             </div>
-            <div className="mt-12 pt-8 border-t border-slate-800 text-center">
-              <p className="text-slate-600 text-xs uppercase tracking-widest font-bold">
-                &copy; 2026 Sta Maria Central School SPED Center. All Rights Reserved.
-              </p>
-            </div>
-          </div>
-        </footer>
-        </main>
+          </footer>
+
+        </motion.main>
 
         {/* ── FEATURE MODAL ── */}
         <FeatureModal featureKey={activeModal} onClose={() => setActiveModal(null)} />

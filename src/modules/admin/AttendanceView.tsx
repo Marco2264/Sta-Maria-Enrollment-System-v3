@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../lib/firebase';
 import { Card } from '../../components/ui/Card';
 import {
@@ -14,7 +15,7 @@ import { Button } from '../../components/ui/Button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../../components/ui/command';
 import { cn } from '../../lib/utils';
-import { Users, Loader2, ChevronsUpDown, Check, CalendarCheck } from 'lucide-react';
+import { Users, Loader2, ChevronsUpDown, Check, CalendarCheck, CalendarX, X } from 'lucide-react';
 import { useAdminData } from '../../lib/adminData';
 
 export function AttendanceView() {
@@ -44,6 +45,8 @@ export function AttendanceView() {
   const [selectedSection, setSelectedSection] = useState<string>('All');
   const [openGrade, setOpenGrade] = useState(false);
   const [openSection, setOpenSection] = useState(false);
+  const [isWeekendModalOpen, setIsWeekendModalOpen] = useState(false);
+  const [weekendSelectedDateStr, setWeekendSelectedDateStr] = useState('');
 
   // Fetch students when section changes
   useEffect(() => {
@@ -178,9 +181,15 @@ export function AttendanceView() {
                 value={selectedDate}
                 onChange={(e) => {
                   const val = e.target.value;
-                  const selectedDay = new Date(val).getDay();
+                  if (!val) return;
+                  const parts = val.split('-');
+                  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                  const selectedDay = d.getDay();
                   if (selectedDay === 0 || selectedDay === 6) {
-                    alert('Attendance can only be viewed from Monday to Friday.');
+                    const dayName = selectedDay === 0 ? 'Sunday' : 'Saturday';
+                    const formatted = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                    setWeekendSelectedDateStr(`${dayName}, ${formatted}`);
+                    setIsWeekendModalOpen(true);
                     return;
                   }
                   if (val > todayDate) {
@@ -406,6 +415,75 @@ export function AttendanceView() {
           )}
         </div>
       </main>
+
+      {/* ── BEAUTIFUL & MINIMALIST WEEKEND / SCHOOL DAYS POPUP MODAL ── */}
+      <AnimatePresence>
+        {isWeekendModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Smooth Blur Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsWeekendModalOpen(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity cursor-pointer"
+            />
+
+            {/* Unique Minimalist Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 14 }}
+              transition={{ type: "spring", damping: 26, stiffness: 360 }}
+              className="relative w-full max-w-[370px] bg-white rounded-[28px] p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.16)] border border-slate-100 overflow-hidden text-center z-10"
+            >
+              {/* Subtle Warm Amber/Red Ambient Glow */}
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-36 h-36 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setIsWeekendModalOpen(false)}
+                className="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100/80 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Calendar Weekend Icon */}
+              <div className="relative mx-auto w-14 h-14 rounded-2xl bg-gradient-to-b from-red-50 to-rose-100/60 border border-red-200/60 flex items-center justify-center shadow-inner mb-4 text-[#D8232A]">
+                <CalendarX className="w-6 h-6" />
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-amber-950">!</span>
+              </div>
+
+              {/* Text Information */}
+              <div className="space-y-1.5 mb-5">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200/60 text-[#D8232A] text-[10px] font-black tracking-wider uppercase mb-1">
+                  School Days Only
+                </div>
+                <h3 className="text-base font-black text-slate-900 tracking-tight">
+                  Weekend Selected
+                </h3>
+                {weekendSelectedDateStr && (
+                  <p className="text-[11px] font-bold text-slate-400">
+                    {weekendSelectedDateStr}
+                  </p>
+                )}
+                <p className="text-xs text-slate-500 leading-relaxed font-medium pt-1 px-1">
+                  Attendance can only be recorded from <strong className="text-slate-800 font-bold">Monday to Friday</strong>. Weekends are non-instructional school days.
+                </p>
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={() => setIsWeekendModalOpen(false)}
+                className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-sm transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>Got it</span>
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

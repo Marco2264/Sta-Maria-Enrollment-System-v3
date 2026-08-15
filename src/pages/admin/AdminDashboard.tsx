@@ -39,6 +39,7 @@ import { AdminSettingsView } from '../../modules/admin/AdminSettingsView';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function AdminDashboardContent() {
   const navigate = useNavigate();
@@ -107,7 +108,7 @@ function AdminDashboardContent() {
       case 'academic': return <AdminGradesView />;
       case 'schedules': return <SchedulesView />;
       case 'health': return <HealthDashboardView />;
-      case 'announcements': return <ManageAnnouncementsView teachers={users.filter(u => u.role?.toLowerCase() === 'teacher')} sections={sections} />;
+      case 'announcements': return <ManageAnnouncementsView teachers={(users || []).filter(u => u.role?.toLowerCase() === 'teacher')} sections={sections || []} />;
       case 'reports': return <ReportsView />;
       case 'sf10': return <SF10Module isAdmin={true} />;
       case 'settings': return <AdminSettingsView />;
@@ -272,7 +273,18 @@ function AdminDashboardContent() {
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20 shadow-sm">{initials}</div>
         </header>
         <div className="flex-1 overflow-hidden bg-slate-50/50">
-          {renderActiveView()}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="h-full w-full"
+            >
+              {renderActiveView()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

@@ -167,96 +167,96 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-50">
-      {/* Dynamic 3D Mesh Background (Navy, Red, Gold) */}
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-[#F8FAFC]">
+      {/* Soothing Dynamic Ambient Glow Background */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-[-5%] w-[40%] h-[50%] rounded-full bg-[#0f172a] blur-[140px] opacity-40 mix-blend-multiply" />
-        <div className="absolute top-[30%] right-[-5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[140px] opacity-30 mix-blend-multiply" />
-        <div className="absolute bottom-[-5%] left-[20%] w-[50%] h-[40%] rounded-full bg-[#F59E0B] blur-[140px] opacity-30 mix-blend-multiply" />
+        <div className="absolute -top-[10%] -left-[5%] w-[45%] h-[55%] rounded-full bg-slate-900 blur-[160px] opacity-15 mix-blend-multiply" />
+        <div className="absolute top-[30%] -right-[5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[160px] opacity-12 mix-blend-multiply" />
+        <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[45%] rounded-full bg-amber-500 blur-[160px] opacity-10 mix-blend-multiply" />
       </div>
 
-      {/* Card */}
+      {/* Main Glassmorphic Card */}
       <motion.div
-        initial={{ opacity: 0.5, scale: 0.98, y: 8 }}
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-4xl overflow-hidden flex flex-col md:flex-row"
-        style={{ borderRadius: '28px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-4xl overflow-hidden flex flex-col md:flex-row bg-white rounded-[2rem] border border-slate-200/80 shadow-[0_25px_70px_rgba(15,23,42,0.09)]"
       >
-        {/* ── LEFT PANEL ── modern deep crimson to red gradient with ambient lighting ── */}
+        {/* ── LEFT PANEL ── Soothing Midnight Slate Luxury Canvas (Zero Eye Strain) ── */}
         <div
-          className="hidden md:flex md:w-[42%] flex-col justify-between p-10 text-white relative overflow-hidden"
-          style={{ background: 'linear-gradient(145deg, #2a0202 0%, #6b0f12 50%, #991b1e 100%)' }}
+          className="hidden md:flex md:w-[44%] flex-col justify-between p-10 lg:p-12 text-white relative overflow-hidden"
+          style={{ background: 'linear-gradient(155deg, #070c18 0%, #0f172a 50%, #1e293b 100%)' }}
         >
-          {/* Ambient lighting & sleek visual accents */}
-          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-red-400/20 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
+          {/* Subtle Ambient Lighting Overlays (Soothing & Gentle) */}
+          <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-slate-700/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-rose-500/15 blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/[0.06] via-transparent to-transparent pointer-events-none" />
 
-          {/* TOP: Both logos + school name */}
+          {/* TOP: Logos + School Brand Name */}
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
+            <div className="flex items-center gap-3.5 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-white p-1.5 shadow-md flex items-center justify-center shrink-0 border border-white/90">
                 <img src="/images/deped_logo.png" alt="DepEd Logo" className="w-full h-full object-contain" />
               </div>
-              <div className="w-px h-10 bg-white/20" />
-              <div className="w-13 h-13 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
-                <img src="/images/sta_maria_school_logo.jpg" alt="School Logo" className="w-full h-full object-cover rounded-lg" />
+              <div className="w-px h-9 bg-white/15" />
+              <div className="w-12 h-12 rounded-2xl bg-white p-1 shadow-md flex items-center justify-center shrink-0 border border-white/90">
+                <img src="/images/sta_maria_school_logo.jpg" alt="School Logo" className="w-full h-full object-cover rounded-xl" />
               </div>
-              {/* School name */}
-              <div className="flex flex-col leading-tight">
-                <span className="font-black text-sm text-white uppercase tracking-wide">STA. MARIA</span>
-                <span className="font-black text-sm text-white uppercase tracking-wide">CENTRAL SCHOOL</span>
-                <span className="text-[11px] font-bold text-red-200 uppercase tracking-widest mt-0.5">SPED Center</span>
+              <div className="flex flex-col leading-tight min-w-0">
+                <span className="font-black text-xs sm:text-sm text-white uppercase tracking-wider">STA. MARIA</span>
+                <span className="font-black text-xs sm:text-sm text-white uppercase tracking-wider">CENTRAL SCHOOL</span>
+                <span className="text-[10px] font-extrabold text-red-400 uppercase tracking-widest mt-0.5">SPED CENTER</span>
               </div>
             </div>
-            <div className="h-px bg-white/15 w-full" />
+            <div className="h-px bg-white/10 w-full" />
           </div>
 
-          {/* MIDDLE: Main content */}
-          <div className="relative z-10 space-y-5 my-auto">
-            {/* Official Portal badge */}
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-300/30 bg-amber-400/10 text-[10px] font-extrabold uppercase tracking-[0.15em] text-amber-300 backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
+          {/* MIDDLE: Main Content */}
+          <div className="relative z-10 space-y-5 my-auto py-6">
+            {/* Official Portal Pill */}
+            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/15 bg-white/[0.08] text-[10px] font-extrabold uppercase tracking-[0.15em] text-amber-300 backdrop-blur-md shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
               Official Portal
             </span>
 
-            {/* Motto */}
-            <h3 className="text-3xl font-black leading-tight tracking-tight text-white">
+            {/* Motto with Crisp Pure White & Ruby Gradient */}
+            <h3 className="text-3xl lg:text-4xl font-black leading-tight tracking-tight text-white">
               Believe, Educate,<br />
-              <span className="text-red-200">and Transform</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-rose-400">and Transform</span>
             </h3>
 
-            <p className="text-sm text-red-100/90 font-medium leading-relaxed max-w-[220px]">
+            {/* Subtext */}
+            <p className="text-sm text-slate-300 font-medium leading-relaxed max-w-[260px]">
               Sign in to easily manage student records, check grades, and stay connected with the school.
             </p>
           </div>
 
-          {/* BOTTOM: Founded — highlighted without dot */}
+          {/* BOTTOM: Founded Badge */}
           <div className="relative z-10">
-            <div className="h-px bg-white/15 w-full mb-4" />
-            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
-              <p className="text-[10px] font-extrabold text-white uppercase tracking-[0.18em]">Founded Since 1920</p>
+            <div className="h-px bg-white/10 w-full mb-4" />
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md">
+              <p className="text-[10px] font-extrabold text-slate-300 uppercase tracking-[0.18em]">Founded Since 1920</p>
             </div>
           </div>
         </div>
 
-        {/* ── RIGHT PANEL ── */}
-        <div className="w-full md:w-[58%] bg-white flex flex-col justify-center p-8 sm:p-12 md:p-14 overflow-y-auto">
-          <div className="w-full max-w-sm mx-auto space-y-8">
+        {/* ── RIGHT PANEL ── Clean, Soothing Form Canvas ── */}
+        <div className="w-full md:w-[56%] bg-white flex flex-col justify-center p-8 sm:p-12 lg:p-14 overflow-y-auto">
+          <div className="w-full max-w-sm mx-auto space-y-7">
 
-            {/* Mobile logo */}
-            <div className="md:hidden flex items-center gap-2 mb-2">
-              <img src="/images/sta_maria_school_logo.jpg" alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
+            {/* Mobile Only Brand Logo */}
+            <div className="md:hidden flex items-center gap-2">
+              <img src="/images/sta_maria_school_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
               <span className="font-extrabold text-xs text-slate-800 tracking-tight">Sta. Maria SPED</span>
             </div>
 
-            {/* Header */}
+            {/* Form Header */}
             <div className="space-y-1.5 text-left">
-              <h2 className="text-3xl font-black tracking-tight text-slate-900">Welcome Back</h2>
-              <p className="text-sm text-slate-400 font-medium">Sign in to your school account portal.</p>
+              <h2 className="text-3xl font-black tracking-tight text-slate-950">Welcome Back</h2>
+              <p className="text-sm text-slate-500 font-medium">Sign in to your school account portal.</p>
             </div>
 
+            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Floating Email */}
               <FloatInput
@@ -281,7 +281,7 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                    className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -289,7 +289,7 @@ export function LoginPage() {
                 }
               />
 
-              {/* Error */}
+              {/* Error Message */}
               {error && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -300,11 +300,10 @@ export function LoginPage() {
                 </motion.div>
               )}
 
-              {/* Sign In */}
+              {/* Sign In Button */}
               <Button
                 type="submit"
-                className="w-full h-12 text-sm font-bold rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none mt-1"
-                style={{ background: 'linear-gradient(135deg, #991b1e 0%, #D8232A 100%)', boxShadow: '0 4px 20px rgba(216,35,42,0.35)' }}
+                className="w-full h-12 text-sm font-extrabold uppercase tracking-wider rounded-xl text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-none mt-2 cursor-pointer shadow-lg shadow-red-500/25 hover:shadow-red-500/40 bg-gradient-to-r from-[#D8232A] to-red-600 hover:from-red-600 hover:to-[#D8232A]"
                 disabled={isLoggingIn}
               >
                 {isLoggingIn ? (
@@ -315,24 +314,37 @@ export function LoginPage() {
                 ) : (
                   <>
                     Sign In
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 ml-0.5" />
                   </>
                 )}
               </Button>
             </form>
 
-            {/* Create account */}
-            <div className="pt-6 border-t border-slate-100 space-y-3 text-center">
-              <p className="text-xs text-slate-400 font-semibold">New to Sta. Maria Portal?</p>
-              <Button
-                variant="outline"
-                type="button"
-                className="w-full h-11 rounded-xl text-sm font-bold border border-slate-200 text-[#D8232A] hover:bg-red-50 hover:border-red-200 transition-all active:scale-[0.98]"
-                onClick={() => navigate('/signup')}
-              >
-                Create parent account
-              </Button>
+            {/* Create Account Link & Back to Home Button */}
+            <div className="pt-6 border-t border-slate-100 space-y-4 text-center">
+              <div className="space-y-3">
+                <p className="text-xs text-slate-400 font-semibold">New to Sta. Maria Portal?</p>
+                <button
+                  type="button"
+                  className="w-full h-11 rounded-xl text-xs font-extrabold uppercase tracking-wider border border-slate-200 hover:border-red-200 text-slate-700 hover:text-[#D8232A] hover:bg-red-50/50 transition-all active:scale-[0.98] cursor-pointer"
+                  onClick={() => navigate('/signup')}
+                >
+                  Create parent account
+                </button>
+              </div>
+
+              {/* Neat Back to Home Link below */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#D8232A] transition-colors cursor-pointer uppercase tracking-wider py-1"
+                >
+                  <span>← Back to Home Page</span>
+                </button>
+              </div>
             </div>
+
           </div>
         </div>
       </motion.div>
