@@ -250,8 +250,8 @@ export function AnnouncementsView() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F4F7F9] font-sans">
-      {/* ── TOP HEADER WITH TITLE, SEARCH & BELL ── */}
-      <header className="bg-white px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+      {/* ── TOP HEADER WITH TITLE, SEARCH & BELL (Aligned with lg:h-28 sidebar brand) ── */}
+      <header className="bg-white px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0 border border-red-100">
             <Megaphone className="w-5 h-5" />

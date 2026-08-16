@@ -102,8 +102,8 @@ function ParentPortalContent() {
     const collapsed = isMobile ? false : sidebarCollapsed;
     return (
       <div className="flex flex-col h-full bg-white font-sans border-r border-slate-100 z-50 overflow-x-hidden">
-        {/* Brand Header — height synced with content view headers (py-4 sm:py-5 = ~64-80px) */}
-          <div className="h-16 sm:h-20 border-b border-slate-100 flex items-center px-4.5 shrink-0 overflow-hidden relative cursor-pointer" onClick={() => handleNavigate('dashboard')}>
+        {/* Brand Header (Exactly aligned with lg:h-28 view navbar headers) */}
+          <div className="h-20 lg:h-28 border-b border-slate-100 flex items-center px-4.5 shrink-0 overflow-hidden relative cursor-pointer" onClick={() => handleNavigate('dashboard')}>
             <div className="p-2 bg-[#D32F2F]/5 rounded-2xl border border-[#D32F2F]/15 shadow-sm shrink-0 transition-all duration-200">
               <img src="/pasted-image.jpg" alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
             </div>
