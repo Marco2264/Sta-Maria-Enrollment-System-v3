@@ -47,6 +47,8 @@ export interface AnnouncementItem {
   targetTeacherIds?: string[];
   attachmentName?: string;
   attachmentUrl?: string;
+  attachmentType?: 'image' | 'pdf' | 'doc';
+  attachmentSize?: string;
   isNew?: boolean;
   isRead?: boolean;
   isPinned?: boolean;
@@ -66,6 +68,11 @@ export function AnnouncementsView() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementItem | null>(null);
 
+  const handleDownloadAttachment = (url?: string, name?: string) => {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   // Read items persisted in localStorage
   const [readIds, setReadIds] = useState<string[]>(() => {
     try {
@@ -79,9 +86,6 @@ export function AnnouncementsView() {
   // Real-time Firestore sync with fallback
   useEffect(() => {
     try {
-      console.log("Collection:", "announcements");
-      console.log("Doc ID:", "N/A");
-      console.log("Query params:", { orderBy: "createdAt desc" });
       const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
@@ -103,6 +107,9 @@ export function AnnouncementsView() {
               targetStudentId: data.targetStudentId,
               targetStudentIds: data.targetStudentIds,
               attachmentName: data.attachmentName || undefined,
+              attachmentUrl: data.attachmentUrl || undefined,
+              attachmentType: data.attachmentType || undefined,
+              attachmentSize: data.attachmentSize || undefined,
               targetGrade: data.targetGrade || undefined,
               isPinned: !!data.isPinned,
               isArchived: !!data.isArchived,
@@ -406,11 +413,45 @@ export function AnnouncementsView() {
                     </p>
                   </div>
 
+                    {/* Attached Photo Banner (If present) */}
+                    {item.attachmentUrl && (item.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl)) && (
+                      <div className="rounded-xl overflow-hidden border border-slate-100 mt-1">
+                        <img
+                          src={item.attachmentUrl}
+                          alt={item.attachmentName || 'Notice Poster'}
+                          className="w-full h-36 object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                          onClick={() => handleOpenAnnouncement(item)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Attached Document Pill (If present) */}
+                    {item.attachmentUrl && item.attachmentType !== 'image' && !/\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl) && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadAttachment(item.attachmentUrl, item.attachmentName);
+                        }}
+                        className="p-2.5 bg-red-50/60 rounded-xl border border-red-100 flex items-center justify-between gap-2 hover:bg-red-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="w-4 h-4 text-[#D8232A] shrink-0" />
+                          <span className="text-xs font-bold text-slate-800 truncate">
+                            {item.attachmentName || 'Downloadable Waiver / Slip'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold text-[#D8232A] flex items-center gap-1 shrink-0">
+                          <Download className="w-3 h-3" /> Download
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Card Footer: File Attachment & Read Message Button */}
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
                     {item.attachmentName ? (
                       <div
-                        onClick={() => handleDownloadAttachment(item.attachmentName!)}
+                        onClick={() => handleDownloadAttachment(item.attachmentUrl, item.attachmentName)}
                         className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#D8232A] transition-colors cursor-pointer"
                       >
                         <Paperclip className="w-3.5 h-3.5 text-slate-400" />
@@ -479,29 +520,48 @@ export function AnnouncementsView() {
                 <p className="text-slate-500 font-medium">{selectedAnnouncement.authorRole}</p>
               </div>
 
+              {/* Attached Image in Modal */}
+              {selectedAnnouncement.attachmentUrl && (selectedAnnouncement.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(selectedAnnouncement.attachmentUrl)) && (
+                <div className="rounded-2xl overflow-hidden border border-slate-200">
+                  <a href={selectedAnnouncement.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={selectedAnnouncement.attachmentUrl}
+                      alt={selectedAnnouncement.attachmentName || 'Notice Image'}
+                      className="w-full max-h-72 object-cover hover:scale-102 transition-transform duration-200"
+                    />
+                  </a>
+                </div>
+              )}
+
               {/* Body Text */}
               <div className="text-slate-700 text-sm leading-relaxed space-y-3 font-normal">
-                <p>{selectedAnnouncement.content}</p>
+                <p className="whitespace-pre-line">{selectedAnnouncement.content}</p>
               </div>
 
               {/* Attachment Download Box */}
-              {selectedAnnouncement.attachmentName && (
+              {selectedAnnouncement.attachmentUrl && (
                 <div className="p-4 bg-red-50/60 border border-red-100 rounded-2xl flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 bg-white border border-red-200 rounded-xl flex items-center justify-center text-[#D8232A] shadow-2xs shrink-0">
-                      <FileText className="w-4.5 h-4.5" />
+                      {selectedAnnouncement.attachmentType === 'image' ? (
+                        <Paperclip className="w-4.5 h-4.5" />
+                      ) : (
+                        <FileText className="w-4.5 h-4.5" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <span className="text-xs font-bold text-slate-900 block truncate">
-                        {selectedAnnouncement.attachmentName}
+                        {selectedAnnouncement.attachmentName || 'Official Attachment'}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-semibold">PDF Attachment</span>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {selectedAnnouncement.attachmentSize || (selectedAnnouncement.attachmentType === 'image' ? 'Image File' : 'PDF Document / Waiver')}
+                      </span>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => handleDownloadAttachment(selectedAnnouncement.attachmentName!)}
+                    onClick={() => handleDownloadAttachment(selectedAnnouncement.attachmentUrl, selectedAnnouncement.attachmentName)}
                     className="px-3.5 py-2 bg-[#D8232A] hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" /> Download

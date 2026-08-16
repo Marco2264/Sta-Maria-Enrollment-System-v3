@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -35,14 +35,21 @@ import {
   Flame,
   Layers,
   ChevronRight,
-  Lock
+  Lock,
+  Paperclip,
+  FileText,
+  Image as ImageIcon,
+  Download,
+  ExternalLink,
+  UploadCloud,
+  FileCheck
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { db } from '../../lib/firebase';
 import { 
   collection, 
   addDoc, 
-  updateDoc,
+  updateDoc, 
   query, 
   orderBy, 
   onSnapshot, 
@@ -52,8 +59,16 @@ import {
   getDocs, 
   writeBatch 
 } from 'firebase/firestore';
+import { uploadToImageKit, validateImageFile } from '../../lib/services/imageUploadService';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+
+export interface AnnouncementAttachment {
+  name: string;
+  url: string;
+  type: 'image' | 'pdf' | 'doc';
+  size?: string;
+}
 
 interface AnnouncementItem {
   id: string;
@@ -71,6 +86,10 @@ interface AnnouncementItem {
   targetStudentId?: string;
   targetStudentName?: string;
   subjectCode?: string;
+  attachmentName?: string;
+  attachmentUrl?: string;
+  attachmentType?: 'image' | 'pdf' | 'doc';
+  attachmentSize?: string;
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt?: any;
@@ -130,6 +149,16 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
   const [targetStudentName, setTargetStudentName] = useState<string>('');
   const [formIsPinned, setFormIsPinned] = useState(false);
 
+  // Attachment States (ImageKit upload)
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [existingAttachmentName, setExistingAttachmentName] = useState<string | null>(null);
+  const [existingAttachmentUrl, setExistingAttachmentUrl] = useState<string | null>(null);
+  const [existingAttachmentType, setExistingAttachmentType] = useState<'image' | 'pdf' | 'doc' | null>(null);
+  const [existingAttachmentSize, setExistingAttachmentSize] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -152,6 +181,10 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
           targetStudentId: data.targetStudentId,
           targetStudentName: data.targetStudentName,
           subjectCode: data.subjectCode,
+          attachmentName: data.attachmentName || undefined,
+          attachmentUrl: data.attachmentUrl || undefined,
+          attachmentType: data.attachmentType || undefined,
+          attachmentSize: data.attachmentSize || undefined,
           isPinned: !!data.isPinned,
           isArchived: !!data.isArchived,
           createdAt: data.createdAt,
@@ -225,6 +258,35 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
     return { total, pinned, emergency, advisories, archived };
   }, [announcements]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Invalid file format or size exceeds 10MB');
+        return;
+      }
+      setFileToUpload(file);
+      setExistingAttachmentName(null);
+      setExistingAttachmentUrl(null);
+      setExistingAttachmentType(null);
+      setExistingAttachmentSize(null);
+      toast.success(`Attached: ${file.name}`);
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setFileToUpload(null);
+    setExistingAttachmentName(null);
+    setExistingAttachmentUrl(null);
+    setExistingAttachmentType(null);
+    setExistingAttachmentSize(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    toast.success('Attachment removed');
+  };
+
   const openComposer = (itemToEdit?: AnnouncementItem) => {
     if (itemToEdit) {
       setEditingId(itemToEdit.id);
@@ -245,6 +307,13 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
       setTargetStudentId(itemToEdit.targetStudentId || '');
       setTargetStudentName(itemToEdit.targetStudentName || '');
       setFormIsPinned(!isTeacher && !!itemToEdit.isPinned);
+      
+      // Attachment recovery
+      setFileToUpload(null);
+      setExistingAttachmentName(itemToEdit.attachmentName || null);
+      setExistingAttachmentUrl(itemToEdit.attachmentUrl || null);
+      setExistingAttachmentType(itemToEdit.attachmentType || null);
+      setExistingAttachmentSize(itemToEdit.attachmentSize || null);
     } else {
       setEditingId(null);
       setFormCategory('General');
@@ -260,6 +329,16 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
       setTargetStudentId('');
       setTargetStudentName('');
       setFormIsPinned(false);
+      
+      // Reset attachment
+      setFileToUpload(null);
+      setExistingAttachmentName(null);
+      setExistingAttachmentUrl(null);
+      setExistingAttachmentType(null);
+      setExistingAttachmentSize(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
     setCurrentView('composer');
   };
@@ -367,6 +446,34 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
         ? (teacherBroadcastRole === 'student' ? 'student' : 'section')
         : targetType;
 
+      // Handle ImageKit file upload if new file is selected
+      let finalAttachmentName = existingAttachmentName;
+      let finalAttachmentUrl = existingAttachmentUrl;
+      let finalAttachmentType = existingAttachmentType;
+      let finalAttachmentSize = existingAttachmentSize;
+
+      if (fileToUpload) {
+        setIsUploadingFile(true);
+        const folder = '/announcements';
+        const cleanName = `Announcement_${Date.now()}_${fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        
+        const uploadedUrl = await uploadToImageKit(fileToUpload, {
+          folder,
+          fileName: cleanName,
+          onProgress: (p) => setUploadProgress(p)
+        });
+
+        const isPdf = fileToUpload.type === 'application/pdf' || fileToUpload.name.toLowerCase().endsWith('.pdf');
+        const isImg = fileToUpload.type.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(fileToUpload.name);
+        
+        finalAttachmentName = fileToUpload.name;
+        finalAttachmentUrl = uploadedUrl;
+        finalAttachmentType = isPdf ? 'pdf' : isImg ? 'image' : 'doc';
+        finalAttachmentSize = fileToUpload.size > 1024 * 1024 
+          ? `${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB`
+          : `${Math.round(fileToUpload.size / 1024)} KB`;
+      }
+
       if (editingId) {
         await updateDoc(doc(db, 'announcements', editingId), {
           tab: finalTab,
@@ -380,6 +487,10 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
           targetStudentId: finalTargetType === 'student' ? targetStudentId : null,
           targetStudentName: finalTargetType === 'student' ? targetStudentName : null,
           subjectCode: teacherBroadcastRole === 'subject' ? targetSubjectCode : null,
+          attachmentName: finalAttachmentName || null,
+          attachmentUrl: finalAttachmentUrl || null,
+          attachmentType: finalAttachmentType || null,
+          attachmentSize: finalAttachmentSize || null,
           isPinned: !isTeacher ? formIsPinned : false,
           updatedAt: serverTimestamp()
         });
@@ -400,6 +511,10 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
           targetStudentId: finalTargetType === 'student' ? targetStudentId : null,
           targetStudentName: finalTargetType === 'student' ? targetStudentName : null,
           subjectCode: teacherBroadcastRole === 'subject' ? targetSubjectCode : null,
+          attachmentName: finalAttachmentName || null,
+          attachmentUrl: finalAttachmentUrl || null,
+          attachmentType: finalAttachmentType || null,
+          attachmentSize: finalAttachmentSize || null,
           isPinned: !isTeacher ? formIsPinned : false,
           isArchived: false,
           createdAt: serverTimestamp()
@@ -408,11 +523,14 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
       }
       setCurrentView('feed');
       setEditingId(null);
-    } catch (error) {
+      setFileToUpload(null);
+    } catch (error: any) {
       console.error(error);
-      toast.error('Failed to publish announcement');
+      toast.error(error?.message || 'Failed to publish announcement');
     } finally {
       setIsSubmitting(false);
+      setIsUploadingFile(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1000,6 +1118,107 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                       </div>
                     </div>
 
+                    {/* 4. File / Document / Waiver Attachment (ImageKit Upload) */}
+                    <div className="pt-3 border-t border-slate-100 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <Paperclip className="w-3.5 h-3.5 text-[#D8232A]" />
+                          <span>Attach Document / Photo / Waiver (Optional)</span>
+                        </Label>
+                        <span className="text-[10px] text-slate-400 font-medium">PDF, PNG, JPG up to 10MB</span>
+                      </div>
+
+                      {/* Hidden File Input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,image/jpeg,image/png,image/webp,.doc,.docx"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+
+                      {/* Selected / Existing File Preview Chip */}
+                      {(fileToUpload || existingAttachmentUrl) ? (
+                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/90 flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-red-50 text-[#D8232A] border border-red-100 flex items-center justify-center shrink-0">
+                              {(fileToUpload?.type.startsWith('image/') || existingAttachmentType === 'image') ? (
+                                <ImageIcon className="w-5 h-5" />
+                              ) : (
+                                <FileText className="w-5 h-5" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">
+                                {fileToUpload?.name || existingAttachmentName || 'Attached Document'}
+                              </p>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
+                                <span className="uppercase font-bold text-[#D8232A] bg-red-50 px-1.5 py-0.2 rounded border border-red-100">
+                                  {fileToUpload 
+                                    ? (fileToUpload.type === 'application/pdf' ? 'PDF' : fileToUpload.type.startsWith('image/') ? 'IMAGE' : 'DOC') 
+                                    : (existingAttachmentType?.toUpperCase() || 'FILE')}
+                                </span>
+                                <span>
+                                  {fileToUpload 
+                                    ? (fileToUpload.size > 1024 * 1024 
+                                        ? `${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB` 
+                                        : `${Math.round(fileToUpload.size / 1024)} KB`)
+                                    : existingAttachmentSize || 'Cloud File'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {existingAttachmentUrl && (
+                              <a
+                                href={existingAttachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-slate-500 hover:text-[#D8232A] hover:bg-white rounded-xl transition-all"
+                                title="Preview attached document in new tab"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={handleRemoveAttachment}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                              title="Remove attachment"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full py-3 px-4 rounded-2xl border border-dashed border-slate-300 hover:border-[#D8232A] bg-slate-50/50 hover:bg-red-50/20 text-slate-600 hover:text-[#D8232A] transition-all flex items-center justify-center gap-2 text-xs font-bold cursor-pointer group"
+                        >
+                          <UploadCloud className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                          <span>Attach PDF Waiver, Permission Slip, or Photo Banner</span>
+                        </button>
+                      )}
+
+                      {/* Upload Progress Indicator */}
+                      {isUploadingFile && (
+                        <div className="space-y-1 pt-1">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                            <span>Uploading attachment to ImageKit...</span>
+                            <span>{uploadProgress}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-[#D8232A] transition-all duration-300 rounded-full"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Pin to Top Option (Admin Only) */}
                     {!isTeacher && (
                       <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -1077,6 +1296,21 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                           {formContent || 'The detailed directive, instructions, and schedule details will be rendered here with crisp typography and spacing.'}
                         </p>
                       </div>
+
+                      {/* Simulated Attached Document / Poster */}
+                      {(fileToUpload || existingAttachmentUrl) && (
+                        <div className="p-3 bg-red-50/60 rounded-xl border border-red-100 flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="w-4 h-4 text-[#D8232A] shrink-0" />
+                            <span className="font-bold text-slate-800 truncate">
+                              {fileToUpload?.name || existingAttachmentName || 'Attached Document'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-[#D8232A] shrink-0">
+                            View / Download
+                          </span>
+                        </div>
+                      )}
 
                       {/* Footer Badge & Author */}
                       <div className="pt-3 border-t border-slate-100 space-y-2.5">
@@ -1498,6 +1732,55 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                               {item.content}
                             </p>
                           </div>
+
+                          {/* Attached Document / Photo Banner (If present) */}
+                          {item.attachmentUrl && (
+                            <div className="pt-1">
+                              {item.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl) ? (
+                                <a
+                                  href={item.attachmentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block rounded-xl overflow-hidden border border-slate-200/80 group/img relative"
+                                >
+                                  <img
+                                    src={item.attachmentUrl}
+                                    alt={item.attachmentName || 'Announcement Photo'}
+                                    className="w-full h-36 object-cover group-hover/img:scale-105 transition-transform duration-300"
+                                  />
+                                  <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-bold gap-1">
+                                    <ExternalLink className="w-3.5 h-3.5" /> View Photo
+                                  </div>
+                                </a>
+                              ) : (
+                                <div className="p-3 bg-red-50/60 rounded-xl border border-red-100 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-8 h-8 rounded-lg bg-white border border-red-200 text-[#D8232A] flex items-center justify-center shrink-0">
+                                      <FileText className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-slate-900 truncate">
+                                        {item.attachmentName || 'Downloadable Waiver / Document'}
+                                      </p>
+                                      <p className="text-[10px] text-slate-500 font-medium">
+                                        {item.attachmentSize || 'PDF Document'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <a
+                                    href={item.attachmentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download={item.attachmentName || 'document'}
+                                    className="px-3 py-1.5 bg-[#D8232A] hover:bg-red-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 shrink-0 shadow-2xs transition-colors"
+                                  >
+                                    <Download className="w-3 h-3" />
+                                    <span>Download</span>
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Footer Row: Audience Tag + Author Chip + Timestamp */}

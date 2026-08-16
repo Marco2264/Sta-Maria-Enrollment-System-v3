@@ -46,6 +46,9 @@ interface AnnouncementItem {
   date: string;
   content: string;
   isPinned?: boolean;
+  attachmentName?: string;
+  attachmentUrl?: string;
+  attachmentType?: 'image' | 'pdf' | 'doc';
 }
 
 const DEFAULT_ANNOUNCEMENTS: AnnouncementItem[] = [

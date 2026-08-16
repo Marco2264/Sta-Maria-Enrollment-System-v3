@@ -351,12 +351,17 @@ export function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-[#F8FAFC]">
-      {/* Soothing Dynamic Ambient Glow Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[10%] -left-[5%] w-[45%] h-[55%] rounded-full bg-slate-900 blur-[160px] opacity-15 mix-blend-multiply" />
-        <div className="absolute top-[30%] -right-[5%] w-[45%] h-[55%] rounded-full bg-[#D8232A] blur-[160px] opacity-12 mix-blend-multiply" />
-        <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[45%] rounded-full bg-amber-500 blur-[160px] opacity-10 mix-blend-multiply" />
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-slate-950">
+      {/* Sta. Maria Campus Background with Atmospheric Overlay */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <img
+          src="/images/sta_maria_new.jpg"
+          alt="Sta. Maria School Background"
+          className="w-full h-full object-cover object-center transform scale-105"
+        />
+        {/* Soft luxury dark gradient & blur overlay */}
+        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[3px]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-slate-950/70" />
       </div>
 
       {/* Floating Centered Split-Card */}
@@ -364,7 +369,7 @@ export function SignUpPage() {
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-5xl overflow-hidden flex flex-col md:flex-row bg-white rounded-[2rem] border border-slate-200/80 shadow-[0_25px_70px_rgba(15,23,42,0.09)] my-6"
+        className="relative z-10 w-full max-w-5xl overflow-hidden flex flex-col md:flex-row bg-white rounded-[2rem] border border-white/30 shadow-[0_25px_80px_rgba(0,0,0,0.45)] my-6"
       >
         {/* ── LEFT PANEL ── Soothing Midnight Slate Luxury Canvas (Zero Eye Strain) ── */}
         <div

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { RegistrationProcessShowcase } from '../components/landing/RegistrationProcessShowcase';
 import {
   Users, LineChart, ClipboardCheck, Megaphone, ClipboardList, Settings,
   UserPlus, LayoutDashboard, ClipboardEdit, Send, ShieldCheck, PartyPopper,
@@ -734,8 +735,8 @@ function FeatureShowcaseCarousel({ onOpenModal }: { onOpenModal: (key: string) =
         })}
       </div>
 
-      {/* ── 2. Main 3D Feature Stage (Locked Height for Zero Button Jitter) ── */}
-      <div className="relative bg-gradient-to-b from-slate-50/80 to-white rounded-[2.5rem] border border-slate-200/90 shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden min-h-[580px] sm:min-h-[520px] lg:h-[480px] p-6 sm:p-10 lg:p-12 flex items-center">
+      {/* ── 2. Main 3D Feature Stage ── */}
+      <div className="relative bg-gradient-to-b from-slate-50/80 to-white rounded-3xl sm:rounded-[2.5rem] border border-slate-200/90 shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden p-4 sm:p-8 lg:p-12 flex items-center">
         
         {/* Soft Ambient Background Glow Tailored to Slide Theme */}
         <div
@@ -751,38 +752,38 @@ function FeatureShowcaseCarousel({ onOpenModal }: { onOpenModal: (key: string) =
             initial="enter"
             animate="center"
             exit="exit"
-            className="w-full grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8 lg:gap-12 items-center z-10"
+            className="w-full grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 sm:gap-8 lg:gap-12 items-center z-10"
           >
             
             {/* Left Column: Narrative Content */}
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5 text-left">
               
               {/* Badge & Index */}
-              <div className="flex items-center gap-2.5">
-                <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${currentSlide.accentBg} ${currentSlide.accentText} ${currentSlide.accentBorder}`}>
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${currentSlide.accentBg} ${currentSlide.accentText} ${currentSlide.accentBorder}`}>
                   {currentSlide.badge}
                 </span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
                   Module 0{currentIndex + 1} of 06
                 </span>
               </div>
 
-              {/* Title & Description with Consistent Min-Heights */}
-              <div className="space-y-2.5">
-                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-[1.1] uppercase min-h-[2.5rem] sm:min-h-[3rem] flex items-center">
+              {/* Title & Description */}
+              <div className="space-y-2">
+                <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-[1.15] uppercase flex items-center">
                   {currentSlide.title}
                 </h3>
-                <p className="text-slate-500 text-sm sm:text-base font-medium leading-relaxed min-h-[3.5rem]">
+                <p className="text-slate-500 text-xs sm:text-sm md:text-base font-medium leading-relaxed">
                   {currentSlide.desc}
                 </p>
               </div>
 
               {/* Checklist Highlights */}
-              <div className="space-y-2.5 pt-1">
+              <div className="space-y-2 pt-1">
                 {currentSlide.highlights.map((h, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                      <Check size={12} strokeWidth={3} />
+                  <div key={i} className="flex items-center gap-2.5 sm:gap-3">
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                      <Check size={11} strokeWidth={3} />
                     </div>
                     <span className="text-xs sm:text-sm font-bold text-slate-700">{h}</span>
                   </div>
@@ -792,7 +793,7 @@ function FeatureShowcaseCarousel({ onOpenModal }: { onOpenModal: (key: string) =
             </div>
 
             {/* Right Column: Dedicated 3D UI Preview Mockup */}
-            <div className="w-full flex items-center justify-center">
+            <div className="w-full flex items-center justify-center pt-2 lg:pt-0">
               <FeatureMockupCard slideKey={currentSlide.key} />
             </div>
 
@@ -801,19 +802,19 @@ function FeatureShowcaseCarousel({ onOpenModal }: { onOpenModal: (key: string) =
 
       </div>
 
-      {/* ── 3. Bottom Carousel Controls & Slide Segment Indicator (Locked Position) ── */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 pt-1 h-12">
+      {/* ── 3. Bottom Carousel Controls & Slide Segment Indicator ── */}
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4 px-2 pt-1">
         
         {/* Slide Counter */}
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-          <span className="font-black text-slate-900 text-base">0{currentIndex + 1}</span>
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <span className="font-black text-slate-900 text-sm sm:text-base">0{currentIndex + 1}</span>
           <span>/</span>
           <span>06</span>
-          <span className="ml-2 text-slate-400 font-medium">• {currentSlide.tabLabel}</span>
+          <span className="ml-1 sm:ml-2 text-slate-400 font-medium truncate max-w-[140px] sm:max-w-none">• {currentSlide.tabLabel}</span>
         </div>
 
         {/* Segmented Progress Bars (Clickable) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 order-3 sm:order-2 w-full sm:w-auto justify-center sm:justify-start">
           {FEATURE_SLIDES.map((_, idx) => (
             <button
               key={idx}
@@ -823,28 +824,28 @@ function FeatureShowcaseCarousel({ onOpenModal }: { onOpenModal: (key: string) =
             >
               <div className={`h-2 rounded-full transition-all duration-300 ${
                 idx === currentIndex
-                  ? 'w-10 bg-[#D8232A]'
-                  : 'w-3 bg-slate-200 group-hover:bg-slate-300'
+                  ? 'w-8 sm:w-10 bg-[#D8232A]'
+                  : 'w-2.5 sm:w-3 bg-slate-200 group-hover:bg-slate-300'
               }`} />
             </button>
           ))}
         </div>
 
-        {/* Next / Prev Navigation Buttons (Anchored Solidly in One Place) */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Next / Prev Navigation Buttons */}
+        <div className="flex items-center gap-2 shrink-0 order-2 sm:order-3">
           <button
             onClick={handlePrev}
-            className="w-11 h-11 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
             aria-label="Previous Slide"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={16} />
           </button>
           <button
             onClick={handleNext}
-            className="w-11 h-11 rounded-2xl bg-[#D8232A] hover:bg-red-700 text-white flex items-center justify-center shadow-md shadow-red-500/25 hover:shadow-red-500/40 transition-all active:scale-95 cursor-pointer"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-[#D8232A] hover:bg-red-700 text-white flex items-center justify-center shadow-md shadow-red-500/25 hover:shadow-red-500/40 transition-all active:scale-95 cursor-pointer"
             aria-label="Next Slide"
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={16} />
           </button>
         </div>
 
@@ -1191,25 +1192,25 @@ export function LandingPage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="max-w-[1400px] mx-auto w-[96%] bg-white/90 backdrop-blur-3xl rounded-[2.5rem] sm:rounded-[3rem] border border-slate-200 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] mt-24 sm:mt-28 mb-16 overflow-hidden relative z-10"
+          className="max-w-[1400px] mx-auto w-[94%] sm:w-[96%] bg-white/90 backdrop-blur-3xl rounded-3xl sm:rounded-[3rem] border border-slate-200 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] mt-20 sm:mt-28 mb-10 sm:mb-16 overflow-hidden relative z-10"
         >
           
           {/* ── 1. HERO SECTION ── */}
-          <section className="relative min-h-[85vh] flex items-center overflow-visible bg-transparent pt-8 sm:pt-12 pb-16" id="home">
+          <section className="relative min-h-[75vh] sm:min-h-[85vh] flex items-center overflow-visible bg-transparent pt-6 sm:pt-12 pb-10 sm:pb-16" id="home">
             <div className="relative z-[2] w-full">
-              <div className="max-w-7xl mx-auto px-6 md:px-12 w-full grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-8 items-center min-h-[70vh]">
+              <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12 w-full grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8 lg:gap-8 items-center min-h-[60vh] sm:min-h-[70vh]">
                 
                 {/* Left Column (Headline + SaaS CTAs) */}
-                <div className="max-w-2xl text-slate-900 z-10 space-y-6 sm:space-y-8">
+                <div className="max-w-2xl text-slate-900 z-10 space-y-5 sm:space-y-8">
                   
                   {/* Live Indicator Pill */}
-                  <div className="landing-reveal inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/80 shadow-sm text-[10px] sm:text-xs font-extrabold text-slate-700 uppercase tracking-widest">
+                  <div className="landing-reveal inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-slate-50 border border-slate-200/80 shadow-sm text-[9px] sm:text-xs font-extrabold text-slate-700 uppercase tracking-widest">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#D8232A] animate-pulse shadow-[0_0_10px_#D8232A]" />
                     <span>ALIVIO • STA MARIA CENTRAL SCHOOL SYSTEM</span>
                   </div>
                   
                   {/* Headline */}
-                  <h1 className="landing-reveal lp-stagger-1 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight font-black leading-[1.04] text-slate-950">
+                  <h1 className="landing-reveal lp-stagger-1 text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight font-black leading-[1.06] text-slate-950">
                     <span className="block">Your School,</span>
                     <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#D8232A] via-red-600 to-rose-600">
                       In Your Hands.
@@ -1217,16 +1218,16 @@ export function LandingPage() {
                   </h1>
                   
                   {/* Subtitle */}
-                  <p className="landing-reveal lp-stagger-2 text-base sm:text-lg md:text-xl text-slate-500 max-w-xl font-medium leading-relaxed">
+                  <p className="landing-reveal lp-stagger-2 text-sm sm:text-lg md:text-xl text-slate-500 max-w-xl font-medium leading-relaxed">
                     Skip the lines. Enroll online, check grades, and get the latest school updates—all from your phone or computer.
                   </p>
 
                   {/* Primary Hero CTA Group */}
-                  <div id="hero-cta-group" className="landing-reveal lp-stagger-3 flex flex-wrap gap-4 pt-2">
+                  <div id="hero-cta-group" className="landing-reveal lp-stagger-3 flex flex-col sm:flex-row gap-3 sm:gap-4 pt-1 sm:pt-2 w-full sm:w-auto">
                     <button
                       id="cta-login"
                       onClick={() => navigate('/login')}
-                      className="px-8 sm:px-10 py-4 bg-gradient-to-r from-[#D8232A] to-red-600 hover:from-red-600 hover:to-[#D8232A] text-white rounded-2xl font-extrabold uppercase tracking-wider transition-all shadow-[0_10px_30px_rgba(216,35,42,0.35)] hover:shadow-[0_15px_40px_rgba(216,35,42,0.45)] hover:-translate-y-1 active:translate-y-0 flex items-center gap-2.5 cursor-pointer text-sm sm:text-base"
+                      className="w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 bg-gradient-to-r from-[#D8232A] to-red-600 hover:from-red-600 hover:to-[#D8232A] text-white rounded-2xl font-extrabold uppercase tracking-wider transition-all shadow-[0_10px_30px_rgba(216,35,42,0.35)] hover:shadow-[0_15px_40px_rgba(216,35,42,0.45)] hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2.5 cursor-pointer text-sm sm:text-base"
                     >
                       <LogIn size={20} />
                       <span>Login</span>
@@ -1234,7 +1235,7 @@ export function LandingPage() {
                     <button
                       id="cta-signup"
                       onClick={() => navigate('/signup')}
-                      className="px-8 sm:px-10 py-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl font-extrabold uppercase tracking-wider transition-all shadow-sm hover:shadow-md hover:-translate-y-1 active:translate-y-0 flex items-center gap-2.5 cursor-pointer text-sm sm:text-base"
+                      className="w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl font-extrabold uppercase tracking-wider transition-all shadow-sm hover:shadow-md hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2.5 cursor-pointer text-sm sm:text-base"
                     >
                       <UserPlus size={20} />
                       <span>Sign Up</span>
@@ -1250,91 +1251,28 @@ export function LandingPage() {
             </div>
           </section>
 
-          {/* ── 2. REGISTRATION PROCESS SECTION ── */}
-          <section className="py-24 bg-slate-50/60 relative border-t border-slate-100" id="registration-process">
-            <div className="max-w-7xl mx-auto px-6 md:px-12">
-              <div className="flex flex-col lg:flex-row gap-16 lg:gap-20">
-                
-                {/* Left Column (Process Introduction) */}
-                <div className="lg:w-1/3 landing-reveal space-y-6">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#D8232A] text-xs font-black uppercase tracking-wider">
-                    <GraduationCap className="w-4 h-4" />
-                    <span>Step-by-Step</span>
-                  </div>
-                  <h2 className="text-3xl sm:text-5xl lg:text-6xl uppercase leading-none font-black text-slate-900 tracking-tight">
-                    Registration<br />Process
-                  </h2>
-                  <p className="text-slate-500 leading-relaxed text-base sm:text-lg font-medium">
-                    Follow our simplified vertical timeline to register, upload documents, and complete your child's enrollment seamlessly.
-                  </p>
-                  <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-1">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Academic Year</p>
-                    <p className="text-xl font-black text-[#D8232A]">2026–2027 Registration</p>
-                  </div>
-                </div>
-
-                {/* Right Column (Timeline Cards with 3D Tilt) */}
-                <div className="lg:w-2/3 space-y-8 relative">
-                  {[
-                    { icon: 'lucide:user-plus',       label: 'Create Parent Account',        desc: 'Register a secure parent account to access the online registration system.',                              primary: true  },
-                    { icon: 'lucide:layout-dashboard', label: 'Register Student',               desc: 'Enter student information and begin the registration application.',                                       primary: false },
-                    { icon: 'lucide:clipboard-edit',   label: 'Complete Registration Form',    desc: 'Fill out the required personal, academic, and contact information.',                                      primary: false },
-                    { icon: 'lucide:send',             label: 'Submit Application',             desc: 'Review and submit the registration application for school processing.',                                   primary: false },
-                    { icon: 'lucide:shield-check',     label: 'School Review & Verification',  desc: 'The school evaluates submitted information and verifies application requirements.',                      primary: false },
-                    { icon: 'lucide:party-popper',     label: 'Official Enrollment',           desc: 'Upon approval, the student becomes officially enrolled in Sta. Maria Elementary School.',               primary: false, final: true },
-                  ].map((step, i) => (
-                    <div key={step.label} className={`landing-reveal lp-stagger-${Math.min(i + 1, 5)} group relative flex items-start gap-6 perspective-1000`}>
-                      <TiltCard className="flex items-start gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-red-200 transition-all duration-300 w-full z-10">
-                        <div
-                          className={`relative z-10 w-14 h-14 shrink-0 ${
-                            step.primary ? 'bg-[#D8232A]' : step.final ? 'bg-emerald-500' : 'bg-slate-50 group-hover:bg-[#D8232A]'
-                          } rounded-2xl flex items-center justify-center ${
-                            step.primary || step.final ? 'text-white' : 'text-[#D8232A] group-hover:text-white'
-                          } border ${step.primary || step.final ? 'border-transparent' : 'border-slate-100'} shadow-md transition-all duration-300`}
-                          style={{ transform: "translateZ(25px)" }}
-                        >
-                          <Icon name={step.icon} size={24} />
-                        </div>
-                        <div style={{ transform: "translateZ(15px)" }}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Step 0{i + 1}</span>
-                          </div>
-                          <h3 className={`text-lg sm:text-xl font-black tracking-tight mb-2 ${
-                            step.final ? 'text-emerald-600' : 'text-slate-900 group-hover:text-[#D8232A]'
-                          } transition-colors`}>
-                            {step.label}
-                          </h3>
-                          <p className="text-slate-500 text-sm font-medium leading-relaxed">{step.desc}</p>
-                        </div>
-                      </TiltCard>
-                      {!step.final && (
-                        <div className="absolute left-13 top-full h-8 w-4 -translate-x-1/2 flex flex-col items-center justify-between pointer-events-none z-0">
-                          <div className="lp-timeline-line w-[2.5px] h-full bg-gradient-to-b from-red-400 to-red-200 opacity-60" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-              </div>
+          {/* ── 2. REGISTRATION PROCESS SECTION (INTERACTIVE SAAS-TIER SHOWCASE) ── */}
+          <section className="py-14 sm:py-20 lg:py-24 bg-slate-50/60 relative border-t border-slate-100" id="registration-process">
+            <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12">
+              <RegistrationProcessShowcase />
             </div>
           </section>
 
           {/* ── 3. SYSTEM FEATURES SECTION (PREMIUM 3D SHOWCASE CAROUSEL) ── */}
-          <section className="py-24 bg-white border-t border-slate-100" id="features">
-            <div className="max-w-7xl mx-auto px-6 md:px-12">
-              <div className="space-y-12">
+          <section className="py-14 sm:py-20 lg:py-24 bg-white border-t border-slate-100" id="features">
+            <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12">
+              <div className="space-y-8 sm:space-y-12">
                 
                 {/* Section Headline */}
-                <div className="text-center max-w-3xl mx-auto space-y-4 landing-reveal">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#D8232A] text-xs font-black uppercase tracking-wider">
-                    <Sparkles className="w-4 h-4" />
+                <div className="text-center max-w-3xl mx-auto space-y-3 sm:space-y-4 landing-reveal px-2">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#D8232A] text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>Interactive System Showcase</span>
                   </div>
-                  <h2 className="text-3xl sm:text-5xl lg:text-6xl uppercase font-black text-slate-900 tracking-tight leading-[1.05]">
+                  <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl uppercase font-black text-slate-900 tracking-tight leading-[1.08]">
                     Making Every School Process Simpler
                   </h2>
-                  <p className="text-slate-500 text-base sm:text-lg font-medium">
+                  <p className="text-slate-500 text-xs sm:text-base md:text-lg font-medium leading-relaxed">
                     Explore how Sta. Maria Central School's integrated portal empowers parents, teachers, and administrators.
                   </p>
                 </div>
@@ -1349,9 +1287,9 @@ export function LandingPage() {
           </section>
 
           {/* ── 4. ABOUT SECTION ── */}
-          <section className="py-24 bg-slate-50/60 relative overflow-visible border-t border-slate-100" id="about">
-            <div className="max-w-7xl mx-auto px-6 md:px-12">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+          <section className="py-14 sm:py-20 lg:py-24 bg-slate-50/60 relative overflow-visible border-t border-slate-100" id="about">
+            <div className="max-w-7xl mx-auto px-4 sm:px-8 md:px-12">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center">
                 
                 {/* School Badge Showcase */}
                 <div className="lg:col-span-5 landing-reveal perspective-1000">
