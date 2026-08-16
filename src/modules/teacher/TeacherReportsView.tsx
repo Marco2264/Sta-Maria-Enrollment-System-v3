@@ -24,7 +24,7 @@ import { HealthAnalyticsService } from '../../lib/services/healthAnalyticsServic
 import { getCurrentSchoolYear } from '../../lib/utils';
 
 export function TeacherReportsView() {
-  const { students, subjects, attendance, currentSection, currentGradeLevel, currentSectionName, academicYear: contextAcademicYear } = useTeacherData();
+  const { students, subjects, attendance, currentSection, currentGradeLevel, currentSectionName, academicYear: contextAcademicYear, isAdvisorForCurrentSection } = useTeacherData();
   const { userData } = useAuth();
 
   // Try context academicYear first, then fallback to current year
@@ -53,6 +53,11 @@ export function TeacherReportsView() {
       } else if (id === 'sf2') {
         if (!currentSection) {
           alert('Your assigned section has not loaded yet. Please wait a moment and try again.');
+          setGenerating(null);
+          return;
+        }
+        if (!isAdvisorForCurrentSection) {
+          alert('Only the assigned section adviser can export attendance (SF2) Excel reports.');
           setGenerating(null);
           return;
         }
@@ -251,22 +256,32 @@ export function TeacherReportsView() {
                         )}
                       </Button>
                     )}
-                    <Button
-                      className={`flex-1 rounded-xl h-11 font-semibold transition-all ${isSuccess
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                          : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
-                        }`}
-                      onClick={() => handleGenerate(report.id)}
-                      disabled={isGenerating || isSuccess || viewingReportId === report.id}
-                    >
-                      {isGenerating ? (
-                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Wait...</>
-                      ) : isSuccess ? (
-                        <><CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600" />Ready</>
-                      ) : (
-                        <><Download className="w-4 h-4 mr-1.5" />Excel</>
-                      )}
-                    </Button>
+                    {(() => {
+                      const isRestricted = report.id === 'sf2' && !isAdvisorForCurrentSection;
+                      return (
+                        <Button
+                          className={`flex-1 rounded-xl h-11 font-semibold transition-all ${isSuccess
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                              : isRestricted
+                              ? 'bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-100 cursor-not-allowed'
+                              : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                            }`}
+                          onClick={() => handleGenerate(report.id)}
+                          disabled={isGenerating || isSuccess || viewingReportId === report.id || isRestricted}
+                          title={isRestricted ? "Restricted: Only the Section Adviser can export attendance reports" : undefined}
+                        >
+                          {isGenerating ? (
+                            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Wait...</>
+                          ) : isSuccess ? (
+                            <><CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600" />Ready</>
+                          ) : isRestricted ? (
+                            <span>Advisory Only</span>
+                          ) : (
+                            <><Download className="w-4 h-4 mr-1.5" />Excel</>
+                          )}
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </div>
               </Card>

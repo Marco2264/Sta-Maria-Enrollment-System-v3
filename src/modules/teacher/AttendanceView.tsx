@@ -46,6 +46,7 @@ import { getCurrentSchoolYear } from '../../lib/utils';
 import { cn } from '../../components/ui/utils';
 import { generateSF2 } from '../../lib/excelGenerator';
 import { ReportDataService } from '../../lib/services/reportDataService';
+import { getGlobalSettings, GlobalSettings } from '../../lib/services/settingsService';
 import toast from 'react-hot-toast';
 
 const MONTH_NAMES = [
@@ -53,12 +54,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const DEPED_SCHOOL_MONTHS = [
-  { index: 7, name: 'Aug', fullName: 'August' },
-  { index: 8, name: 'Sep', fullName: 'September' },
-  { index: 9, name: 'Oct', fullName: 'October' },
-  { index: 10, name: 'Nov', fullName: 'November' },
-  { index: 11, name: 'Dec', fullName: 'December' },
+const ALL_MONTHS = [
   { index: 0, name: 'Jan', fullName: 'January' },
   { index: 1, name: 'Feb', fullName: 'February' },
   { index: 2, name: 'Mar', fullName: 'March' },
@@ -66,7 +62,101 @@ const DEPED_SCHOOL_MONTHS = [
   { index: 4, name: 'May', fullName: 'May' },
   { index: 5, name: 'Jun', fullName: 'June' },
   { index: 6, name: 'Jul', fullName: 'July' },
+  { index: 7, name: 'Aug', fullName: 'August' },
+  { index: 8, name: 'Sep', fullName: 'September' },
+  { index: 9, name: 'Oct', fullName: 'October' },
+  { index: 10, name: 'Nov', fullName: 'November' },
+  { index: 11, name: 'Dec', fullName: 'December' },
 ];
+
+const getSchoolMonths = (schoolYearStart?: string, schoolYearEnd?: string) => {
+  if (!schoolYearStart) {
+    const defaultStartMonth = 7; // August default
+    const result = [];
+    for (let i = 0; i < 12; i++) {
+      const idx = (defaultStartMonth + i) % 12;
+      result.push(ALL_MONTHS[idx]);
+    }
+    return result;
+  }
+
+  const startParts = schoolYearStart.split('-').map(Number);
+  const startMonth = (startParts[1] || 8) - 1; // 0-indexed
+  
+  let numMonths = 12;
+  if (schoolYearEnd) {
+    const endParts = schoolYearEnd.split('-').map(Number);
+    const startYear = startParts[0];
+    const endYear = endParts[0];
+    const endMonth = (endParts[1] || 5) - 1;
+    
+    const span = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+    if (span >= 1 && span <= 12) {
+      numMonths = span;
+    }
+  }
+
+  const result = [];
+  for (let i = 0; i < numMonths; i++) {
+    const idx = (startMonth + i) % 12;
+    result.push(ALL_MONTHS[idx]);
+  }
+  return result;
+};
+
+const getAvailableYears = (schoolYearStart?: string, schoolYearEnd?: string) => {
+  const currentYearNum = new Date().getFullYear();
+  if (!schoolYearStart) {
+    return [currentYearNum - 1, currentYearNum, currentYearNum + 1];
+  }
+  const startYr = parseInt(schoolYearStart.split('-')[0], 10);
+  const endYr = schoolYearEnd ? parseInt(schoolYearEnd.split('-')[0], 10) : startYr + 1;
+  const years: number[] = [];
+  for (let y = startYr; y <= endYr; y++) {
+    years.push(y);
+  }
+  return years.length > 0 ? years : [currentYearNum];
+};
+
+const getAvailableMonthsForYear = (year: number, schoolYearStart?: string, schoolYearEnd?: string) => {
+  if (!schoolYearStart) {
+    return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  }
+  const startParts = schoolYearStart.split('-').map(Number);
+  const startYr = startParts[0];
+  const startMo = (startParts[1] || 1) - 1; // 0-indexed
+
+  let endYr = startYr + 1;
+  let endMo = (startMo === 0 ? 11 : startMo - 1);
+  if (schoolYearEnd) {
+    const endParts = schoolYearEnd.split('-').map(Number);
+    endYr = endParts[0];
+    endMo = (endParts[1] || 12) - 1;
+  }
+
+  let minMo = 0;
+  let maxMo = 11;
+
+  if (year === startYr && year === endYr) {
+    minMo = startMo;
+    maxMo = endMo;
+  } else if (year === startYr) {
+    minMo = startMo;
+    maxMo = 11;
+  } else if (year === endYr) {
+    minMo = 0;
+    maxMo = endMo;
+  } else if (year < startYr || year > endYr) {
+    minMo = 0;
+    maxMo = 11;
+  }
+
+  const months: number[] = [];
+  for (let m = minMo; m <= maxMo; m++) {
+    months.push(m);
+  }
+  return months.length > 0 ? months : [startMo];
+};
 
 const toLocalYYYYMMDD = (date: Date) => {
   const y = date.getFullYear();
@@ -83,8 +173,52 @@ export function AttendanceView() {
     loading,
     currentSection,
     setCurrentSection,
-    assignedSections
+    assignedSections,
+    isAdvisorForCurrentSection
   } = useTeacherData();
+
+  const [settings, setSettings] = useState<GlobalSettings | null>(null);
+
+  useEffect(() => {
+    getGlobalSettings()
+      .then(s => {
+        setSettings(s);
+        if (s.activeSchoolYear) {
+          setSelectedAcademicYear(s.activeSchoolYear);
+        }
+        if (s.schoolYearStart) {
+          const today = toLocalYYYYMMDD(new Date());
+          if (today < s.schoolYearStart) {
+            setSelectedDate(s.schoolYearStart);
+            const startParts = s.schoolYearStart.split('-');
+            if (startParts.length >= 2) {
+              setSelectedYear(parseInt(startParts[0], 10));
+              setSelectedMonth(parseInt(startParts[1], 10) - 1);
+            }
+          } else if (s.schoolYearEnd && today > s.schoolYearEnd) {
+            setSelectedDate(s.schoolYearEnd);
+            const endParts = s.schoolYearEnd.split('-');
+            if (endParts.length >= 2) {
+              setSelectedYear(parseInt(endParts[0], 10));
+              setSelectedMonth(parseInt(endParts[1], 10) - 1);
+            }
+          } else {
+            const now = new Date();
+            const curYr = now.getFullYear();
+            const curMo = now.getMonth();
+            const validYears = getAvailableYears(s.schoolYearStart, s.schoolYearEnd);
+            const targetYr = validYears.includes(curYr) ? curYr : validYears[0];
+            const validMonths = getAvailableMonthsForYear(targetYr, s.schoolYearStart, s.schoolYearEnd);
+            setSelectedYear(targetYr);
+            setSelectedMonth(validMonths.includes(curMo) ? curMo : validMonths[0]);
+          }
+        }
+      })
+      .catch(err => console.error("Error loading admin settings in AttendanceView:", err));
+  }, []);
+
+  const schoolYearStart = settings?.schoolYearStart || '';
+  const schoolYearEnd = settings?.schoolYearEnd || '';
 
   const currentSectionData = useMemo(() => {
     return (assignedSections || []).find(s => s.sectionId === currentSection);
@@ -111,6 +245,22 @@ export function AttendanceView() {
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonthNum);
   const [selectedYear, setSelectedYear] = useState<number>(currentYearNum);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(getCurrentSchoolYear());
+
+  const availableYears = useMemo(() => {
+    return getAvailableYears(schoolYearStart, schoolYearEnd);
+  }, [schoolYearStart, schoolYearEnd]);
+
+  const availableMonths = useMemo(() => {
+    return getAvailableMonthsForYear(selectedYear, schoolYearStart, schoolYearEnd);
+  }, [selectedYear, schoolYearStart, schoolYearEnd]);
+
+  const handleYearChange = (newYear: number) => {
+    setSelectedYear(newYear);
+    const validMonths = getAvailableMonthsForYear(newYear, schoolYearStart, schoolYearEnd);
+    if (!validMonths.includes(selectedMonth)) {
+      setSelectedMonth(validMonths[0] ?? 0);
+    }
+  };
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -250,10 +400,21 @@ export function AttendanceView() {
   };
 
   const isCurrentDateWeekend = isWeekend(selectedDate);
+  const isBeforeSchoolYear = Boolean(schoolYearStart && selectedDate < schoolYearStart);
+  const isAfterSchoolYear = Boolean(schoolYearEnd && selectedDate > schoolYearEnd);
+  const isDateLocked = isCurrentDateWeekend || isBeforeSchoolYear || isAfterSchoolYear;
 
   // Mark all present handler
   const handleMarkAllPresent = async () => {
     if (enrolled.length === 0 || isSaving) return;
+    if (isBeforeSchoolYear) {
+      toast.error(`Cannot record attendance before the school year start date (${schoolYearStart}).`);
+      return;
+    }
+    if (isAfterSchoolYear) {
+      toast.error(`Cannot record attendance after the school year end date (${schoolYearEnd}).`);
+      return;
+    }
     if (isCurrentDateWeekend) {
       const d = new Date(selectedDate);
       const dayName = d.getDay() === 0 ? 'Sunday' : 'Saturday';
@@ -290,6 +451,10 @@ export function AttendanceView() {
 
   // Reset daily attendance
   const handleReset = async () => {
+    if (isBeforeSchoolYear) {
+      toast.error(`Cannot modify attendance before the school year start date (${schoolYearStart}).`);
+      return;
+    }
     if (isCurrentDateWeekend) {
       toast.error("Cannot modify attendance on weekends.");
       return;
@@ -315,6 +480,10 @@ export function AttendanceView() {
 
   // Confirm student presence
   const handleConfirm = useCallback((studentId: string, status: 'Present' | 'Absent' = 'Present') => {
+    if (schoolYearStart && selectedDate < schoolYearStart) {
+      toast.error(`Attendance tracking starts on ${schoolYearStart} (Admin Settings).`);
+      return;
+    }
     if (isWeekend(selectedDate)) {
       const d = new Date(selectedDate);
       const dayName = d.getDay() === 0 ? 'Sunday' : 'Saturday';
@@ -335,21 +504,25 @@ export function AttendanceView() {
         setSaved(false);
       })
       .finally(() => setIsSaving(false));
-  }, [selectedDate, updateAttendance]);
+  }, [selectedDate, schoolYearStart, updateAttendance]);
 
-  // School Day Helpers for Monthly View
+  // School Day Helpers for Monthly View - Strictly starts from the start of school day date (schoolYearStart)
   const monthDays = useMemo(() => {
     const date = new Date(selectedYear, selectedMonth, 1);
     const days: string[] = [];
     while (date.getMonth() === selectedMonth) {
       const day = date.getDay();
-      if (day !== 0 && day !== 6) { // Mon-Fri
-        days.push(toLocalYYYYMMDD(date));
+      const dateStr = toLocalYYYYMMDD(date);
+      const isWeekday = day !== 0 && day !== 6; // Mon-Fri
+      const isAfterOrOnStart = !schoolYearStart || dateStr >= schoolYearStart;
+      const isBeforeOrOnEnd = !schoolYearEnd || dateStr <= schoolYearEnd;
+      if (isWeekday && isAfterOrOnStart && isBeforeOrOnEnd) {
+        days.push(dateStr);
       }
       date.setDate(date.getDate() + 1);
     }
     return days;
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, schoolYearStart, schoolYearEnd]);
 
   const getStatusForDate = useCallback((studentId: string, dateStr: string) => {
     const record = attendance.find(a => a.studentId === studentId && a.date === dateStr);
@@ -372,11 +545,20 @@ export function AttendanceView() {
     return { present, absent, late, totalLogged, rate };
   };
 
-  // Yearly helpers
+  const schoolMonths = useMemo(() => {
+    return getSchoolMonths(schoolYearStart, schoolYearEnd);
+  }, [schoolYearStart, schoolYearEnd]);
+
+  // Yearly helpers - Strictly considers attendance records within the active school year
   const markedDates = useMemo(() => {
-    const dates = new Set(attendance.map(a => a.date).filter(Boolean));
+    const dates = new Set(
+      attendance
+        .filter(a => (!schoolYearStart || a.date >= schoolYearStart) && (!schoolYearEnd || a.date <= schoolYearEnd))
+        .map(a => a.date)
+        .filter(Boolean)
+    );
     return Array.from(dates).sort();
-  }, [attendance]);
+  }, [attendance, schoolYearStart, schoolYearEnd]);
 
   const getStudentYearlyStats = (studentId: string) => {
     let present = 0;
@@ -384,12 +566,12 @@ export function AttendanceView() {
     let late = 0;
 
     const monthStats: Record<number, { present: number; absent: number; late: number }> = {};
-    DEPED_SCHOOL_MONTHS.forEach(m => {
+    schoolMonths.forEach(m => {
       monthStats[m.index] = { present: 0, absent: 0, late: 0 };
     });
 
     attendance
-      .filter(a => a.studentId === studentId)
+      .filter(a => a.studentId === studentId && (!schoolYearStart || a.date >= schoolYearStart) && (!schoolYearEnd || a.date <= schoolYearEnd))
       .forEach(r => {
         const st = r.status || (r as any).amStatus || 'Present';
         const mo = r.date ? (parseInt(r.date.split('-')[1], 10) - 1) : -1;
@@ -397,7 +579,7 @@ export function AttendanceView() {
         else if (st === 'Absent') absent++;
         else if (st === 'Late') late++;
 
-        if (monthStats[mo]) {
+        if (monthStats[mo] !== undefined) {
           if (st === 'Present') monthStats[mo].present++;
           else if (st === 'Absent') monthStats[mo].absent++;
           else if (st === 'Late') monthStats[mo].late++;
@@ -409,9 +591,15 @@ export function AttendanceView() {
     return { present, absent, late, totalLogged, rate, monthStats };
   };
 
+  const isAdvisor = Boolean(isAdvisorForCurrentSection || currentSectionData?.isAdvisor);
+
   // Export DepEd SF2 Excel (.xlsx) handler
   const handleExportSF2 = async () => {
     if (!currentSection || isExportingSF2) return;
+    if (!isAdvisor) {
+      toast.error("Only the assigned advisory teacher can export attendance Excel (SF2) for this section.");
+      return;
+    }
     setIsExportingSF2(true);
     const toastId = toast.loading("Generating DepEd School Form 2 (SF2) Excel...");
     try {
@@ -459,8 +647,16 @@ export function AttendanceView() {
                 <h1 className="text-lg font-black tracking-tight text-slate-900">
                   {currentSectionData ? `${currentSectionData.gradeLevel} - ${currentSectionData.name}` : 'Classroom Attendance'}
                 </h1>
-                <Badge variant="outline" className="text-[10px] font-extrabold bg-slate-50 border-slate-200 text-slate-600 px-2 py-0.5">
-                  S.Y. {getCurrentSchoolYear()}
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-[10px] font-extrabold px-2 py-0.5",
+                    isAdvisor 
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                      : "bg-slate-50 border-slate-200 text-slate-600"
+                  )}
+                >
+                  {isAdvisor ? "Advisory Section" : "Subject Section"}
                 </Badge>
                 {/* Auto-save status badge */}
                 <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100/80 border border-slate-200/50 text-[10px] font-bold select-none">
@@ -483,7 +679,9 @@ export function AttendanceView() {
                 </div>
               </div>
               <p className="text-xs text-slate-500 font-medium hidden sm:block">
-                Take daily roll call, inspect monthly registers, and export official DepEd SF2 reports
+                {isAdvisor
+                  ? "Take daily roll call, inspect monthly registers, and export official DepEd SF2 reports"
+                  : "Take daily roll call and inspect attendance (SF2 export is available for Advisory section only)"}
               </p>
             </div>
           </div>
@@ -500,7 +698,7 @@ export function AttendanceView() {
                 <SelectContent>
                   {assignedSections.map(sec => (
                     <SelectItem key={sec.sectionId} value={sec.sectionId} className="text-xs font-bold">
-                      {sec.gradeLevel} - {sec.name}
+                      {sec.gradeLevel} - {sec.name} {sec.isAdvisor ? "★ (Advisory)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -511,12 +709,27 @@ export function AttendanceView() {
             {activeTab === 'monthly' && (
               <Button
                 onClick={handleExportSF2}
-                disabled={enrolled.length === 0 || isExportingSF2}
-                className="rounded-xl h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
-                title="Export Official DepEd School Form 2 (SF2) Excel (.xlsx)"
+                disabled={enrolled.length === 0 || isExportingSF2 || !isAdvisor}
+                className={cn(
+                  "rounded-xl h-10 px-4 text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all",
+                  isAdvisor
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 cursor-pointer"
+                    : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                )}
+                title={
+                  !isAdvisor 
+                    ? "Export is restricted: Only the assigned section adviser can export attendance Excel reports." 
+                    : "Export Official DepEd School Form 2 (SF2) Excel (.xlsx)"
+                }
               >
                 <FileSpreadsheet className="w-4 h-4" />
-                <span>{isExportingSF2 ? "Generating SF2..." : "Export SF2 (Excel)"}</span>
+                <span>
+                  {isExportingSF2 
+                    ? "Generating SF2..." 
+                    : isAdvisor 
+                    ? "Export SF2 (Excel)" 
+                    : "Advisory Only"}
+                </span>
               </Button>
             )}
           </div>
@@ -578,11 +791,17 @@ export function AttendanceView() {
                 <Calendar className="w-4 h-4 text-slate-500" />
                 <input
                   type="date"
-                  max={todayDate}
+                  min={schoolYearStart || undefined}
+                  max={schoolYearEnd || todayDate}
                   value={selectedDate}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (!val) return;
+                    if (schoolYearStart && val < schoolYearStart) {
+                      toast.error(`Attendance starts on official school day date: ${schoolYearStart}`);
+                      setSelectedDate(schoolYearStart);
+                      return;
+                    }
                     const parts = val.split('-');
                     const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
                     const selectedDay = d.getDay();
@@ -593,7 +812,8 @@ export function AttendanceView() {
                       setIsWeekendModalOpen(true);
                       return;
                     }
-                    setSelectedDate(val > todayDate ? todayDate : val);
+                    const maxAllowed = schoolYearEnd ? (schoolYearEnd < todayDate ? schoolYearEnd : todayDate) : todayDate;
+                    setSelectedDate(val > maxAllowed ? maxAllowed : val);
                   }}
                   className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
                 />
@@ -602,24 +822,34 @@ export function AttendanceView() {
 
             {activeTab === 'monthly' && (
               <div className="flex items-center gap-2">
-                <Select value={MONTH_NAMES[selectedMonth]} onValueChange={(v) => setSelectedMonth(MONTH_NAMES.indexOf(v))}>
+                <Select 
+                  value={MONTH_NAMES[selectedMonth]} 
+                  onValueChange={(v) => {
+                    const idx = MONTH_NAMES.indexOf(v);
+                    if (idx !== -1) setSelectedMonth(idx);
+                  }}
+                >
                   <SelectTrigger className="w-[145px] h-9.5 rounded-xl border-slate-200 bg-slate-50 text-xs font-bold text-slate-800">
                     <SelectValue placeholder="Month">{MONTH_NAMES[selectedMonth]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {MONTH_NAMES.map((m) => (
-                      <SelectItem key={m} value={m} className="text-xs font-bold">{m}</SelectItem>
+                    {availableMonths.map((mIdx) => (
+                      <SelectItem key={MONTH_NAMES[mIdx]} value={MONTH_NAMES[mIdx]} className="text-xs font-bold">
+                        {MONTH_NAMES[mIdx]}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v, 10))}>
+                <Select value={selectedYear.toString()} onValueChange={(v) => handleYearChange(parseInt(v, 10))}>
                   <SelectTrigger className="w-[100px] h-9.5 rounded-xl border-slate-200 bg-slate-50 text-xs font-bold text-slate-800">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[currentYearNum - 1, currentYearNum, currentYearNum + 1].map(yr => (
-                      <SelectItem key={yr} value={yr.toString()} className="text-xs font-bold">{yr}</SelectItem>
+                    {availableYears.map(yr => (
+                      <SelectItem key={yr} value={yr.toString()} className="text-xs font-bold">
+                        {yr}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -697,8 +927,26 @@ export function AttendanceView() {
         {activeTab === 'take' && (
           <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
             
+            {/* Before School Year Alert Banner */}
+            {isBeforeSchoolYear && (
+              <div className="bg-red-50 border-b border-red-200 px-5 py-3.5 flex items-center justify-between gap-3 text-red-900">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-red-100 border border-red-300 text-[#D8232A] flex items-center justify-center shrink-0">
+                    <Calendar className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black">Before Official School Year Start ({schoolYearStart})</p>
+                    <p className="text-[11px] font-medium text-red-700">Official attendance tracking starts on the school opening date configured in Admin Settings.</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="bg-red-100 border-red-300 text-red-800 text-[10px] font-black uppercase px-2.5 py-1">
+                  Starts: {schoolYearStart}
+                </Badge>
+              </div>
+            )}
+
             {/* Weekend Alert Notification Banner */}
-            {isCurrentDateWeekend && (
+            {isCurrentDateWeekend && !isBeforeSchoolYear && (
               <div className="bg-amber-50 border-b border-amber-200 px-5 py-3.5 flex items-center justify-between gap-3 text-amber-900">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0">
@@ -747,7 +995,7 @@ export function AttendanceView() {
               <div className="flex items-center gap-2">
                 <Button
                   onClick={handleMarkAllPresent}
-                  disabled={isSaving || enrolled.length === 0 || isCurrentDateWeekend}
+                  disabled={isSaving || enrolled.length === 0 || isDateLocked}
                   className="rounded-xl h-10 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
                 >
                   <Check className="w-4 h-4" />
@@ -755,7 +1003,7 @@ export function AttendanceView() {
                 </Button>
                 <Button
                   onClick={handleReset}
-                  disabled={isSaving || enrolled.length === 0 || isCurrentDateWeekend}
+                  disabled={isSaving || enrolled.length === 0 || isDateLocked}
                   variant="outline"
                   className="rounded-xl h-10 px-3 border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold shadow-2xs flex items-center gap-1.5"
                   title="Reset daily marks"
@@ -806,9 +1054,9 @@ export function AttendanceView() {
                           <TableCell className="font-bold text-slate-900 text-xs sm:text-sm">{s.lastName}, {s.firstName}</TableCell>
                           <TableCell className="text-center text-xs font-semibold text-slate-500">Male</TableCell>
                           <TableCell className="text-right pr-6">
-                            {isCurrentDateWeekend ? (
+                            {isDateLocked ? (
                               <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-300 font-extrabold text-[11px] px-3 py-1 rounded-full uppercase tracking-wider">
-                                Locked (Weekend)
+                                {isBeforeSchoolYear ? 'Locked (Before S.Y.)' : isAfterSchoolYear ? 'Locked (After S.Y.)' : 'Locked (Weekend)'}
                               </Badge>
                             ) : !isConfirmed ? (
                               <div className="flex items-center justify-end gap-2">
@@ -899,9 +1147,9 @@ export function AttendanceView() {
                           <TableCell className="font-bold text-slate-900 text-xs sm:text-sm">{s.lastName}, {s.firstName}</TableCell>
                           <TableCell className="text-center text-xs font-semibold text-slate-500">Female</TableCell>
                           <TableCell className="text-right pr-6">
-                            {isCurrentDateWeekend ? (
+                            {isDateLocked ? (
                               <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-300 font-extrabold text-[11px] px-3 py-1 rounded-full uppercase tracking-wider">
-                                Locked (Weekend)
+                                {isBeforeSchoolYear ? 'Locked (Before S.Y.)' : isAfterSchoolYear ? 'Locked (After S.Y.)' : 'Locked (Weekend)'}
                               </Badge>
                             ) : !isConfirmed ? (
                               <div className="flex items-center justify-end gap-2">
@@ -1167,7 +1415,7 @@ export function AttendanceView() {
                     <TableHead className="w-36 text-[10px] font-bold uppercase tracking-wider text-slate-500">LRN</TableHead>
                     <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-500 min-w-[160px]">Learner Name</TableHead>
                     <TableHead className="w-16 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Gender</TableHead>
-                    {DEPED_SCHOOL_MONTHS.map(m => (
+                    {schoolMonths.map(m => (
                       <TableHead key={m.name} className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1">
                         {m.name}
                       </TableHead>
@@ -1188,7 +1436,7 @@ export function AttendanceView() {
                         <TableCell className="text-center text-xs font-semibold text-slate-500">
                           {(s.gender || '').toLowerCase().startsWith('m') ? 'M' : 'F'}
                         </TableCell>
-                        {DEPED_SCHOOL_MONTHS.map(m => {
+                        {schoolMonths.map(m => {
                           const moPresent = st.monthStats[m.index]?.present || 0;
                           return (
                             <TableCell key={m.name} className="text-center text-xs font-bold text-slate-600 px-1">

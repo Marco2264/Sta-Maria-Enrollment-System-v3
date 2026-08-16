@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
-import { ChevronLeft, ChevronRight, CalendarCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarCheck, Calendar } from 'lucide-react';
+import { getGlobalSettings, GlobalSettings } from '../../lib/services/settingsService';
 
 interface AttendanceRecord {
   date: string; // e.g. "2026-08-12"
@@ -15,6 +16,25 @@ interface StudentAttendanceCalendarProps {
 
 export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [settings, setSettings] = useState<GlobalSettings | null>(null);
+
+  useEffect(() => {
+    getGlobalSettings().then(s => {
+      setSettings(s);
+      if (s.schoolYearStart) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (todayStr < s.schoolYearStart) {
+          const parts = s.schoolYearStart.split('-');
+          if (parts.length >= 2) {
+            setCurrentDate(new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1));
+          }
+        }
+      }
+    }).catch(console.error);
+  }, []);
+
+  const schoolYearStart = settings?.schoolYearStart || '';
+  const schoolYearEnd = settings?.schoolYearEnd || '';
 
   const recordsMap = new Map<string, AttendanceRecord>();
   records.forEach(r => {
@@ -86,12 +106,24 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
   return (
     <Card className="bg-white border border-slate-200/60 shadow-sm rounded-xl overflow-hidden p-6 sm:p-8">
       {/* Header matching screenshot */}
-      <div className="mb-6 flex flex-col gap-1">
-        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <CalendarCheck className="w-5 h-5 text-red-600" />
-          Attendance History
-        </h3>
-        <p className="text-sm text-slate-500">Double session tracking records</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <CalendarCheck className="w-5 h-5 text-red-600" />
+            Attendance History
+          </h3>
+          <p className="text-sm text-slate-500">
+            {schoolYearStart 
+              ? `Daily session tracking records • School Day Start: ${schoolYearStart}`
+              : 'Daily session tracking records'}
+          </p>
+        </div>
+        {schoolYearStart && (
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-100 text-xs font-bold w-fit">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>S.Y. Start: {schoolYearStart}</span>
+          </div>
+        )}
       </div>
 
       {/* Month Navigation */}
@@ -100,10 +132,10 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
           {monthNames[month]} {year}
         </h4>
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm">
+          <button onClick={prevMonth} className="p-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm cursor-pointer">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <button onClick={nextMonth} className="p-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm">
+          <button onClick={nextMonth} className="p-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors bg-white shadow-sm cursor-pointer">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -127,22 +159,28 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
             
             const localDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const record = recordsMap.get(localDateString);
-            
+            const isBeforeSY = Boolean(schoolYearStart && localDateString < schoolYearStart);
             const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
             
             return (
               <div key={day} className={`bg-white min-h-[110px] p-2 flex flex-col relative transition-colors ${isToday ? 'ring-1 ring-inset ring-red-500/50 bg-red-50/10' : ''} hover:bg-slate-50/50`}>
                 <div className="flex justify-end mb-2">
-                  <span className={`text-sm font-semibold ${isToday ? 'text-red-600' : 'text-slate-700'}`}>
+                  <span className={`text-sm font-semibold ${isToday ? 'text-red-600' : isBeforeSY ? 'text-slate-300' : 'text-slate-700'}`}>
                     {day}
                   </span>
                 </div>
                 
-                {record ? (
-                  <div className="flex flex-col gap-1.5 mt-auto">
+                <div className="flex flex-col gap-1.5 mt-auto">
+                  {isBeforeSY ? (
+                    <div className="bg-slate-50 text-slate-300 text-[10px] font-medium px-2 py-0.5 rounded flex items-center justify-center border border-slate-100/50" title={`Before School Day Start Date (${schoolYearStart})`}>
+                      --
+                    </div>
+                  ) : record ? (
                     <div className="flex-1">{renderStatusBadge(record.status || record.amStatus)}</div>
-                  </div>
-                ) : null}
+                  ) : (
+                    <div className="flex-1">{renderStatusBadge(null)}</div>
+                  )}
+                </div>
               </div>
             );
           })}
