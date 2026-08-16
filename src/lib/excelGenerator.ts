@@ -1,10 +1,12 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Student, AttendanceEntry, TeacherSubject } from './teacherData';
-import { buildSF1Remarks, type SF1Data, type SF4Data } from './services/reportDataService';
+import { buildSF1Remarks, fetchAdviserForSection, type SF1Data, type SF4Data } from './services/reportDataService';
 import type { HealthData } from './services/healthAnalyticsService';
 import { HealthAnalyticsService } from './services/healthAnalyticsService';
 import { getSchoolHeadName, getGlobalSettings } from './services/settingsService';
+import { db } from './firebase';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 // Helper function to fix the Excel stale value strikethrough bug (WPS Compatibility)
 const removeStrikethrough = (worksheet: ExcelJS.Worksheet) => {
@@ -98,9 +100,6 @@ const applyPrintPageSetup = (
     }
   };
 };
-
-import { db } from './firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const ARIAL_NARROW = 'Arial Narrow';
 const MAPEH_COMPONENTS = ['music', 'arts', 'art', 'pe', 'health', 'physical education'];
@@ -833,7 +832,8 @@ export async function generateSF9(
   academicYear: string,
   attendance: AttendanceEntry[] = [],
   subjects: TeacherSubject[] = [],
-  gradeConfigurations: any[] = []
+  gradeConfigurations: any[] = [],
+  passedAdviserName?: string
 ) {
   const safeAttendance = attendance || [];
   const safeSubjects = subjects || [];
@@ -846,32 +846,51 @@ export async function generateSF9(
       ? settings.principalName
       : await getSchoolHeadName().catch(() => 'MRS. LEPIDAPTERA VILLANUEVA');
 
-    let adviserName = 'Assigned Adviser';
+    let adviserName = passedAdviserName && passedAdviserName !== 'Assigned Adviser' ? passedAdviserName.trim() : '';
     let advisorId = '';
     const firstStudent = students[0];
-    if (firstStudent && firstStudent.sectionId) {
+    const sId = firstStudent?.sectionId;
+
+    if (!adviserName && sId) {
+      try {
+        adviserName = await fetchAdviserForSection(sId);
+      } catch (e) {}
+    }
+
+    if (!adviserName && sId) {
       try {
         const assignSnap = await getDocs(
           query(
             collection(db, 'assignments'),
-            where('sectionId', '==', firstStudent.sectionId),
-            where('isAdvisor', '==', true)
+            where('sectionId', '==', sId)
           )
         );
         if (!assignSnap.empty) {
-          const tId = assignSnap.docs[0].data().teacherId;
+          const advDoc = assignSnap.docs.find(d => d.data().isAdvisor === true) || assignSnap.docs[0];
+          const tId = advDoc.data().teacherId;
           advisorId = tId || '';
           if (tId) {
-            const uSnap = await getDocs(query(collection(db, 'users'), where('__name__', '==', tId)));
-            if (!uSnap.empty) {
-              const uData = uSnap.docs[0].data();
-              adviserName = `${uData.firstName || ''} ${uData.lastName || ''}`.trim() || 'Assigned Adviser';
+            const uSnap = await getDoc(doc(db, 'users', tId));
+            if (uSnap.exists()) {
+              const uData = uSnap.data();
+              adviserName = `${uData.firstName || ''} ${uData.lastName || ''}`.trim() || uData.displayName || uData.fullName || '';
             }
           }
         }
       } catch (err) {
         console.warn('Failed to resolve advisor for SF9:', err);
       }
+    }
+
+    if (!adviserName && students.length > 0) {
+      const sWithAdv = students.find(s => (s as any).adviser || (s as any).adviserName || (s as any).teacherName);
+      if (sWithAdv) {
+        adviserName = ((sWithAdv as any).adviser || (sWithAdv as any).adviserName || (sWithAdv as any).teacherName || '').trim();
+      }
+    }
+
+    if (!adviserName) {
+      adviserName = 'Assigned Adviser';
     }
 
     let activeGradeConfigs = safeGradeConfigs;
@@ -899,20 +918,6 @@ export async function generateSF9(
       const bName = `${b.lastName || ''}, ${b.firstName || ''}`.toLowerCase();
       return aName.localeCompare(bName);
     });
-
-    const workbook = new ExcelJS.Workbook();
-
-    // Fetch images buffer once if possible
-    let logoBuffer: ArrayBuffer | null = null;
-    let sealBuffer: ArrayBuffer | null = null;
-    try {
-      const r1 = await fetch('/deped_seal.png');
-      if (r1.ok) sealBuffer = await r1.arrayBuffer();
-    } catch (e) {}
-    try {
-      const r2 = await fetch('/kagawaran_ng_edukasyon.png');
-      if (r2.ok) logoBuffer = await r2.arrayBuffer();
-    } catch (e) {}
 
     // Helper functions for student grades & attendance
     const subjectRowMap: Record<string, string> = {
@@ -1148,6 +1153,32 @@ export async function generateSF9(
       return { columns, totalSchool, totalPresent, totalAbsent };
     };
 
+    const workbook = new ExcelJS.Workbook();
+
+    // Load SF9 Upper Left Logo and Upper Right Logo once for workbook
+    let leftImgId: number | null = null;
+    let rightImgId: number | null = null;
+    try {
+      let r1 = await fetch('/sf_9_upper_left_logo.jpg');
+      if (!r1.ok) r1 = await fetch('/deped_seal.png');
+      if (r1.ok) {
+        const leftBuffer = await r1.arrayBuffer();
+        leftImgId = workbook.addImage({ buffer: leftBuffer, extension: 'jpeg' });
+      }
+    } catch (e) {
+      console.warn('Could not load SF9 upper left logo', e);
+    }
+    try {
+      let r2 = await fetch('/sf_9_upper_right_logo.png');
+      if (!r2.ok) r2 = await fetch('/kagawaran_ng_edukasyon.png');
+      if (r2.ok) {
+        const rightBuffer = await r2.arrayBuffer();
+        rightImgId = workbook.addImage({ buffer: rightBuffer, extension: 'png' });
+      }
+    } catch (e) {
+      console.warn('Could not load SF9 upper right logo', e);
+    }
+
     // Populate each student sheet
     const studentsToProcess = sortedStudents.length > 0 ? sortedStudents : [
       { id: 'sample', lastName: 'SAMPLE', firstName: 'STUDENT', gradeLevel: 'Grade 6', lrn: '123456789' } as Student
@@ -1156,40 +1187,52 @@ export async function generateSF9(
     studentsToProcess.forEach((student, idx) => {
       const rawName = `${idx + 1}. ${student.lastName || ''}, ${student.firstName || ''}`;
       const sheetName = rawName.replace(/[:\\/?*\[\]]/g, '').trim().substring(0, 31) || `Student ${idx + 1}`;
+      
       const worksheet = workbook.addWorksheet(sheetName);
 
+      worksheet.views = [{ showGridLines: true }];
       worksheet.pageSetup = {
         paperSize: 9, // A4
         orientation: 'landscape',
         fitToPage: true,
         fitToWidth: 1,
         fitToHeight: 0,
-        margins: { left: 0.25, right: 0.25, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 }
+        margins: { left: 0.2, right: 0.2, top: 0.25, bottom: 0.25, header: 0.1, footer: 0.1 },
+        horizontalCentered: true,
+        verticalCentered: false
       };
 
+      // 1. Column Widths Calibration (Ensures 1:1 proportional layout)
       const colWidths = [
-        { col: 1, width: 22 }, { col: 2, width: 6 }, { col: 3, width: 6 }, { col: 4, width: 6 },
-        { col: 5, width: 6 },  { col: 6, width: 6 }, { col: 7, width: 6 }, { col: 8, width: 6 },
-        { col: 9, width: 6 },  { col: 10, width: 6 }, { col: 11, width: 6 }, { col: 12, width: 6 },
-        { col: 13, width: 10 },{ col: 14, width: 4 }, { col: 15, width: 16 },{ col: 16, width: 6 },
-        { col: 17, width: 6 }, { col: 18, width: 6 }, { col: 19, width: 6 }, { col: 20, width: 6 },
-        { col: 21, width: 6 }, { col: 22, width: 6 }, { col: 23, width: 6 }, { col: 24, width: 6 },
-        { col: 25, width: 6 }, { col: 26, width: 6 }, { col: 27, width: 10 }
+        { col: 1, width: 22 }, { col: 2, width: 5.8 }, { col: 3, width: 5.8 }, { col: 4, width: 5.8 },
+        { col: 5, width: 5.8 }, { col: 6, width: 5.8 }, { col: 7, width: 5.8 }, { col: 8, width: 5.8 },
+        { col: 9, width: 5.8 }, { col: 10, width: 5.8 }, { col: 11, width: 5.8 }, { col: 12, width: 5.8 },
+        { col: 13, width: 8.5 }, { col: 14, width: 4 }, { col: 15, width: 16 }, { col: 16, width: 5.8 },
+        { col: 17, width: 5.8 }, { col: 18, width: 6 }, { col: 19, width: 6 }, { col: 20, width: 6 },
+        { col: 21, width: 6 }, { col: 22, width: 6 }, { col: 23, width: 6 }, { col: 24, width: 5.8 },
+        { col: 25, width: 5.8 }, { col: 26, width: 5.8 }, { col: 27, width: 8.5 }
       ];
       colWidths.forEach(cw => worksheet.getColumn(cw.col).width = cw.width);
 
-      const fontName = 'Segoe UI';
+      // Default row heights
+      for (let r = 1; r <= 70; r++) {
+        worksheet.getRow(r).height = 19;
+      }
+
+      const fontName = 'Arial';
+      const navyBadgeFill = { type: 'pattern' as any, pattern: 'solid' as any, fgColor: { argb: 'FF0F2B5C' } };
+      const badgeFont = { name: fontName, size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
+      const subHeaderFill = { type: 'pattern' as any, pattern: 'solid' as any, fgColor: { argb: 'FFD9E1F2' } };
+      const subHeaderFont = { name: fontName, size: 8.5, bold: true, color: { argb: 'FF000000' } };
       const thinBorder = {
-        top: { style: 'thin' as any, color: { argb: 'FF94A3B8' } },
-        left: { style: 'thin' as any, color: { argb: 'FF94A3B8' } },
-        bottom: { style: 'thin' as any, color: { argb: 'FF94A3B8' } },
-        right: { style: 'thin' as any, color: { argb: 'FF94A3B8' } }
+        top: { style: 'thin' as any, color: { argb: 'FF595959' } },
+        left: { style: 'thin' as any, color: { argb: 'FF595959' } },
+        bottom: { style: 'thin' as any, color: { argb: 'FF595959' } },
+        right: { style: 'thin' as any, color: { argb: 'FF595959' } }
       };
-      const headerFill = { type: 'pattern' as any, pattern: 'solid' as any, fgColor: { argb: 'FFE2E8F0' } };
-      const subHeaderFill = { type: 'pattern' as any, pattern: 'solid' as any, fgColor: { argb: 'FFF1F5F9' } };
 
       const styleBox = (rangeStr: string, value: any, opts: any = {}) => {
-        const { font = { name: fontName, size: 9 }, fill = null, align = { horizontal: 'center', vertical: 'middle' }, border = thinBorder } = opts;
+        const { font = { name: fontName, size: 8.5 }, fill = null, align = { horizontal: 'center', vertical: 'middle' }, border = thinBorder } = opts;
         try { worksheet.mergeCells(rangeStr); } catch (e) {}
         const [startRef, endRef] = rangeStr.includes(':') ? rangeStr.split(':') : [rangeStr, rangeStr];
         const cell = worksheet.getCell(startRef);
@@ -1209,6 +1252,10 @@ export async function generateSF9(
             if (border) cl.border = border;
           }
         }
+      };
+
+      const styleBadge = (rangeStr: string, text: string) => {
+        styleBox(rangeStr, text, { font: badgeFont, fill: navyBadgeFill, border: null });
       };
 
       // Calculate student data
@@ -1243,15 +1290,20 @@ export async function generateSF9(
 
       const attData = getAttendanceData(student.id);
 
-      // ================= PAGE 1 =================
-      // Left Panel: Attendance Record
-      styleBox('A1:M1', 'ATTENDANCE RECORD', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
-      styleBox('A2', 'Month', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      attData.columns.forEach((colInfo, cIdx) => {
-        const colLetter = String.fromCharCode(66 + cIdx);
-        styleBox(`${colLetter}2`, colInfo.name, { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      // ==========================================
+      // PAGE 1: LEFT HALF (Attendance & Signatures)
+      // ==========================================
+      styleBadge('D2:K2', 'Attendance Record');
+      worksheet.getRow(2).height = 22;
+
+      styleBox('A4', '', { fill: subHeaderFill });
+      const months = ['Jun', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
+      months.forEach((m, i) => {
+        const colL = String.fromCharCode(66 + i);
+        styleBox(`${colL}4`, m, { font: subHeaderFont, fill: subHeaderFill });
       });
-      styleBox('M2', 'Total', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox('M4', 'Total', { font: subHeaderFont, fill: subHeaderFill });
+      worksheet.getRow(4).height = 18;
 
       const attRowsDef = [
         { label: 'No. of School Days', key: 'school', total: attData.totalSchool },
@@ -1260,171 +1312,220 @@ export async function generateSF9(
       ];
 
       attRowsDef.forEach((rDef, rIdx) => {
-        const rowNum = 3 + rIdx;
-        const cellA = worksheet.getCell(`A${rowNum}`);
-        cellA.value = rDef.label;
-        cellA.font = { name: fontName, size: 8, bold: false };
-        cellA.alignment = { horizontal: 'left', vertical: 'middle' };
-        cellA.border = thinBorder;
-
+        const rowNum = 5 + rIdx;
+        styleBox(`A${rowNum}`, rDef.label, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle' } });
         attData.columns.forEach((colInfo, cIdx) => {
           const colLetter = String.fromCharCode(66 + cIdx);
-          const c = worksheet.getCell(`${colLetter}${rowNum}`);
-          c.value = (colInfo as any)[rDef.key];
-          c.font = { name: fontName, size: 8 };
-          c.alignment = { horizontal: 'center', vertical: 'middle' };
-          c.border = thinBorder;
+          styleBox(`${colLetter}${rowNum}`, (colInfo as any)[rDef.key] || 0, { font: { name: fontName, size: 8 } });
         });
-
-        const totCell = worksheet.getCell(`M${rowNum}`);
-        totCell.value = rDef.total;
-        totCell.font = { name: fontName, size: 8, bold: true };
-        totCell.alignment = { horizontal: 'center', vertical: 'middle' };
-        totCell.border = thinBorder;
+        styleBox(`M${rowNum}`, rDef.total || 0, { font: { name: fontName, size: 8, bold: true } });
+        worksheet.getRow(rowNum).height = 18;
       });
 
-      // Parent Guardian Signature
-      styleBox('A7:M7', "PARENT / GUARDIAN'S SIGNATURE", { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
-      ['1st Term', '2nd Term', '3rd Term', '4th Term'].forEach((t, i) => {
-        const r = 9 + (i * 2);
+      styleBadge('C11:K11', "PARENT/GUARDIAN'S SIGNATURE");
+      worksheet.getRow(11).height = 22;
+
+      ['1st Term', '2nd Term', '3rd Term'].forEach((t, i) => {
+        const r = 14 + (i * 2);
         styleBox(`A${r}:C${r}`, t, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
-        styleBox(`D${r}:M${r}`, '________________________________________________', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+        styleBox(`D${r}:L${r}`, '________________________________________________', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+        worksheet.getRow(r).height = 20;
       });
 
-      // Certificate of Transfer
-      styleBox('A18:M18', 'CERTIFICATE OF TRANSFER', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
-      styleBox('A20:M20', `Admitted to Grade: ${gLvl}      Section: ${sectionName}`, { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
-      styleBox('A22:M22', `Eligible for Admission to Grade: ${eligibleGrade}`, { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
-
-      styleBox('B25:F25', adviserName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-      styleBox('B26:F26', 'Adviser', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-
-      styleBox('H25:L25', principalName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-      styleBox('H26:L26', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-
-      // Cancellation of Eligibility
-      styleBox('A29:M29', 'CANCELLATION OF ELIGIBILITY TO TRANSFER', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
-      styleBox('A31:M31', 'Admitted in: ____________________', { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
-      styleBox('A33:M33', 'Date: ________________________', { font: { name: fontName, size: 9 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
-
-      styleBox('G36:K36', principalName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-      styleBox('G37:K37', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-
-      // Right Panel: DepEd Header & Profile
-      styleBox('O1:AA1', 'Republic of the Philippines', { font: { name: fontName, size: 8.5 }, border: null });
-      styleBox('O2:AA2', 'Department of Education', { font: { name: fontName, size: 11, bold: true, color: { argb: 'FF1E3A8A' } }, border: null });
-      styleBox('O3:AA3', `REGION ${schoolInfo.region}`, { font: { name: fontName, size: 9, bold: true }, border: null });
-      styleBox('O4:AA4', `DIVISION OF ${schoolInfo.division}`, { font: { name: fontName, size: 9, bold: true }, border: null });
-      styleBox('O5:AA5', `DISTRICT OF ${schoolInfo.district}`, { font: { name: fontName, size: 9, bold: true }, border: null });
-      styleBox('O6:AA6', schoolInfo.schoolName, { font: { name: fontName, size: 11, bold: true }, border: null });
-      styleBox('O7:AA7', `School ID: ${schoolInfo.schoolId}`, { font: { name: fontName, size: 8, italic: true }, border: null });
-
-      styleBox('O9:AA9', 'PROGRESS REPORT CARD (SF9)', { font: { name: fontName, size: 13, bold: true, color: { argb: 'FF1E3A8A' } }, border: null });
-      styleBox('O10:AA10', `School Year ${academicYear}`, { font: { name: fontName, size: 9, italic: true }, border: null });
-
-      // Add logo images if loaded
-      if (sealBuffer) {
+      // ==========================================
+      // PAGE 1: RIGHT HALF (DepEd Info, Profile & Transfers)
+      // ==========================================
+      // Embed Logos in top-right header with calibrated dimensions
+      if (leftImgId !== null) {
         try {
-          const sealImgId = workbook.addImage({ buffer: sealBuffer, extension: 'png' });
-          worksheet.addImage(sealImgId, { tl: { col: 14, row: 0 }, ext: { width: 55, height: 55 } });
+          worksheet.addImage(leftImgId, {
+            tl: { col: 14.15, row: 0.6 },
+            ext: { width: 68, height: 68 }
+          });
         } catch (e) {}
       }
-      if (logoBuffer) {
+      if (rightImgId !== null) {
         try {
-          const logoImgId = workbook.addImage({ buffer: logoBuffer, extension: 'png' });
-          worksheet.addImage(logoImgId, { tl: { col: 25, row: 0 }, ext: { width: 55, height: 55 } });
+          worksheet.addImage(rightImgId, {
+            tl: { col: 23.3, row: 0.8 },
+            ext: { width: 92, height: 52 }
+          });
         } catch (e) {}
       }
 
-      // Learner Profile Box
-      styleBox('O12:P12', 'NAME:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
-      styleBox('Q12:AA12', fullName, { font: { name: fontName, size: 10, bold: true }, align: { horizontal: 'left', vertical: 'middle' } });
+      styleBox('Q2:W2', 'Republic of the Philippines', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('Q3:W3', 'Department of Education', { font: { name: fontName, size: 11, bold: true, color: { argb: 'FF0F2B5C' } }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('Q4:W4', `Region ${schoolInfo.region}`, { font: { name: fontName, size: 8.5 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('Q5:W5', `DIVISION OF ${schoolInfo.division}`, { font: { name: fontName, size: 8.5 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('Q6:W6', `${schoolInfo.district} District`, { font: { name: fontName, size: 8.5 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('O7:AA7', schoolInfo.schoolName, { font: { name: fontName, size: 11, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
 
-      styleBox('O13', 'Age:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
-      styleBox('P13:R13', studentAge, { font: { name: fontName, size: 9, bold: true } });
-      styleBox('S13', 'Sex:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
-      styleBox('T13:V13', student.gender || '', { font: { name: fontName, size: 9, bold: true } });
-      styleBox('W13', 'LRN:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
-      styleBox('X13:AA13', student.lrn || '', { font: { name: fontName, size: 9, bold: true } });
+      styleBox('O9:AA9', 'PROGRESS REPORT CARD', { font: { name: fontName, size: 11, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('O10:AA10', `School Year ${academicYear}`, { font: { name: fontName, size: 9.5, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
 
-      styleBox('O14', 'Grade:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
-      styleBox('P14:R14', gLvl, { font: { name: fontName, size: 9, bold: true } });
-      styleBox('S14', 'Section:', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' } });
-      styleBox('T14:AA14', sectionName, { font: { name: fontName, size: 9, bold: true } });
+      worksheet.getRow(2).height = 16;
+      worksheet.getRow(3).height = 18;
+      worksheet.getRow(4).height = 15;
+      worksheet.getRow(5).height = 15;
+      worksheet.getRow(6).height = 15;
+      worksheet.getRow(7).height = 19;
+      worksheet.getRow(9).height = 20;
+      worksheet.getRow(10).height = 18;
 
-      // Dear parent
-      styleBox('O16:AA18', "Dear Parent:\nThis report card shows the ability and the progress your child has made in the different learning areas as well as his/her progress in core values. The school welcomes you should you desire to know more about your child's progress.", { font: { name: fontName, size: 8.5, italic: true }, align: { horizontal: 'left', vertical: 'middle', wrapText: true } });
+      // Learner Profile Details with Clean Underlines
+      styleBox('O12:P12', 'NAME : ', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'right', vertical: 'middle' }, border: null });
+      styleBox('Q12:AA12', fullName.toUpperCase(), { font: { name: fontName, size: 9.5, bold: true, underline: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      worksheet.getRow(12).height = 20;
 
-      styleBox('P21:T21', adviserName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-      styleBox('P22:T22', 'Adviser', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('O13', 'Age : ', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'right', vertical: 'middle' }, border: null });
+      styleBox('P13:Q13', studentAge, { font: { name: fontName, size: 8.5, underline: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('S13:T13', 'Sex : ', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'right', vertical: 'middle' }, border: null });
+      styleBox('U13:V13', student.gender || '', { font: { name: fontName, size: 8.5, underline: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('W13', 'LRN: ', { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'right', vertical: 'middle' }, border: null });
+      styleBox('X13:AA13', student.lrn || '', { font: { name: fontName, size: 8.5, underline: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      worksheet.getRow(13).height = 18;
 
-      styleBox('V21:Z21', principalName, { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
-      styleBox('V22:Z22', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('O14', 'Grade: ', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'right', vertical: 'middle' }, border: null });
+      styleBox('P14:R14', gLvl, { font: { name: fontName, size: 8.5, underline: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('S14:T14', 'Section: ', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'right', vertical: 'middle' }, border: null });
+      styleBox('U14:AA14', sectionName, { font: { name: fontName, size: 8.5, underline: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      worksheet.getRow(14).height = 18;
 
-      // ================= PAGE 2 =================
-      const startP2 = 41;
+      // Dear Parent Note
+      styleBox('O16:AA18', "Dear Parent,\nThis report card shows the ability and the progress your child has made in the different learning areas as well as his/her progress in core values.\nThe school welcomes you should you desire to know more about your child's progress.", { font: { name: fontName, size: 8, italic: true }, align: { horizontal: 'left', vertical: 'middle', wrapText: true }, border: null });
+      worksheet.getRow(16).height = 16;
+      worksheet.getRow(17).height = 16;
+      worksheet.getRow(18).height = 16;
 
-      // Left Panel: Report on Learning Progress
-      styleBox(`A${startP2}:M${startP2}`, 'REPORT ON LEARNING PROGRESS AND ACHIEVEMENT', { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+      // Adviser & Principal Initial Signatures
+      styleBox('P21:S21', principalName, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('P22:S22', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('V21:Z21', adviserName, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('V22:Z22', 'Adviser', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      worksheet.getRow(21).height = 20;
+      worksheet.getRow(22).height = 16;
 
-      styleBox(`A${startP2+2}:D${startP2+2}`, 'Learning Areas', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
-      styleBox(`E${startP2+2}`, '1', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`F${startP2+2}`, '2', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`G${startP2+2}`, '3', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`H${startP2+2}`, '4', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`I${startP2+2}:K${startP2+2}`, 'Final Rating', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`L${startP2+2}:M${startP2+2}`, 'Remarks', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      // Certificate of Transfer Badge
+      styleBadge('R25:X25', 'Certificate of Transfer');
+      worksheet.getRow(25).height = 22;
 
-      let currentR = startP2 + 3;
+      styleBox('O27:AA27', `Admitted to Grade: ${gLvl}     Section: ${sectionName}`, { font: { name: fontName, size: 8.5 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('O28:AA28', `Eligible for Admission to Grade: ${eligibleGrade}`, { font: { name: fontName, size: 8.5 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('O29:AA29', 'Approved:', { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      worksheet.getRow(27).height = 18;
+      worksheet.getRow(28).height = 18;
+      worksheet.getRow(29).height = 18;
+
+      styleBox('P31:S31', principalName, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('P32:S32', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('V31:Y31', adviserName, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('V32:Y32', 'Adviser', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      worksheet.getRow(31).height = 20;
+      worksheet.getRow(32).height = 16;
+
+      // Cancellation of Transfer Badge
+      styleBadge('Q35:Y35', 'Cancellation of Eligibility to Transfer');
+      worksheet.getRow(35).height = 22;
+
+      styleBox('O37:U37', 'Admitted in: ____________________', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('O38:U38', 'Date: ________________________', { font: { name: fontName, size: 8.5 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('V38:Z38', principalName, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      styleBox('V39:Z39', 'Principal I', { font: { name: fontName, size: 8 }, align: { horizontal: 'center', vertical: 'middle' }, border: null });
+      worksheet.getRow(37).height = 18;
+      worksheet.getRow(38).height = 18;
+      worksheet.getRow(39).height = 16;
+
+      // Explicit Page Break before Page 2 (Guarantees exact 2-page A4 print)
+      worksheet.getRow(40).addPageBreak();
+
+      // ==========================================
+      // PAGE 2: LEFT HALF (Learning Areas & Grades)
+      // ==========================================
+      styleBadge('A41:M41', 'REPORT ON LEARNING PROGRESS AND ACHIEVEMENT');
+      worksheet.getRow(41).height = 22;
+
+      styleBox('A43:D44', 'Learning Areas', { font: subHeaderFont, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
+      styleBox('E43:H43', 'Term', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('E44', '1', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('F44', '2', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('G44', '3', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('H44', '4', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('I43:K44', 'Final Rating', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('L43:M44', 'Remarks', { font: subHeaderFont, fill: subHeaderFill });
+      worksheet.getRow(43).height = 18;
+      worksheet.getRow(44).height = 18;
+
+      let subjRow = 45;
       gradesList.forEach(sub => {
-        styleBox(`A${currentR}:D${currentR}`, sub.name, { font: { name: fontName, size: 8.5, bold: !sub.isComponent, italic: sub.isComponent }, align: { horizontal: 'left', vertical: 'middle' } });
-        styleBox(`E${currentR}`, sub.q1, { font: { name: fontName, size: 8.5 } });
-        styleBox(`F${currentR}`, sub.q2, { font: { name: fontName, size: 8.5 } });
-        styleBox(`G${currentR}`, sub.q3, { font: { name: fontName, size: 8.5 } });
-        styleBox(`H${currentR}`, sub.q4, { font: { name: fontName, size: 8.5 } });
-        styleBox(`I${currentR}:K${currentR}`, sub.final, { font: { name: fontName, size: 8.5, bold: !sub.isComponent } });
-        styleBox(`L${currentR}:M${currentR}`, sub.remarks, { font: { name: fontName, size: 8, bold: true } });
-        currentR++;
+        if (subjRow <= 55) {
+          styleBox(`A${subjRow}:D${subjRow}`, sub.name, { font: { name: fontName, size: 8.5, bold: !sub.isComponent, italic: sub.isComponent }, align: { horizontal: 'left', vertical: 'middle' } });
+          styleBox(`E${subjRow}`, sub.q1, { font: { name: fontName, size: 8.5 } });
+          styleBox(`F${subjRow}`, sub.q2, { font: { name: fontName, size: 8.5 } });
+          styleBox(`G${subjRow}`, sub.q3, { font: { name: fontName, size: 8.5 } });
+          styleBox(`H${subjRow}`, sub.q4, { font: { name: fontName, size: 8.5 } });
+          styleBox(`I${subjRow}:K${subjRow}`, sub.final, { font: { name: fontName, size: 8.5, bold: !sub.isComponent } });
+          styleBox(`L${subjRow}:M${subjRow}`, sub.remarks, { font: { name: fontName, size: 8, bold: true } });
+          worksheet.getRow(subjRow).height = 20;
+          subjRow++;
+        }
       });
 
-      styleBox(`A${currentR}:D${currentR}`, 'General Average', { font: { name: fontName, size: 9, bold: true }, fill: headerFill, align: { horizontal: 'left', vertical: 'middle' } });
-      styleBox(`E${currentR}:H${currentR}`, '', { fill: headerFill });
-      styleBox(`I${currentR}:K${currentR}`, genAvg, { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
-      styleBox(`L${currentR}:M${currentR}`, genAvgRemarks, { font: { name: fontName, size: 8.5, bold: true }, fill: headerFill });
-      currentR += 2;
+      // Fill remaining subject slots up to row 55 if any
+      while (subjRow <= 55) {
+        styleBox(`A${subjRow}:D${subjRow}`, '', { align: { horizontal: 'left', vertical: 'middle' } });
+        styleBox(`E${subjRow}`, '');
+        styleBox(`F${subjRow}`, '');
+        styleBox(`G${subjRow}`, '');
+        styleBox(`H${subjRow}`, '');
+        styleBox(`I${subjRow}:K${subjRow}`, '');
+        styleBox(`L${subjRow}:M${subjRow}`, '');
+        worksheet.getRow(subjRow).height = 20;
+        subjRow++;
+      }
 
-      // Descriptors
-      styleBox(`A${currentR}:M${currentR}`, 'DESCRIPTORS AND GRADING SCALE', { font: { name: fontName, size: 9, bold: true }, fill: subHeaderFill });
-      currentR++;
-      styleBox(`A${currentR}:E${currentR}`, 'Descriptors', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
-      styleBox(`F${currentR}:I${currentR}`, 'Grading Scale', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill });
-      styleBox(`J${currentR}:M${currentR}`, 'Remarks', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill });
-      currentR++;
+      // General Average (Row 56)
+      styleBox('A56:H56', 'General Average', { font: { name: fontName, size: 9, bold: true }, align: { horizontal: 'center', vertical: 'middle' } });
+      styleBox('I56:K56', genAvg, { font: { name: fontName, size: 9.5, bold: true } });
+      styleBox('L56:M56', genAvgRemarks, { font: { name: fontName, size: 8.5, bold: true } });
+      worksheet.getRow(56).height = 22;
+
+      // Descriptors Table (Bottom Left)
+      styleBox('A59:E59', 'Descriptors', { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      styleBox('F59:I59', 'Grading Scale', { font: { name: fontName, size: 8.5, bold: true }, border: null });
+      styleBox('J59:M59', 'Remarks', { font: { name: fontName, size: 8.5, bold: true }, border: null });
+      worksheet.getRow(59).height = 18;
 
       const descRows = [
-        { d: 'Advancing', s: '90 - 100', r: 'Passed' },
-        { d: 'Benchmarking', s: '80 - 89', r: 'Passed' },
-        { d: 'Connecting', s: '75 - 79', r: 'Passed' },
-        { d: 'Developing', s: '65 - 74', r: 'Failed' },
-        { d: 'Emerging', s: '0 - 64', r: 'Failed' }
+        { d: 'Advancing', s: '90-100', r: 'Passed' },
+        { d: 'Benchmarking', s: '80-89', r: 'Passed' },
+        { d: 'Connecting', s: '75-79', r: 'Passed' },
+        { d: 'Developing', s: '65-74', r: 'Failed' },
+        { d: 'Emerging', s: '0-64', r: 'Failed' }
       ];
 
-      descRows.forEach(dr => {
-        styleBox(`A${currentR}:E${currentR}`, dr.d, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle' } });
-        styleBox(`F${currentR}:I${currentR}`, dr.s, { font: { name: fontName, size: 8 } });
-        styleBox(`J${currentR}:M${currentR}`, dr.r, { font: { name: fontName, size: 8, bold: true } });
-        currentR++;
+      descRows.forEach((dr, i) => {
+        const r = 60 + i;
+        styleBox(`A${r}:E${r}`, dr.d, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+        styleBox(`F${r}:I${r}`, dr.s, { font: { name: fontName, size: 8 }, border: null });
+        styleBox(`J${r}:M${r}`, dr.r, { font: { name: fontName, size: 8 }, border: null });
+        worksheet.getRow(r).height = 17;
       });
 
-      // Right Panel: Observed Values
-      styleBox(`O${startP2}:AA${startP2}`, "REPORT ON LEARNER'S OBSERVED VALUES", { font: { name: fontName, size: 10, bold: true }, fill: headerFill });
+      // ==========================================
+      // PAGE 2: RIGHT HALF (Observed Values)
+      // ==========================================
+      styleBadge('O41:AA41', "REPORT ON LEARNER'S OBSERVED VALUES");
+      worksheet.getRow(41).height = 22;
 
-      styleBox(`O${startP2+2}:Q${startP2+2}`, 'Core Values', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`R${startP2+2}:W${startP2+2}`, 'Behavior Statements', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
-      styleBox(`X${startP2+2}`, '1', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`Y${startP2+2}`, '2', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`Z${startP2+2}`, '3', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
-      styleBox(`AA${startP2+2}`, '4', { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+      styleBox('O43:Q44', 'Core Values', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('R43:W44', 'Behavior Statements', { font: subHeaderFont, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
+      styleBox('X43:AA43', 'Term', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('X44', '1', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('Y44', '2', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('Z44', '3', { font: subHeaderFont, fill: subHeaderFill });
+      styleBox('AA44', '4', { font: subHeaderFont, fill: subHeaderFill });
+      worksheet.getRow(43).height = 18;
+      worksheet.getRow(44).height = 18;
 
       const coreValuesData = [
         {
@@ -1450,33 +1551,32 @@ export async function generateSF9(
         {
           core: '4. Makabansa',
           statements: [
-            { key: 'makabansa1', text: "Demonstrates pride in being a Filipino; exercises the rights and responsibilities of a Filipino citizen" },
+            { key: 'makabansa1', text: "Demonstrates pride in being a Filipino: exercises the rights and responsibilities of a Filipino citizen" },
             { key: 'makabansa2', text: "Demonstrates appropriate behavior in carrying out activities in the school, community, and country" }
           ]
         }
       ];
 
-      let ovR = startP2 + 3;
+      let ovR = 45;
       coreValuesData.forEach(cv => {
         const startRowCV = ovR;
         cv.statements.forEach(stmtObj => {
-          styleBox(`R${ovR}:W${ovR}`, stmtObj.text, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle', wrapText: true } });
-          styleBox(`X${ovR}`, getObservedValueRating(student, stmtObj.key, 'q1'), { font: { name: fontName, size: 8, bold: true } });
-          styleBox(`Y${ovR}`, getObservedValueRating(student, stmtObj.key, 'q2'), { font: { name: fontName, size: 8, bold: true } });
-          styleBox(`Z${ovR}`, getObservedValueRating(student, stmtObj.key, 'q3'), { font: { name: fontName, size: 8, bold: true } });
-          styleBox(`AA${ovR}`, getObservedValueRating(student, stmtObj.key, 'q4'), { font: { name: fontName, size: 8, bold: true } });
+          styleBox(`R${ovR}:W${ovR}`, stmtObj.text, { font: { name: fontName, size: 7.8 }, align: { horizontal: 'left', vertical: 'middle', wrapText: true } });
+          styleBox(`X${ovR}`, getObservedValueRating(student, stmtObj.key, 'q1'), { font: { name: fontName, size: 8 } });
+          styleBox(`Y${ovR}`, getObservedValueRating(student, stmtObj.key, 'q2'), { font: { name: fontName, size: 8 } });
+          styleBox(`Z${ovR}`, getObservedValueRating(student, stmtObj.key, 'q3'), { font: { name: fontName, size: 8 } });
+          styleBox(`AA${ovR}`, getObservedValueRating(student, stmtObj.key, 'q4'), { font: { name: fontName, size: 8 } });
+          worksheet.getRow(ovR).height = 28;
           ovR++;
         });
         const endRowCV = ovR - 1;
-        styleBox(`O${startRowCV}:Q${endRowCV}`, cv.core, { font: { name: fontName, size: 8.5, bold: true }, fill: subHeaderFill });
+        styleBox(`O${startRowCV}:Q${endRowCV}`, cv.core, { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'center', vertical: 'middle' } });
       });
 
-      ovR++;
-      styleBox(`O${ovR}:AA${ovR}`, 'OBSERVED VALUES MARKING LEGEND', { font: { name: fontName, size: 9, bold: true }, fill: subHeaderFill });
-      ovR++;
-      styleBox(`O${ovR}:R${ovR}`, 'Marking', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill });
-      styleBox(`S${ovR}:AA${ovR}`, 'Non-numerical Rating', { font: { name: fontName, size: 8, bold: true }, fill: subHeaderFill, align: { horizontal: 'left', vertical: 'middle' } });
-      ovR++;
+      // Observed Values Marking Legend (Bottom Right)
+      styleBox('O54:R54', 'Marking', { font: { name: fontName, size: 8.5, bold: true }, border: null });
+      styleBox('S54:AA54', 'Non-numerical Rating', { font: { name: fontName, size: 8.5, bold: true }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+      worksheet.getRow(54).height = 18;
 
       const legendRows = [
         { m: 'AO', r: 'Always Observed' },
@@ -1485,11 +1585,14 @@ export async function generateSF9(
         { m: 'NO', r: 'Not Observed' }
       ];
 
-      legendRows.forEach(lr => {
-        styleBox(`O${ovR}:R${ovR}`, lr.m, { font: { name: fontName, size: 8, bold: true } });
-        styleBox(`S${ovR}:AA${ovR}`, lr.r, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle' } });
-        ovR++;
+      legendRows.forEach((lr, i) => {
+        const r = 55 + i;
+        styleBox(`O${r}:R${r}`, lr.m, { font: { name: fontName, size: 8 }, border: null });
+        styleBox(`S${r}:AA${r}`, lr.r, { font: { name: fontName, size: 8 }, align: { horizontal: 'left', vertical: 'middle' }, border: null });
+        worksheet.getRow(r).height = 17;
       });
+
+      removeStrikethrough(worksheet);
     });
 
     const buffer = await workbook.xlsx.writeBuffer();

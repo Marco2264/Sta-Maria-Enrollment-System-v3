@@ -1603,7 +1603,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
                                                     type="button"
                                                     onClick={() => handleAddSubSubjectRow(row.id)}
                                                     className="p-1.5 text-[#D8232A] hover:bg-red-50 rounded-lg transition-all inline-block mr-1"
-                                                    title="Add Sub-subject"
+                                                    title="Create Sub-subject"
                                                   >
                                                     <Plus className="w-3.5 h-3.5" />
                                                   </button>
@@ -1634,7 +1634,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
                                         {computedFormGrades.length === 0 && (
                                           <tr>
                                             <td colSpan={isThreeTerm ? 5 : 6} className="p-6 text-center text-slate-400 font-semibold italic">
-                                              No subjects added yet. Click "Add Subject Row" below to start encoding grades.
+                                              No subjects added yet. Click "Create Subject Row" below to start encoding grades.
                                             </td>
                                           </tr>
                                         )}
@@ -1649,7 +1649,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = false }: SF
                                       className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold text-[#D8232A] border-red-200 hover:bg-red-50/50"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
-                                      <span>Add Subject Row</span>
+                                      <span>Create Subject Row</span>
                                     </Button>
                                   </div>
 

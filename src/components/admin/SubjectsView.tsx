@@ -287,12 +287,12 @@ const paginatedSubjects = filteredSubjects.slice((currentPage - 1) * itemsPerPag
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="w-full sm:w-auto rounded-xl px-6 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold transition-all">
-              <Plus className="w-4 h-4 mr-2" /> Add Subject
+              <Plus className="w-4 h-4 mr-2" /> Create Subject
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Add New Subject</DialogTitle>
+              <DialogTitle>Create Subject</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAdd} className="space-y-4 pt-4">
               <div className="grid grid-cols-1 gap-4">

@@ -197,13 +197,13 @@ export function AdminAnnouncementsView() {
               <DialogTrigger asChild>
                 <Button onClick={handleOpenDialog} className="bg-primary text-white hover:bg-primary/90">
                   <Plus className="w-4 h-4 mr-2" />
-                  New Announcement
+                  Create Announcement
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingId ? 'Edit Announcement' : 'Create New Announcement'}
+                    {editingId ? 'Edit Announcement' : 'Create Announcement'}
                   </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSave} className="space-y-4 pt-4">

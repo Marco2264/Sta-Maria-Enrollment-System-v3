@@ -308,7 +308,7 @@ export function SetupWizard() {
                   )
                   }>
                   
-                    + Add Another Classroom
+                    + Create Another Classroom
                   </Button>
                 </div>
                 <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-auto">
@@ -379,7 +379,7 @@ export function SetupWizard() {
                   )
                   }>
                   
-                    + Add Another Section
+                    + Create Another Section
                   </Button>
                 </div>
                 <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-auto">
@@ -473,7 +473,7 @@ export function SetupWizard() {
                   )
                   }>
                   
-                    + Add Another Subject
+                    + Create Another Subject
                   </Button>
                 </div>
                 <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-6 mt-auto">

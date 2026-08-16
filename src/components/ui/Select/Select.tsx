@@ -128,16 +128,26 @@ type SelectContentProps = React.HTMLAttributes<HTMLDivElement>
 const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
   ({ className, children, ...props }, ref) => {
     const { open, triggerRef, contentRef } = React.useContext(SelectContext);
-    const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+    const [coords, setCoords] = React.useState<{ top: number; left: number; width: number; openUpwards: boolean; maxHeight: number } | null>(null);
 
     React.useLayoutEffect(() => {
       const updatePosition = () => {
         if (open && triggerRef.current) {
           const rect = triggerRef.current.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          const spaceBelow = viewportHeight - rect.bottom;
+          const spaceAbove = rect.top;
+          
+          // If less than 260px space below, and more space above, open upwards
+          const openUpwards = spaceBelow < 260 && spaceAbove > spaceBelow;
+          const maxHeight = Math.max(160, Math.min(280, (openUpwards ? spaceAbove : spaceBelow) - 16));
+
           setCoords({
-            top: rect.bottom + window.scrollY,
+            top: openUpwards ? (rect.top + window.scrollY - 4) : (rect.bottom + window.scrollY + 4),
             left: rect.left + window.scrollX,
             width: rect.width,
+            openUpwards,
+            maxHeight,
           });
         }
       };
@@ -170,12 +180,14 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
         data-slot="select-content"
         style={{
           position: "absolute",
-          top: `${coords.top + 4}px`,
+          top: `${coords.top}px`,
           left: `${coords.left}px`,
-          minWidth: `${coords.width}px`
+          minWidth: `${coords.width}px`,
+          maxHeight: `${coords.maxHeight}px`,
+          transform: coords.openUpwards ? 'translateY(-100%)' : 'none',
         }}
         className={cn(
-          "z-[102] overflow-y-auto custom-scrollbar rounded-lg bg-background border border-border text-popover-foreground shadow-md animate-in fade-in zoom-in-95 duration-100",
+          "z-[102] overflow-y-auto custom-scrollbar rounded-xl bg-white border border-slate-200 text-slate-800 shadow-xl animate-in fade-in zoom-in-95 duration-100",
           className
         )}
         {...props}>

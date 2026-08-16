@@ -379,11 +379,11 @@ export function UsersView() {
               <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogTrigger asChild>
                   <Button className="h-10 px-4 rounded-xl bg-[#D8232A] hover:bg-[#b91c22] text-white font-semibold text-xs transition-all shadow-xs shrink-0">
-                    <Plus className="h-4 w-4 mr-1.5" /> Add User
+                    <Plus className="h-4 w-4 mr-1.5" /> Create User
                   </Button>
                 </DialogTrigger>
 
-                {/* Add User Modal */}
+                {/* Create User Modal */}
                 <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto p-0 rounded-2xl border-none shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                   <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50/40">
                     <DialogTitle className="text-lg font-bold text-slate-900">Create System Account</DialogTitle>

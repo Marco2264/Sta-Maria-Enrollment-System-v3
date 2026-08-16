@@ -1226,7 +1226,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                   onClick={() => openComposer()} 
                   className="h-9 px-4.5 bg-gradient-to-r from-[#D8232A] to-red-600 hover:from-red-600 hover:to-[#D8232A] text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-[0_4px_14px_rgba(216,35,42,0.25)] active:scale-95 transition-all cursor-pointer border-none"
                 >
-                  <Plus className="w-4 h-4" /> New Announcement
+                  <Plus className="w-4 h-4" /> Create Announcement
                 </Button>
 
               </div>
@@ -1382,7 +1382,7 @@ export function ManageAnnouncementsView({ sections = [], students = [], teachers
                       ? 'No announcements match your search or selected category filter.' 
                       : viewStatus === 'archived' 
                       ? 'There are no archived announcements on record.' 
-                      : 'There are no active bulletins published yet. Click "New Announcement" to launch the studio.'}
+                      : 'There are no active bulletins published yet. Click "Create Announcement" to launch the studio.'}
                   </p>
                   {(searchQuery || categoryFilter !== 'all') && (
                     <Button

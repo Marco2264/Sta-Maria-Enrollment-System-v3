@@ -361,22 +361,29 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         let pendingStudents: Student[] = [];
         let enrolledStudents: Student[] = [];
 
-        const normalizedGradeLevel = gradeLevel ? gradeLevel.replace(/Grade /i, '').trim() : '';
-        const validGrades = [
-          normalizedGradeLevel,
-          `Grade ${normalizedGradeLevel}`,
-          `grade ${normalizedGradeLevel}`,
-          `GRADE ${normalizedGradeLevel}`
-        ];
+        const normalizeGrade = (g: any): string => {
+          if (!g) return '';
+          const str = g.toString().toLowerCase().trim();
+          if (str.includes('kinder')) return 'kinder';
+          const match = str.match(/\d+/);
+          return match ? match[0] : str;
+        };
+
+        const targetGradeNormalized = normalizeGrade(gradeLevel);
 
         const qPending = query(
           collection(db, 'enrollments'),
-          where('status', '==', 'Pending')
+          where('status', 'in', ['Pending', 'pending', 'PENDING', 'Under Review', 'Submitted', 'Pending Verification'])
         );
         unsubPending = onSnapshot(qPending, (sSnap) => {
           pendingStudents = sSnap.docs
             .map(d => ({ id: d.id, ...d.data() } as Student))
-            .filter((s) => s.gradeLevel && validGrades.includes(s.gradeLevel.toString().trim()));
+            .filter((s: any) => {
+              const studentGradeNorm = normalizeGrade(s.gradeLevel || s.grade || s.enrollingGrade);
+              const matchesGrade = !targetGradeNormalized || studentGradeNorm === targetGradeNormalized;
+              const matchesSection = s.sectionId === currentSection;
+              return matchesGrade || matchesSection;
+            });
           setStudents([...pendingStudents, ...enrolledStudents]);
         });
 

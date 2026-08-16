@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../lib/firebase';
 import { Card } from '../../components/ui/Card';
 import {
@@ -12,20 +11,71 @@ import {
   TableRow
 } from '../../components/ui/Table';
 import { Button } from '../../components/ui/Button';
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../../components/ui/command';
-import { cn } from '../../lib/utils';
-import { Users, Loader2, ChevronsUpDown, Check, CalendarCheck, CalendarX, X } from 'lucide-react';
-import { useAdminData } from '../../lib/adminData';
+import { Input } from '../../components/ui/Input';
+import { Badge } from '../../components/ui/Badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '../../components/ui/Select';
+import { 
+  Users, 
+  Loader2, 
+  CalendarCheck, 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  Search, 
+  ArrowLeft, 
+  ChevronRight, 
+  School, 
+  Filter, 
+  GraduationCap,
+  Calendar,
+  Layers,
+  FileSpreadsheet,
+  CalendarDays,
+  CalendarRange,
+  TrendingUp,
+  BarChart3
+} from 'lucide-react';
+import { useAdminData, Section } from '../../lib/adminData';
+import { getCurrentSchoolYear } from '../../lib/utils';
+import { cn } from '../../components/ui/utils';
+import { generateSF2 } from '../../lib/excelGenerator';
+import { ReportDataService } from '../../lib/services/reportDataService';
+import toast from 'react-hot-toast';
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const DEPED_SCHOOL_MONTHS = [
+  { index: 7, name: 'Aug', fullName: 'August' },
+  { index: 8, name: 'Sep', fullName: 'September' },
+  { index: 9, name: 'Oct', fullName: 'October' },
+  { index: 10, name: 'Nov', fullName: 'November' },
+  { index: 11, name: 'Dec', fullName: 'December' },
+  { index: 0, name: 'Jan', fullName: 'January' },
+  { index: 1, name: 'Feb', fullName: 'February' },
+  { index: 2, name: 'Mar', fullName: 'March' },
+  { index: 3, name: 'Apr', fullName: 'April' },
+  { index: 4, name: 'May', fullName: 'May' },
+  { index: 5, name: 'Jun', fullName: 'June' },
+  { index: 6, name: 'Jul', fullName: 'July' },
+];
 
 export function AttendanceView() {
-  const { sections } = useAdminData();
-  const [students, setStudents] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const { sections, classrooms, users, assignments, loading: adminLoading } = useAdminData();
   
-  const todayDate = new Date().toISOString().split('T')[0];
+  const todayObj = new Date();
+  const todayDate = todayObj.toISOString().split('T')[0];
+  const currentYearNum = todayObj.getFullYear();
+  const currentMonthNum = todayObj.getMonth(); // 0-indexed
+
   const getInitialDate = () => {
     const today = new Date();
     const day = today.getDay();
@@ -40,450 +90,1087 @@ export function AttendanceView() {
     }
     return today.toISOString().split('T')[0];
   };
-  const [selectedDate, setSelectedDate] = useState(getInitialDate());
-  const [selectedGrade, setSelectedGrade] = useState<string>('All');
-  const [selectedSection, setSelectedSection] = useState<string>('All');
-  const [openGrade, setOpenGrade] = useState(false);
-  const [openSection, setOpenSection] = useState(false);
-  const [isWeekendModalOpen, setIsWeekendModalOpen] = useState(false);
-  const [weekendSelectedDateStr, setWeekendSelectedDateStr] = useState('');
 
-  // Fetch students when section changes
+  // Main navigation & filters
+  const [selectedGrade, setSelectedGrade] = useState<string>('All');
+  const [sectionSearchQuery, setSectionSearchQuery] = useState('');
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+
+  // View modes for selected section: 'daily' | 'monthly' | 'yearly'
+  const [viewMode, setViewMode] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
+
+  // Time filters
+  const [selectedDate, setSelectedDate] = useState(getInitialDate());
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonthNum);
+  const [selectedYear, setSelectedYear] = useState<number>(currentYearNum);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(getCurrentSchoolYear());
+
+  // Detail view student data
+  const [students, setStudents] = useState<any[]>([]);
+  const [allSectionAttendance, setAllSectionAttendance] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+
+  // Map teachers
+  const teachers = useMemo(() => {
+    return users.filter(u => u.role?.toLowerCase() === 'teacher');
+  }, [users]);
+
+  // Filter sections to Grade 1-6 only
+  const grade1to6Sections = useMemo(() => {
+    return sections
+      .filter(s => {
+        const num = parseInt((s.gradeLevel || '').toString().replace(/[^0-9]/g, ''), 10);
+        return num >= 1 && num <= 6;
+      })
+      .sort((a, b) => {
+        const numA = parseInt((a.gradeLevel || '').toString().replace(/[^0-9]/g, ''), 10) || 0;
+        const numB = parseInt((b.gradeLevel || '').toString().replace(/[^0-9]/g, ''), 10) || 0;
+        if (numA !== numB) return numA - numB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [sections]);
+
+  // Clean Section Display Name
+  const getCleanSectionDisplay = (section: any): string => {
+    if (!section) return 'Unknown Section';
+    const gl = section.gradeLevel ? (section.gradeLevel.toString().startsWith('Grade') ? section.gradeLevel : `Grade ${section.gradeLevel}`) : 'Grade 1';
+    const rawName = (section.name || '').trim();
+    const cleanName = rawName
+      .replace(/^(Grade\s*\d+|G\d+)\s*[-–—:_.]*\s*/i, '')
+      .replace(/^Grade\s*\d+\s*/i, '')
+      .trim() || rawName;
+    return `${gl} - ${cleanName}`;
+  };
+
+  // Grade styling palette
+  const getGradeTheme = (grade: string) => {
+    const num = parseInt((grade || '').replace(/\D/g, '')) || 1;
+    switch (num) {
+      case 1:
+        return { bg: 'bg-blue-500', lightBg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', tag: 'bg-blue-100 text-blue-800' };
+      case 2:
+        return { bg: 'bg-indigo-500', lightBg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', tag: 'bg-indigo-100 text-indigo-800' };
+      case 3:
+        return { bg: 'bg-purple-500', lightBg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', tag: 'bg-purple-100 text-purple-800' };
+      case 4:
+        return { bg: 'bg-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', tag: 'bg-emerald-100 text-emerald-800' };
+      case 5:
+        return { bg: 'bg-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', tag: 'bg-amber-100 text-amber-800' };
+      case 6:
+        return { bg: 'bg-rose-500', lightBg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', tag: 'bg-rose-100 text-rose-800' };
+      default:
+        return { bg: 'bg-slate-500', lightBg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', tag: 'bg-slate-100 text-slate-800' };
+    }
+  };
+
+  // Filtered sections list
+  const filteredSections = useMemo(() => {
+    return grade1to6Sections.filter(s => {
+      const gl = s.gradeLevel ? (s.gradeLevel.toString().startsWith('Grade') ? s.gradeLevel : `Grade ${s.gradeLevel}`) : '';
+      const matchGrade = selectedGrade === 'All' || gl === selectedGrade;
+      const q = sectionSearchQuery.toLowerCase();
+      const matchSearch = (s.name || '').toLowerCase().includes(q) || gl.toLowerCase().includes(q);
+      return matchGrade && matchSearch;
+    });
+  }, [grade1to6Sections, selectedGrade, sectionSearchQuery]);
+
+  // Selected Section Object
+  const selectedSectionObj = useMemo(() => {
+    if (!selectedSectionId) return null;
+    return sections.find(s => s.id === selectedSectionId) || null;
+  }, [sections, selectedSectionId]);
+
+  // Fetch students for selected section
   useEffect(() => {
-    if (selectedSection === 'All') {
+    if (!selectedSectionId) {
       setStudents([]);
       return;
     }
     setLoadingStudents(true);
     const q = query(
       collection(db, 'enrollments'),
-      where('sectionId', '==', selectedSection),
-      where('status', 'in', ['Enrolled'])
+      where('sectionId', '==', selectedSectionId),
+      where('status', 'in', ['Enrolled', 'enrolled'])
     );
     const unsub = onSnapshot(q, (snap) => {
       setStudents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoadingStudents(false);
+    }, (err) => {
+      console.error("Error fetching students:", err);
+      setLoadingStudents(false);
     });
     return () => unsub();
-  }, [selectedSection]);
+  }, [selectedSectionId]);
 
-  // Fetch attendance when section or date changes
+  // Fetch ALL attendance records for selected section (allows fast instant daily/monthly/yearly filtering in memory)
   useEffect(() => {
-    if (selectedSection === 'All' || !selectedDate) {
-      setAttendance([]);
+    if (!selectedSectionId) {
+      setAllSectionAttendance([]);
       return;
     }
     setLoadingAttendance(true);
     const q = query(
       collection(db, 'attendance'),
-      where('sectionId', '==', selectedSection),
-      where('date', '==', selectedDate)
+      where('sectionId', '==', selectedSectionId)
     );
     const unsub = onSnapshot(q, (snap) => {
-      setAttendance(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setAllSectionAttendance(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoadingAttendance(false);
+    }, (err) => {
+      console.error("Error fetching section attendance:", err);
       setLoadingAttendance(false);
     });
     return () => unsub();
-  }, [selectedSection, selectedDate]);
+  }, [selectedSectionId]);
 
-  const sortedStudents = useMemo(() => {
-    return [...students].sort((a, b) => {
-      if (a.gender !== b.gender) {
-        if (a.gender === 'Male') return -1;
-        if (b.gender === 'Male') return 1;
-        if (a.gender === 'Female') return -1;
-        if (b.gender === 'Female') return 1;
-      }
-      const nameA = a.lastName?.toLowerCase() || '';
-      const nameB = b.lastName?.toLowerCase() || '';
-      return nameA.localeCompare(nameB);
-    });
-  }, [students]);
+  // 1. Daily Records
+  const dailyAttendanceRecords = useMemo(() => {
+    return allSectionAttendance.filter(a => a.date === selectedDate);
+  }, [allSectionAttendance, selectedDate]);
 
-  const getStudentAttendanceStatus = (studentId: string) => {
-    const record = attendance.find(a => a.studentId === studentId);
+  const getDailyStatus = (studentId: string): 'Present' | 'Absent' | 'Late' | 'Unmarked' => {
+    const record = dailyAttendanceRecords.find(a => a.studentId === studentId);
     if (record) return (record.status || (record as any).amStatus || 'Present') as 'Present' | 'Absent' | 'Late' | 'Unmarked';
-    
-    const targetDate = new Date(selectedDate);
-    const dayOfWeek = targetDate.getDay();
-    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-
-    if (!isWeekday) {
-      return '—';
-    }
-
     return 'Unmarked';
   };
 
-  const filteredSections = useMemo(() => {
-    if (selectedGrade === 'All') return sections;
-    return sections.filter(s => s.gradeLevel === selectedGrade);
-  }, [sections, selectedGrade]);
+  // 2. Monthly Records & Calculation
+  const monthlyPrefix = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+  const monthlyAttendanceRecords = useMemo(() => {
+    return allSectionAttendance.filter(a => (a.date || '').startsWith(monthlyPrefix));
+  }, [allSectionAttendance, monthlyPrefix]);
 
-  const uniqueGrades = useMemo(() => {
-    return Array.from(new Set(sections.map(s => s.gradeLevel))).sort();
-  }, [sections]);
+  const monthlySchoolDays = useMemo(() => {
+    const dates = new Set(monthlyAttendanceRecords.map(a => a.date).filter(Boolean));
+    return dates.size > 0 ? dates.size : 0;
+  }, [monthlyAttendanceRecords]);
 
-  const presentCount = sortedStudents.filter(s => getStudentAttendanceStatus(s.id) === 'Present').length;
-  const absentCount = sortedStudents.filter(s => getStudentAttendanceStatus(s.id) === 'Absent').length;
-  const lateCount = sortedStudents.filter(s => getStudentAttendanceStatus(s.id) === 'Late').length;
+  const getStudentMonthlyStats = (studentId: string) => {
+    const studentRecords = monthlyAttendanceRecords.filter(a => a.studentId === studentId);
+    let present = 0;
+    let absent = 0;
+    let late = 0;
 
-  const maleStudents = sortedStudents.filter(s => s.gender === 'Male');
-  const femaleStudents = sortedStudents.filter(s => s.gender === 'Female');
+    studentRecords.forEach(r => {
+      const st = r.status || (r as any).amStatus || 'Present';
+      if (st === 'Present') present++;
+      else if (st === 'Absent') absent++;
+      else if (st === 'Late') late++;
+    });
 
-  const renderBadge = (status: string) => {
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
-        ${status === 'Present' ? 'bg-emerald-100 text-emerald-800' :
-          status === 'Absent' ? 'bg-rose-100 text-rose-800' :
-            status === 'Late' ? 'bg-amber-100 text-amber-800' :
-              'bg-slate-100 text-slate-600'
-        }`}>
-        {status}
-      </span>
-    );
+    const totalLogged = present + absent + late;
+    const rate = totalLogged > 0 ? Math.round(((present + late) / totalLogged) * 100) : (monthlySchoolDays > 0 ? 0 : 100);
+    return { present, absent, late, totalLogged, rate };
   };
 
-  const renderStudentRow = (student: any) => {
-    const status = getStudentAttendanceStatus(student.id);
-    return (
-      <TableRow key={student.id}>
-        <TableCell className="font-bold text-slate-800 text-sm pl-6">
-          {student.lastName}, {student.firstName}
-        </TableCell>
-        <TableCell className="text-slate-500 font-mono text-sm font-medium">
-          {student.lrn}
-        </TableCell>
-        <TableCell className="text-right pr-6">{renderBadge(status)}</TableCell>
-      </TableRow>
-    );
+  // 3. Yearly Records & Calculation
+  const yearlyAttendanceRecords = useMemo(() => {
+    const [startYearStr, endYearStr] = selectedAcademicYear.split('-');
+    const startYr = parseInt(startYearStr, 10);
+    const endYr = parseInt(endYearStr, 10);
+    return allSectionAttendance.filter(a => {
+      if (!a.date) return false;
+      const yr = parseInt(a.date.split('-')[0], 10);
+      const mo = parseInt(a.date.split('-')[1], 10);
+      // Academic year starts Aug of startYr and ends Jul of endYr
+      if (yr === startYr && mo >= 8) return true;
+      if (yr === endYr && mo <= 7) return true;
+      return false;
+    });
+  }, [allSectionAttendance, selectedAcademicYear]);
+
+  const getStudentYearlyStats = (studentId: string) => {
+    const studentRecords = yearlyAttendanceRecords.filter(a => a.studentId === studentId);
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+
+    // Monthly bucket counts
+    const monthStats: Record<number, { present: number; absent: number; late: number }> = {};
+    DEPED_SCHOOL_MONTHS.forEach(m => {
+      monthStats[m.index] = { present: 0, absent: 0, late: 0 };
+    });
+
+    studentRecords.forEach(r => {
+      const st = r.status || (r as any).amStatus || 'Present';
+      const mo = r.date ? (parseInt(r.date.split('-')[1], 10) - 1) : -1;
+      
+      if (st === 'Present') present++;
+      else if (st === 'Absent') absent++;
+      else if (st === 'Late') late++;
+
+      if (monthStats[mo]) {
+        if (st === 'Present') monthStats[mo].present++;
+        else if (st === 'Absent') monthStats[mo].absent++;
+        else if (st === 'Late') monthStats[mo].late++;
+      }
+    });
+
+    const totalLogged = present + absent + late;
+    const rate = totalLogged > 0 ? Math.round(((present + late) / totalLogged) * 100) : 0;
+    return { present, absent, late, totalLogged, rate, monthStats };
   };
+
+  // Filtered Students list (for table display)
+  const filteredStudents = useMemo(() => {
+    return students
+      .filter(s => {
+        const q = studentSearchQuery.toLowerCase();
+        const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
+        const lrn = (s.lrn || '').toLowerCase();
+        return fullName.includes(q) || lrn.includes(q);
+      })
+      .sort((a, b) => {
+        const nameA = (a.lastName || '').toLowerCase();
+        const nameB = (b.lastName || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+  }, [students, studentSearchQuery]);
+
+  const maleStudents = useMemo(() => {
+    return filteredStudents.filter(s => (s.gender || '').toLowerCase().startsWith('m'));
+  }, [filteredStudents]);
+
+  const femaleStudents = useMemo(() => {
+    return filteredStudents.filter(s => (s.gender || '').toLowerCase().startsWith('f'));
+  }, [filteredStudents]);
+
+  // Overall Section KPIs based on active view mode
+  const sectionMetrics = useMemo(() => {
+    const total = students.length;
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+
+    if (viewMode === 'daily') {
+      students.forEach(s => {
+        const st = getDailyStatus(s.id);
+        if (st === 'Present') present++;
+        else if (st === 'Absent') absent++;
+        else if (st === 'Late') late++;
+      });
+      const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+      return { present, absent, late, rate, title: 'Today’s Attendance Rate' };
+    } else if (viewMode === 'monthly') {
+      let sumRates = 0;
+      let ratedStudents = 0;
+      students.forEach(s => {
+        const st = getStudentMonthlyStats(s.id);
+        present += st.present;
+        absent += st.absent;
+        late += st.late;
+        if (st.totalLogged > 0) {
+          sumRates += st.rate;
+          ratedStudents++;
+        }
+      });
+      const rate = ratedStudents > 0 ? Math.round(sumRates / ratedStudents) : 0;
+      return { present, absent, late, rate, title: `${MONTH_NAMES[selectedMonth]} Average Rate` };
+    } else {
+      let sumRates = 0;
+      let ratedStudents = 0;
+      students.forEach(s => {
+        const st = getStudentYearlyStats(s.id);
+        present += st.present;
+        absent += st.absent;
+        late += st.late;
+        if (st.totalLogged > 0) {
+          sumRates += st.rate;
+          ratedStudents++;
+        }
+      });
+      const rate = ratedStudents > 0 ? Math.round(sumRates / ratedStudents) : 0;
+      return { present, absent, late, rate, title: `S.Y. ${selectedAcademicYear} Average Rate` };
+    }
+  }, [viewMode, students, dailyAttendanceRecords, monthlyAttendanceRecords, yearlyAttendanceRecords, selectedMonth, selectedAcademicYear]);
+
+  const [isExportingSF2, setIsExportingSF2] = useState(false);
+
+  // =========================================================================
+  // EXPORT HANDLER (Official DepEd SF2 Excel - Monthly Only)
+  // =========================================================================
+  const handleExportSF2Excel = async () => {
+    if (!selectedSectionObj || isExportingSF2) return;
+    setIsExportingSF2(true);
+    const toastId = toast.loading("Generating DepEd School Form 2 (SF2) Excel...");
+    try {
+      const monthName = MONTH_NAMES[selectedMonth];
+      const data = await ReportDataService.getSF2Data(
+        selectedAcademicYear,
+        selectedSectionObj.id,
+        monthName
+      );
+      await generateSF2(data);
+      toast.success(`Exported School Form 2 (SF2) Excel for ${monthName}!`, { id: toastId });
+    } catch (error) {
+      console.error("Error generating SF2 Excel:", error);
+      toast.error("Failed to generate SF2 Excel. Please try again.", { id: toastId });
+    } finally {
+      setIsExportingSF2(false);
+    }
+  };
+
+  if (adminLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[500px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#D8232A]/20 border-t-[#D8232A]"></div>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading Attendance Records...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full bg-[#F4F7F9]">
-      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 z-10">
-        <div className="flex flex-row items-center justify-between gap-4 w-full">
+    <div className="flex flex-col h-full bg-[#f8fafc]">
+      
+      {/* 1. Top Header Bar */}
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs sticky top-0 z-30">
+        <div className="flex flex-row items-center justify-between gap-4 w-full max-w-[1600px] mx-auto">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#D8232A]/10 text-[#D8232A] border border-[#D8232A]/20 rounded-2xl shadow-sm">
-              <CalendarCheck className="w-5 h-5" />
-            </div>
-            <div className="flex flex-col justify-center">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-none mb-1">Admin Portal</span>
-              <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">Attendance Records</h1>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-400 uppercase">Date</label>
-              <input
-                type="date"
-                max={todayDate}
-                value={selectedDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (!val) return;
-                  const parts = val.split('-');
-                  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                  const selectedDay = d.getDay();
-                  if (selectedDay === 0 || selectedDay === 6) {
-                    const dayName = selectedDay === 0 ? 'Sunday' : 'Saturday';
-                    const formatted = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                    setWeekendSelectedDateStr(`${dayName}, ${formatted}`);
-                    setIsWeekendModalOpen(true);
-                    return;
-                  }
-                  if (val > todayDate) {
-                    setSelectedDate(todayDate);
-                  } else {
-                    setSelectedDate(val);
-                  }
+            {selectedSectionId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedSectionId(null);
+                  setStudentSearchQuery('');
                 }}
-                className="flex h-10 w-full rounded-xl border border-slate-200 bg-background px-3 py-2 text-sm focus:border-[#D8232A] focus:ring-2 focus:ring-[#D8232A]/15 outline-none"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-400 uppercase">Grade Level</label>
-              <Popover open={openGrade} onOpenChange={setOpenGrade}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openGrade}
-                    className="w-[200px] h-10 justify-between bg-background rounded-xl border-slate-200 text-sm font-semibold"
-                  >
-                    {selectedGrade === 'All' ? "All Grades" : selectedGrade}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0 rounded-xl shadow-lg border-slate-200">
-                  <Command>
-                    <CommandInput placeholder="Search grade..." />
-                    <CommandList>
-                      <CommandEmpty>No grade found.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          value="all"
-                          onSelect={() => {
-                            setSelectedGrade('All');
-                            setSelectedSection('All');
-                            setOpenGrade(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedGrade === 'All' ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          All Grades
-                        </CommandItem>
-                        {uniqueGrades.map(grade => (
-                          <CommandItem
-                            key={grade}
-                            value={grade}
-                            onSelect={(val) => {
-                              const matched = uniqueGrades.find(g => g.toLowerCase() === val) || grade;
-                              setSelectedGrade(matched);
-                              setSelectedSection('All');
-                              setOpenGrade(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedGrade === grade ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {grade}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+                className="h-9 px-3 rounded-xl border-slate-200 text-slate-700 hover:text-[#D8232A] hover:bg-red-50 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Sections</span>
+              </Button>
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-[#D8232A] shadow-2xs">
+                <CalendarCheck className="w-5 h-5" />
+              </div>
+            )}
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-400 uppercase">Section</label>
-              <Popover open={openSection} onOpenChange={setOpenSection}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openSection}
-                    disabled={selectedGrade === 'All'}
-                    className="w-[250px] h-10 justify-between bg-background rounded-xl border-slate-200 text-sm font-semibold"
-                  >
-                    {selectedSection === 'All' 
-                      ? "Select Section..." 
-                      : filteredSections.find(s => s.id === selectedSection)?.name || "Select Section..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0 rounded-xl shadow-lg border-slate-200">
-                  <Command>
-                    <CommandInput placeholder="Search section..." />
-                    <CommandList>
-                      <CommandEmpty>No section found.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          value="all"
-                          onSelect={() => {
-                            setSelectedSection('All');
-                            setOpenSection(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedSection === 'All' ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          Select Section...
-                        </CommandItem>
-                        {filteredSections.map(section => (
-                          <CommandItem
-                            key={section.id}
-                            value={section.name}
-                            onSelect={(val) => {
-                              const matched = filteredSections.find(s => s.name.toLowerCase() === val) || section;
-                              setSelectedSection(matched.id);
-                              setOpenSection(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedSection === section.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {section.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-black tracking-tight text-slate-900">
+                  {selectedSectionObj ? getCleanSectionDisplay(selectedSectionObj) : "Attendance Management"}
+                </h1>
+                <Badge variant="outline" className="text-[10px] font-extrabold bg-slate-50 border-slate-200 text-slate-600 px-2 py-0.5">
+                  S.Y. {getCurrentSchoolYear()}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 font-medium hidden sm:block">
+                {selectedSectionObj 
+                  ? `Daily, Monthly, and Yearly Attendance analytics & export for ${getCleanSectionDisplay(selectedSectionObj)}`
+                  : "Select a classroom section below to inspect daily, monthly, and yearly attendance summaries"}
+              </p>
             </div>
           </div>
+
+          {/* Header Controls for Selected Section (Monthly SF2 Excel Export Only) */}
+          {selectedSectionId && viewMode === 'monthly' && (
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Button
+                onClick={handleExportSF2Excel}
+                disabled={students.length === 0 || isExportingSF2}
+                className="rounded-xl h-9.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
+                title="Export Official DepEd School Form 2 (SF2) Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>{isExportingSF2 ? "Generating SF2 Excel..." : "Export SF2 (Excel)"}</span>
+              </Button>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-6 sm:p-8">
-        <div className="w-full space-y-6">
-          {selectedSection === 'All' ? (
-            <div className="text-center py-16 text-slate-400 font-medium">
-              <Users className="w-12 h-12 mx-auto mb-4 opacity-25" />
-              <p>Select a grade level and section to view attendance.</p>
-            </div>
-          ) : loadingStudents || loadingAttendance ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200/50 p-5 rounded-2xl shadow-sm relative overflow-hidden">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-emerald-800 uppercase tracking-wider">Present</p>
-                      <h3 className="text-2xl font-extrabold text-emerald-600">{presentCount} <span className="text-sm font-medium text-emerald-700/60">students</span></h3>
-                    </div>
-                  </div>
-                </Card>
-                <Card className="bg-gradient-to-br from-rose-50 to-rose-100/50 border-rose-200/50 p-5 rounded-2xl shadow-sm relative overflow-hidden">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-rose-800 uppercase tracking-wider">Absent</p>
-                      <h3 className="text-2xl font-extrabold text-rose-600">{absentCount} <span className="text-sm font-medium text-rose-700/60">students</span></h3>
-                    </div>
-                  </div>
-                </Card>
-                <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-200/50 p-5 rounded-2xl shadow-sm relative overflow-hidden">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-amber-800 uppercase tracking-wider">Late</p>
-                      <h3 className="text-2xl font-extrabold text-amber-600">{lateCount} <span className="text-sm font-medium text-amber-700/60">students</span></h3>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              <Card className="overflow-hidden shadow-md border-slate-200/60 rounded-2xl bg-white">
-                <Table>
-                  <TableHeader className="bg-slate-50/70 border-b border-slate-100">
-                    <TableRow>
-                      <TableHead className="font-bold text-slate-700 pl-6 py-4">Student Name</TableHead>
-                      <TableHead className="font-bold text-slate-700 py-4">LRN</TableHead>
-                      <TableHead className="font-bold text-slate-700 w-48 text-right pr-6 py-4">Attendance Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedStudents.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          No enrolled students found for this section.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <>
-                        {maleStudents.length > 0 && (
-                          <TableRow className="bg-slate-100 hover:bg-slate-100">
-                            <TableCell colSpan={3} className="font-bold text-slate-700 tracking-widest text-xs py-2 pl-6">
-                              MALE
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {maleStudents.map(student => renderStudentRow(student))}
-
-                        {femaleStudents.length > 0 && (
-                          <TableRow className="bg-slate-100 hover:bg-slate-100">
-                            <TableCell colSpan={3} className="font-bold text-slate-700 tracking-widest text-xs py-2 pl-6">
-                              FEMALE
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {femaleStudents.map(student => renderStudentRow(student))}
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </>
-          )}
-        </div>
-      </main>
-
-      {/* ── BEAUTIFUL & MINIMALIST WEEKEND / SCHOOL DAYS POPUP MODAL ── */}
-      <AnimatePresence>
-        {isWeekendModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Smooth Blur Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsWeekendModalOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity cursor-pointer"
-            />
-
-            {/* Unique Minimalist Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 14 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 14 }}
-              transition={{ type: "spring", damping: 26, stiffness: 360 }}
-              className="relative w-full max-w-[370px] bg-white rounded-[28px] p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.16)] border border-slate-100 overflow-hidden text-center z-10"
-            >
-              {/* Subtle Warm Amber/Red Ambient Glow */}
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-36 h-36 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
-
-              {/* Close Button */}
-              <button
-                onClick={() => setIsWeekendModalOpen(false)}
-                className="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100/80 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Calendar Weekend Icon */}
-              <div className="relative mx-auto w-14 h-14 rounded-2xl bg-gradient-to-b from-red-50 to-rose-100/60 border border-red-200/60 flex items-center justify-center shadow-inner mb-4 text-[#D8232A]">
-                <CalendarX className="w-6 h-6" />
-                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-amber-950">!</span>
-              </div>
-
-              {/* Text Information */}
-              <div className="space-y-1.5 mb-5">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200/60 text-[#D8232A] text-[10px] font-black tracking-wider uppercase mb-1">
-                  School Days Only
+      {/* 2. Main Body Container */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+        
+        {/* ========================================================================= */}
+        {/* VIEW 1: SECTIONS LIST OVERVIEW (Shown when NO section is selected)        */}
+        {/* ========================================================================= */}
+        {!selectedSectionId && (
+          <div className="space-y-6">
+            
+            {/* KPI Metric Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-4 group">
+                <div className="p-3.5 rounded-xl border text-[#D8232A] bg-red-50/80 border-red-100 shrink-0 transition-transform duration-200 group-hover:scale-105">
+                  <Layers className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-black text-slate-900 tracking-tight">
-                  Weekend Selected
-                </h3>
-                {weekendSelectedDateStr && (
-                  <p className="text-[11px] font-bold text-slate-400">
-                    {weekendSelectedDateStr}
+                <div className="min-w-0">
+                  <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">{grade1to6Sections.length}</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-0.5">Active Sections (Grades 1-6)</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-4 group">
+                <div className="p-3.5 rounded-xl border text-blue-600 bg-blue-50/80 border-blue-100 shrink-0 transition-transform duration-200 group-hover:scale-105">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">6</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-0.5">Grade Levels (1 to 6)</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-4 group">
+                <div className="p-3.5 rounded-xl border text-emerald-600 bg-emerald-50/80 border-emerald-100 shrink-0 transition-transform duration-200 group-hover:scale-105">
+                  <CalendarRange className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-extrabold text-slate-900 tracking-tight leading-tight">
+                    Monthly &amp; Yearly Reports
                   </p>
-                )}
-                <p className="text-xs text-slate-500 leading-relaxed font-medium pt-1 px-1">
-                  Attendance can only be recorded from <strong className="text-slate-800 font-bold">Monday to Friday</strong>. Weekends are non-instructional school days.
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-0.5">Full DepEd SF2 Compatible</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Bar (Matching UsersView & ClassroomsView) */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-slate-50/50 border-b border-slate-200/70">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+                  
+                  {/* Search input */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search section name or grade..."
+                      className="pl-9 h-10 rounded-xl bg-white border-slate-200/80 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all"
+                      value={sectionSearchQuery}
+                      onChange={(e) => setSectionSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Grade Level Dropdown Filter */}
+                  <div className="flex items-center gap-2">
+                    <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+                      <SelectTrigger className="w-full sm:w-[170px] h-10 rounded-xl border-slate-200/80 bg-white text-xs font-semibold text-slate-700">
+                        <Filter className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                        <SelectValue placeholder="Grade Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All Grade Levels</SelectItem>
+                        {['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map(g => (
+                          <SelectItem key={g} value={g}>{g}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/50">
+                  <span className="text-xs font-medium text-slate-500 whitespace-nowrap">
+                    {filteredSections.length} section(s) available
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sections Cards Grid */}
+            {filteredSections.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center shadow-2xs space-y-3">
+                <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <School className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-slate-800">No sections found</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {sectionSearchQuery 
+                    ? `No sections matching "${sectionSearchQuery}" under ${selectedGrade}.` 
+                    : `No active sections found under ${selectedGrade}.`}
                 </p>
               </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredSections.map(section => {
+                  const classroom = classrooms.find(c => c.id === section.classroomId);
+                  const assignment = assignments.find(a => a.sectionId === section.id);
+                  const teacher = assignment ? teachers.find(t => t.id === assignment.teacherId) : null;
+                  const theme = getGradeTheme(section.gradeLevel);
 
-              {/* Action Button */}
-              <button
-                onClick={() => setIsWeekendModalOpen(false)}
-                className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-sm transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>Got it</span>
-              </button>
-            </motion.div>
+                  return (
+                    <div
+                      key={section.id}
+                      onClick={() => setSelectedSectionId(section.id)}
+                      className="group bg-white border border-slate-200/90 hover:border-[#D8232A]/40 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer hover:-translate-y-0.5"
+                    >
+                      <div>
+                        {/* Card Top */}
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-11 h-11 rounded-xl ${theme.lightBg} ${theme.text} flex items-center justify-center font-black text-sm shrink-0 border ${theme.border}`}>
+                              <School className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h3 className="font-black text-base text-slate-900 group-hover:text-[#D8232A] transition-colors leading-tight">
+                                {getCleanSectionDisplay(section)}
+                              </h3>
+                              <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                                Room: {classroom?.roomName || 'General Classroom'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Badge variant="outline" className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${theme.tag}`}>
+                            {section.gradeLevel || 'Grade 1'}
+                          </Badge>
+                        </div>
+
+                        {/* Adviser Box */}
+                        <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100 space-y-1.5 my-3">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Class Adviser</span>
+                            {teacher ? (
+                              <span className="font-bold text-slate-800 truncate max-w-[160px]">
+                                {teacher.firstName} {teacher.lastName}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">No Adviser Assigned</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer Action */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#D8232A]">
+                        <span>Inspect Attendance &amp; Reports</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
-      </AnimatePresence>
+
+        {/* ========================================================================= */}
+        {/* VIEW 2: SELECTED SECTION ATTENDANCE (DAILY, MONTHLY, YEARLY)             */}
+        {/* ========================================================================= */}
+        {selectedSectionId && selectedSectionObj && (
+          <div className="space-y-6">
+            
+            {/* View Mode Switcher Ribbon (Monthly, Yearly, Daily) */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+              
+              {/* Tab selector buttons */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl">
+                <button
+                  onClick={() => setViewMode('monthly')}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2",
+                    viewMode === 'monthly'
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  <CalendarDays className="w-3.5 h-3.5 text-[#D8232A]" />
+                  <span>Monthly Attendance</span>
+                </button>
+
+                <button
+                  onClick={() => setViewMode('yearly')}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2",
+                    viewMode === 'yearly'
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  <CalendarRange className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Yearly School Summary</span>
+                </button>
+
+                <button
+                  onClick={() => setViewMode('daily')}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2",
+                    viewMode === 'daily'
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  <CalendarCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Daily Roster</span>
+                </button>
+              </div>
+
+              {/* Dynamic Time Filter Selector based on active viewMode */}
+              <div className="flex items-center gap-2.5">
+                
+                {/* 1. Monthly Selector */}
+                {viewMode === 'monthly' && (
+                  <div className="flex items-center gap-2">
+                    <Select value={MONTH_NAMES[selectedMonth]} onValueChange={(v) => setSelectedMonth(MONTH_NAMES.indexOf(v))}>
+                      <SelectTrigger className="w-[145px] h-9.5 rounded-xl border-slate-200 bg-slate-50 text-xs font-bold text-slate-800">
+                        <SelectValue placeholder="Month">{MONTH_NAMES[selectedMonth]}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTH_NAMES.map((m) => (
+                          <SelectItem key={m} value={m} className="text-xs font-bold">{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v, 10))}>
+                      <SelectTrigger className="w-[100px] h-9.5 rounded-xl border-slate-200 bg-slate-50 text-xs font-bold text-slate-800">
+                        <SelectValue placeholder="Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[currentYearNum - 1, currentYearNum, currentYearNum + 1].map(yr => (
+                          <SelectItem key={yr} value={yr.toString()} className="text-xs font-bold">
+                            {yr}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* 2. Yearly Selector */}
+                {viewMode === 'yearly' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500">School Year:</span>
+                    <Select value={selectedAcademicYear} onValueChange={setSelectedAcademicYear}>
+                      <SelectTrigger className="w-[150px] h-9.5 rounded-xl border-slate-200 bg-slate-50 text-xs font-bold text-slate-800">
+                        <SelectValue placeholder="Academic Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['2024-2025', '2025-2026', '2026-2027', '2027-2028'].map(sy => (
+                          <SelectItem key={sy} value={sy} className="text-xs font-bold">
+                            AY {sy}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* 3. Daily Date Input */}
+                {viewMode === 'daily' && (
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <input
+                      type="date"
+                      max={todayDate}
+                      value={selectedDate}
+                      onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                    />
+                  </div>
+                )}
+
+              </div>
+
+            </div>
+
+            {/* KPI Metric Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Enrolled Students</p>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900">{students.length}</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Total Present</p>
+                  <p className="text-xl sm:text-2xl font-black text-emerald-700">{sectionMetrics.present}</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0">
+                  <XCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Total Absent</p>
+                  <p className="text-xl sm:text-2xl font-black text-rose-700">{sectionMetrics.absent}</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Attendance Rate</p>
+                  <p className="text-xl sm:text-2xl font-black text-indigo-700">{sectionMetrics.rate}%</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance Content Table */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+              
+              {/* Table Search & Status */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-slate-50/50 border-b border-slate-200/70">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search student by name or LRN..."
+                    className="pl-9 h-10 rounded-xl bg-white border-slate-200/80 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all"
+                    value={studentSearchQuery}
+                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <span>Showing:</span>
+                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 font-extrabold px-2.5 py-0.5">
+                    {viewMode === 'monthly' ? `${MONTH_NAMES[selectedMonth]} ${selectedYear}` : viewMode === 'yearly' ? `S.Y. ${selectedAcademicYear}` : selectedDate}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Table Body */}
+              {loadingStudents || loadingAttendance ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 text-[#D8232A] animate-spin" />
+                </div>
+              ) : students.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 font-medium">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p>No enrolled students in this section.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  
+                  {/* ========================================================= */}
+                  {/* TAB 1: MONTHLY VIEW TABLE                                 */}
+                  {/* ========================================================= */}
+                  {viewMode === 'monthly' && (
+                    <>
+                      {/* Male Learners */}
+                      <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          Male Learners ({maleStudents.length})
+                        </h4>
+                        <span className="text-[11px] font-bold text-slate-400">{MONTH_NAMES[selectedMonth]} {selectedYear}</span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-slate-50/90 border-b border-slate-200/70 select-none">
+                            <TableRow className="hover:bg-transparent border-none h-10">
+                              <TableHead className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pl-4">#</TableHead>
+                              <TableHead className="w-36 text-[10px] font-bold uppercase tracking-wider text-slate-500">LRN</TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Learner Name</TableHead>
+                              <TableHead className="w-28 text-center text-[10px] font-bold uppercase tracking-wider text-emerald-700">Days Present</TableHead>
+                              <TableHead className="w-28 text-center text-[10px] font-bold uppercase tracking-wider text-rose-700">Days Absent</TableHead>
+                              <TableHead className="w-28 text-center text-[10px] font-bold uppercase tracking-wider text-amber-700">Days Late</TableHead>
+                              <TableHead className="w-32 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Days</TableHead>
+                              <TableHead className="w-36 text-right pr-6 text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly Rate</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {maleStudents.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={8} className="text-center py-6 text-xs text-slate-400 italic">No male learners found.</TableCell>
+                              </TableRow>
+                            ) : (
+                              maleStudents.map((student, idx) => {
+                                const st = getStudentMonthlyStats(student.id);
+                                return (
+                                  <TableRow key={student.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors h-12">
+                                    <TableCell className="text-center font-bold text-slate-400 text-xs pl-4">{idx + 1}</TableCell>
+                                    <TableCell className="font-mono font-bold text-slate-600 text-xs">{student.lrn || 'N/A'}</TableCell>
+                                    <TableCell className="font-bold text-slate-900 text-xs sm:text-sm">{student.lastName}, {student.firstName}</TableCell>
+                                    <TableCell className="text-center font-black text-emerald-700 text-xs">{st.present}</TableCell>
+                                    <TableCell className="text-center font-black text-rose-700 text-xs">{st.absent}</TableCell>
+                                    <TableCell className="text-center font-black text-amber-700 text-xs">{st.late}</TableCell>
+                                    <TableCell className="text-center font-bold text-slate-600 text-xs">{st.totalLogged}</TableCell>
+                                    <TableCell className="text-right pr-6">
+                                      <Badge variant="outline" className={cn(
+                                        "font-extrabold text-[11px] px-2.5 py-0.5",
+                                        st.rate >= 90 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                        st.rate >= 75 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                        "bg-rose-50 text-rose-700 border-rose-200"
+                                      )}>
+                                        {st.rate}%
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Female Learners */}
+                      <div className="p-4 bg-slate-50/50 border-b border-slate-100 border-t border-slate-200 flex items-center justify-between">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                          Female Learners ({femaleStudents.length})
+                        </h4>
+                        <span className="text-[11px] font-bold text-slate-400">{MONTH_NAMES[selectedMonth]} {selectedYear}</span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-slate-50/90 border-b border-slate-200/70 select-none">
+                            <TableRow className="hover:bg-transparent border-none h-10">
+                              <TableHead className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pl-4">#</TableHead>
+                              <TableHead className="w-36 text-[10px] font-bold uppercase tracking-wider text-slate-500">LRN</TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Learner Name</TableHead>
+                              <TableHead className="w-28 text-center text-[10px] font-bold uppercase tracking-wider text-emerald-700">Days Present</TableHead>
+                              <TableHead className="w-28 text-center text-[10px] font-bold uppercase tracking-wider text-rose-700">Days Absent</TableHead>
+                              <TableHead className="w-28 text-center text-[10px] font-bold uppercase tracking-wider text-amber-700">Days Late</TableHead>
+                              <TableHead className="w-32 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Days</TableHead>
+                              <TableHead className="w-36 text-right pr-6 text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly Rate</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {femaleStudents.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={8} className="text-center py-6 text-xs text-slate-400 italic">No female learners found.</TableCell>
+                              </TableRow>
+                            ) : (
+                              femaleStudents.map((student, idx) => {
+                                const st = getStudentMonthlyStats(student.id);
+                                return (
+                                  <TableRow key={student.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors h-12">
+                                    <TableCell className="text-center font-bold text-slate-400 text-xs pl-4">{idx + 1}</TableCell>
+                                    <TableCell className="font-mono font-bold text-slate-600 text-xs">{student.lrn || 'N/A'}</TableCell>
+                                    <TableCell className="font-bold text-slate-900 text-xs sm:text-sm">{student.lastName}, {student.firstName}</TableCell>
+                                    <TableCell className="text-center font-black text-emerald-700 text-xs">{st.present}</TableCell>
+                                    <TableCell className="text-center font-black text-rose-700 text-xs">{st.absent}</TableCell>
+                                    <TableCell className="text-center font-black text-amber-700 text-xs">{st.late}</TableCell>
+                                    <TableCell className="text-center font-bold text-slate-600 text-xs">{st.totalLogged}</TableCell>
+                                    <TableCell className="text-right pr-6">
+                                      <Badge variant="outline" className={cn(
+                                        "font-extrabold text-[11px] px-2.5 py-0.5",
+                                        st.rate >= 90 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                        st.rate >= 75 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                        "bg-rose-50 text-rose-700 border-rose-200"
+                                      )}>
+                                        {st.rate}%
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ========================================================= */}
+                  {/* TAB 2: YEARLY VIEW TABLE (DepEd Month-by-Month SF2 Grid) */}
+                  {/* ========================================================= */}
+                  {viewMode === 'yearly' && (
+                    <>
+                      <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                          Annual Attendance Summary (S.Y. {selectedAcademicYear})
+                        </h4>
+                        <span className="text-[11px] font-bold text-slate-500">Learners: {students.length}</span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <Table className="min-w-[900px]">
+                          <TableHeader className="bg-slate-50/90 border-b border-slate-200/70 select-none">
+                            <TableRow className="hover:bg-transparent border-none h-10">
+                              <TableHead className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pl-4">#</TableHead>
+                              <TableHead className="w-36 text-[10px] font-bold uppercase tracking-wider text-slate-500">LRN</TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-500 min-w-[160px]">Learner Name</TableHead>
+                              <TableHead className="w-16 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Gender</TableHead>
+                              {DEPED_SCHOOL_MONTHS.map(m => (
+                                <TableHead key={m.name} className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                                  {m.name}
+                                </TableHead>
+                              ))}
+                              <TableHead className="w-20 text-center text-[10px] font-bold uppercase tracking-wider text-emerald-700">Total Present</TableHead>
+                              <TableHead className="w-20 text-center text-[10px] font-bold uppercase tracking-wider text-rose-700">Total Absent</TableHead>
+                              <TableHead className="w-24 text-right pr-6 text-[10px] font-bold uppercase tracking-wider text-slate-500">Annual Rate</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredStudents.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={17} className="text-center py-8 text-xs text-slate-400 italic">No learners found.</TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredStudents.map((student, idx) => {
+                                const st = getStudentYearlyStats(student.id);
+                                return (
+                                  <TableRow key={student.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors h-12">
+                                    <TableCell className="text-center font-bold text-slate-400 text-xs pl-4">{idx + 1}</TableCell>
+                                    <TableCell className="font-mono font-bold text-slate-600 text-xs">{student.lrn || 'N/A'}</TableCell>
+                                    <TableCell className="font-bold text-slate-900 text-xs sm:text-sm">{student.lastName}, {student.firstName}</TableCell>
+                                    <TableCell className="text-center text-xs font-semibold text-slate-500">
+                                      {(student.gender || '').toLowerCase().startsWith('m') ? 'M' : 'F'}
+                                    </TableCell>
+                                    {DEPED_SCHOOL_MONTHS.map(m => {
+                                      const moPresent = st.monthStats[m.index]?.present || 0;
+                                      return (
+                                        <TableCell key={m.name} className="text-center text-xs font-bold text-slate-600 px-1">
+                                          {moPresent > 0 ? (
+                                            <span className="text-emerald-700 font-extrabold">{moPresent}</span>
+                                          ) : (
+                                            <span className="text-slate-300">-</span>
+                                          )}
+                                        </TableCell>
+                                      );
+                                    })}
+                                    <TableCell className="text-center font-black text-emerald-700 text-xs">{st.present}</TableCell>
+                                    <TableCell className="text-center font-black text-rose-700 text-xs">{st.absent}</TableCell>
+                                    <TableCell className="text-right pr-6">
+                                      <Badge variant="outline" className={cn(
+                                        "font-extrabold text-[11px] px-2 py-0.5",
+                                        st.rate >= 90 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                        st.rate >= 75 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                        "bg-rose-50 text-rose-700 border-rose-200"
+                                      )}>
+                                        {st.rate}%
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ========================================================= */}
+                  {/* TAB 3: DAILY VIEW TABLE                                   */}
+                  {/* ========================================================= */}
+                  {viewMode === 'daily' && (
+                    <>
+                      {/* Male Learners */}
+                      <div className="p-4 bg-slate-50/40 border-b border-slate-100 flex items-center justify-between">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          Male Learners ({maleStudents.length})
+                        </h4>
+                        <span className="text-[11px] font-bold text-slate-400">{selectedDate}</span>
+                      </div>
+
+                      <Table>
+                        <TableHeader className="bg-slate-50/90 border-b border-slate-200/70 select-none">
+                          <TableRow className="hover:bg-transparent border-none h-10">
+                            <TableHead className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pl-4">#</TableHead>
+                            <TableHead className="w-40 text-[10px] font-bold uppercase tracking-wider text-slate-500">LRN</TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Learner Name</TableHead>
+                            <TableHead className="w-28 text-[10px] font-bold uppercase tracking-wider text-slate-500 text-center">Gender</TableHead>
+                            <TableHead className="w-36 text-right pr-6 text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {maleStudents.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-6 text-xs text-slate-400 italic">No male learners found.</TableCell>
+                            </TableRow>
+                          ) : (
+                            maleStudents.map((student, idx) => {
+                              const status = getDailyStatus(student.id);
+                              return (
+                                <TableRow key={student.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors h-12">
+                                  <TableCell className="text-center font-bold text-slate-400 text-xs pl-4">{idx + 1}</TableCell>
+                                  <TableCell className="font-mono font-bold text-slate-600 text-xs">{student.lrn || 'N/A'}</TableCell>
+                                  <TableCell className="font-bold text-slate-900 text-xs sm:text-sm">{student.lastName}, {student.firstName}</TableCell>
+                                  <TableCell className="text-center text-xs font-semibold text-slate-500">Male</TableCell>
+                                  <TableCell className="text-right pr-6">
+                                    <span className={cn(
+                                      "px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1",
+                                      status === 'Present' ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                                      status === 'Absent' ? "bg-rose-50 text-rose-700 border border-rose-200" :
+                                      status === 'Late' ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                                      "bg-slate-100 text-slate-600 border border-slate-200"
+                                    )}>
+                                      {status === 'Present' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                                      {status === 'Absent' && <XCircle className="w-3 h-3 text-rose-600" />}
+                                      {status === 'Late' && <Clock className="w-3 h-3 text-amber-600" />}
+                                      {status}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+
+                      {/* Female Learners */}
+                      <div className="p-4 bg-slate-50/40 border-b border-slate-100 border-t border-slate-200 flex items-center justify-between">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                          Female Learners ({femaleStudents.length})
+                        </h4>
+                        <span className="text-[11px] font-bold text-slate-400">{selectedDate}</span>
+                      </div>
+
+                      <Table>
+                        <TableHeader className="bg-slate-50/90 border-b border-slate-200/70 select-none">
+                          <TableRow className="hover:bg-transparent border-none h-10">
+                            <TableHead className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pl-4">#</TableHead>
+                            <TableHead className="w-40 text-[10px] font-bold uppercase tracking-wider text-slate-500">LRN</TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Learner Name</TableHead>
+                            <TableHead className="w-28 text-[10px] font-bold uppercase tracking-wider text-slate-500 text-center">Gender</TableHead>
+                            <TableHead className="w-36 text-right pr-6 text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {femaleStudents.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-6 text-xs text-slate-400 italic">No female learners found.</TableCell>
+                            </TableRow>
+                          ) : (
+                            femaleStudents.map((student, idx) => {
+                              const status = getDailyStatus(student.id);
+                              return (
+                                <TableRow key={student.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors h-12">
+                                  <TableCell className="text-center font-bold text-slate-400 text-xs pl-4">{idx + 1}</TableCell>
+                                  <TableCell className="font-mono font-bold text-slate-600 text-xs">{student.lrn || 'N/A'}</TableCell>
+                                  <TableCell className="font-bold text-slate-900 text-xs sm:text-sm">{student.lastName}, {student.firstName}</TableCell>
+                                  <TableCell className="text-center text-xs font-semibold text-slate-500">Female</TableCell>
+                                  <TableCell className="text-right pr-6">
+                                    <span className={cn(
+                                      "px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1",
+                                      status === 'Present' ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                                      status === 'Absent' ? "bg-rose-50 text-rose-700 border border-rose-200" :
+                                      status === 'Late' ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                                      "bg-slate-100 text-slate-600 border border-slate-200"
+                                    )}>
+                                      {status === 'Present' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                                      {status === 'Absent' && <XCircle className="w-3 h-3 text-rose-600" />}
+                                      {status === 'Late' && <Clock className="w-3 h-3 text-amber-600" />}
+                                      {status}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    </>
+                  )}
+
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

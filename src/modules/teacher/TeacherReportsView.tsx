@@ -63,7 +63,8 @@ export function TeacherReportsView() {
       } else if (id === 'sf8') {
         await generateSF8(sectionStudents, sectionDisplayName, academicYear, (userData?.displayName || userData?.fullName || '') as string, currentGradeLevel || '');
       } else if (id === 'sf9') {
-        await generateSF9(sectionStudents, sectionDisplayName, academicYear, attendance, subjects);
+        const teacherName = userData ? (`${userData.firstName || ''} ${userData.lastName || ''}`.trim() || (typeof userData.displayName === 'string' ? userData.displayName : '')) : '';
+        await generateSF9(sectionStudents, sectionDisplayName, academicYear, attendance, subjects, [], teacherName);
       }
       setSuccess(id);
       setTimeout(() => setSuccess(null), 3000);

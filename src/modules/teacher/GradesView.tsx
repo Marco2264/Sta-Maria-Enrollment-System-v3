@@ -839,7 +839,7 @@ export function GradesView() {
                       onClick={() => setIsAddColumnOpen(true)}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-8 border-none"
                     >
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Column
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Create Column
                     </Button>
                   )}
 
@@ -1161,7 +1161,7 @@ export function GradesView() {
       <Dialog open={isAddColumnOpen} onOpenChange={setIsAddColumnOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-800">Add Grading Column</DialogTitle>
+            <DialogTitle className="text-base font-extrabold text-slate-800">Create Grading Column</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -1236,7 +1236,7 @@ export function GradesView() {
               disabled={!newColName.trim() || !newColWeight || isNaN(parseFloat(newColWeight)) || parseFloat(newColWeight) > remainingWeight}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-9 border-none"
             >
-              Add Column
+              Create Column
             </Button>
           </DialogFooter>
         </DialogContent>

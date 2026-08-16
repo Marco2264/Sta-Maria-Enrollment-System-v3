@@ -10,3 +10,6 @@ test-*.js
 login img.png
 sf8 template.xlsx
 *.log
+~$*
+scratch/
+SF9_decrypted.files/

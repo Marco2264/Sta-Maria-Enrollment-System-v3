@@ -41,7 +41,10 @@ import {
   GraduationCap,
   Heart,
   AlertTriangle,
-  Lock
+  Lock,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { useAdminData, User } from '../../lib/adminData';
 import { db } from '../../lib/firebase';
@@ -218,15 +221,45 @@ export function UsersView() {
     }
   };
 
+  type UserSortField = 'name' | 'role' | 'joined';
+  type UserSortOrder = 'asc' | 'desc';
+
+  const [sortField, setSortField] = useState<UserSortField>('name');
+  const [sortOrder, setSortOrder] = useState<UserSortOrder>('asc');
+
+  const handleSort = (field: UserSortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
   const totalUsers = users.length;
   const teacherCount = users.filter(u => u.role?.toLowerCase() === 'teacher').length;
   const parentCount = users.filter(u => u.role?.toLowerCase() === 'parent').length;
 
   const filteredUsers = users.filter((u) => {
-    const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
-    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const fullName = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'All' || u.role?.toLowerCase() === roleFilter.toLowerCase();
     return matchesSearch && matchesRole;
+  }).sort((a, b) => {
+    let result = 0;
+    if (sortField === 'name') {
+      const nameA = `${a.lastName || ''} ${a.firstName || ''}`.trim().toLowerCase();
+      const nameB = `${b.lastName || ''} ${b.firstName || ''}`.trim().toLowerCase();
+      result = nameA.localeCompare(nameB);
+    } else if (sortField === 'role') {
+      result = (a.role || '').localeCompare(b.role || '');
+    } else if (sortField === 'joined') {
+      const dateA = a.createdAt ? new Date(a.createdAt as any).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt as any).getTime() : 0;
+      result = dateA - dateB;
+    }
+    return sortOrder === 'asc' ? result : -result;
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -234,7 +267,7 @@ export function UsersView() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, roleFilter]);
+  }, [searchTerm, roleFilter, sortField, sortOrder]);
 
   const [parentChildren, setParentChildren] = useState<any[]>([]);
   const [loadingChildren, setLoadingChildren] = useState(false);
@@ -378,11 +411,11 @@ export function UsersView() {
               <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogTrigger asChild>
                   <Button className="h-10 px-4 rounded-xl bg-[#D8232A] hover:bg-[#b91c22] text-white font-semibold text-xs transition-all shadow-xs shrink-0">
-                    <Plus className="h-4 w-4 mr-1.5" /> Add User
+                    <Plus className="h-4 w-4 mr-1.5" /> Create User
                   </Button>
                 </DialogTrigger>
 
-                {/* Add User Modal */}
+                {/* Create User Modal */}
                 <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto p-0 rounded-2xl border-none shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                   <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50/40">
                     <DialogTitle className="text-lg font-bold text-slate-900">Create System Account</DialogTitle>
@@ -544,13 +577,51 @@ export function UsersView() {
           {/* FIX 4: sticky header with shadow that appears on scroll (needs scroll listener) */}
           <div className="hidden lg:block overflow-x-auto max-h-[65vh] overflow-y-auto relative">
             <Table>
-              <TableHeader className="bg-slate-50/95 backdrop-blur-sm border-b border-slate-200/70 sticky top-0 z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.03)]">
+              <TableHeader className="bg-slate-50/95 backdrop-blur-sm border-b border-slate-200/70 sticky top-0 z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.03)] select-none">
                 <TableRow className="hover:bg-transparent border-none h-11">
-                  {/* FIX 1: slate-500 for column headers */}
                   <TableHead className="w-14 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 pl-4">#</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">User Information</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Role</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Joined Date</TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('name')}
+                    className="text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap cursor-pointer hover:bg-slate-100/70 transition-colors group/th"
+                    title="Click to sort by user name"
+                  >
+                    <div className="flex items-center gap-1.5 group-hover/th:text-[#D8232A] transition-colors">
+                      <span>User Information</span>
+                      {sortField === 'name' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#D8232A]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#D8232A]" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 group-hover/th:text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('role')}
+                    className="text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap cursor-pointer hover:bg-slate-100/70 transition-colors group/th"
+                    title="Click to sort by role"
+                  >
+                    <div className="flex items-center gap-1.5 group-hover/th:text-[#D8232A] transition-colors">
+                      <span>Role</span>
+                      {sortField === 'role' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#D8232A]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#D8232A]" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 group-hover/th:text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    onClick={() => handleSort('joined')}
+                    className="text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap cursor-pointer hover:bg-slate-100/70 transition-colors group/th"
+                    title="Click to sort by join date"
+                  >
+                    <div className="flex items-center gap-1.5 group-hover/th:text-[#D8232A] transition-colors">
+                      <span>Joined Date</span>
+                      {sortField === 'joined' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-[#D8232A]" /> : <ArrowDown className="w-3.5 h-3.5 text-[#D8232A]" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-300 group-hover/th:text-slate-400 opacity-0 group-hover/th:opacity-100 transition-opacity" />
+                      )}
+                    </div>
+                  </TableHead>
                   <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-slate-500 pr-6">Action</TableHead>
                 </TableRow>
               </TableHeader>

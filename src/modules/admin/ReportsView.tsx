@@ -188,7 +188,8 @@ export function ReportsView() {
         const attSnap = await getDocs(query(collection(db, 'attendance'), where('sectionId', '==', sf9SectionId)));
         const attendanceData = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
         
-        await generateSF9(studentsData, secName, syName, attendanceData, subjectsData);
+        const advName = (selectedSection as any)?.adviserName || (selectedSection as any)?.teacherName || (selectedSection as any)?.adviser || (await fetchAdviserForSection(sf9SectionId));
+        await generateSF9(studentsData, secName, syName, attendanceData, subjectsData, [], advName);
       }
     } catch (err) {
       console.error('Report generation error:', err);

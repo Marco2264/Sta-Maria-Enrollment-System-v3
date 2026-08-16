@@ -100,7 +100,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
           ref={ref}
           data-slot="dialog-content"
           className={cn(
-            "relative z-[101] grid w-full gap-6 rounded-2xl bg-background p-6 shadow-2xl ring-1 ring-border animate-in fade-in zoom-in-95 duration-200 sm:max-w-lg",
+            "relative z-[101] flex flex-col w-full max-w-lg rounded-2xl bg-background p-6 shadow-2xl ring-1 ring-border animate-in fade-in zoom-in-95 duration-200",
             className
           )}
           {...props}>
