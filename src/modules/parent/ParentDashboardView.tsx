@@ -37,6 +37,7 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
 import { documentTypeToRequirementKey } from '../../lib/services/enrollmentDocumentsService';
 import { subscribeParentActivityLogs, ActivityLog } from '../../lib/services/activityLogService';
+import { AttachmentViewerModal, AttachmentViewerData } from '../../components/shared/AttachmentViewerModal';
 
 interface AnnouncementItem {
   id: string;
@@ -49,6 +50,7 @@ interface AnnouncementItem {
   attachmentName?: string;
   attachmentUrl?: string;
   attachmentType?: 'image' | 'pdf' | 'doc';
+  attachmentSize?: string;
 }
 
 const DEFAULT_ANNOUNCEMENTS: AnnouncementItem[] = [
@@ -63,18 +65,18 @@ const DEFAULT_ANNOUNCEMENTS: AnnouncementItem[] = [
   {
     id: 'ann-2',
     category: 'General',
-    title: '1st Quarter General PTA Meeting',
-    author: 'Sta. Maria ES Admin Office',
-    date: 'July 25, 2026',
-    content: 'All parents are invited to attend the General PTA Assembly in the Covered Court on Aug 5.'
+    title: 'Distribution of Learning Modules',
+    author: 'Maria Clara Santos',
+    date: 'July 26, 2026',
+    content: 'Quarter 1 self-learning modules (SLMs) and activity worksheets are ready for claiming at the school gym.'
   },
   {
     id: 'ann-3',
     category: 'Academic',
-    title: 'Submission of Learner Documents',
-    author: 'Mrs. Elena Mendoza',
+    title: 'Diagnostic Assessment Schedule',
+    author: 'Academic Department',
     date: 'July 24, 2026',
-    content: 'Please upload missing PSA and SF9 Report Cards through the Document Center by August 10.'
+    content: 'Diagnostic tests for Grade 1-6 learners will be administered next week. Review materials uploaded.'
   }
 ];
 
@@ -84,6 +86,7 @@ export function ParentDashboardView({
   const { user, userData } = useAuth();
   const { children, documents, loading } = useParentData();
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(DEFAULT_ANNOUNCEMENTS);
+  const [viewerAttachment, setViewerAttachment] = useState<AttachmentViewerData | null>(null);
 
   const parentName = useMemo(() => {
     if (userData?.fullName) return userData.fullName;
@@ -131,7 +134,11 @@ export function ParentDashboardView({
                 author: data.author || 'School Administration',
                 date: formatDate(data.date || data.createdAt || 'Recent'),
                 content: data.content || '',
-                isPinned: !!data.isPinned
+                isPinned: !!data.isPinned,
+                attachmentName: data.attachmentName || undefined,
+                attachmentUrl: data.attachmentUrl || undefined,
+                attachmentType: data.attachmentType || undefined,
+                attachmentSize: data.attachmentSize || undefined
               };
             })
             .sort((a, b) => {
@@ -769,6 +776,34 @@ export function ParentDashboardView({
                     </div>
                     <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{ann.title}</h4>
                     <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-relaxed">{ann.content}</p>
+                    
+                    {/* Attachment Chip in Dashboard mini feed */}
+                    {ann.attachmentUrl && (
+                      <div className="pt-1">
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewerAttachment({
+                              url: ann.attachmentUrl!,
+                              name: ann.attachmentName || 'Attached Document',
+                              type: ann.attachmentType || (/\.(jpg|jpeg|png|webp)$/i.test(ann.attachmentUrl!) ? 'image' : 'pdf'),
+                              size: ann.attachmentSize
+                            });
+                          }}
+                          className="p-1.5 bg-white rounded-lg border border-slate-200/80 flex items-center justify-between gap-2 hover:border-[#D8232A] transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <FileText className="w-3 h-3 text-[#D8232A] shrink-0" />
+                            <span className="text-[10px] font-bold text-slate-700 truncate">
+                              {ann.attachmentName || 'Attached Waiver / Circular'}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-bold text-[#D8232A] shrink-0 bg-red-50 px-1.5 py-0.2 rounded border border-red-100">
+                            View
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -949,6 +984,13 @@ export function ParentDashboardView({
         </div>
 
       </div>
+
+      {/* ── IN-APP ATTACHMENT VIEWER LIGHTBOX MODAL ── */}
+      <AttachmentViewerModal
+        isOpen={!!viewerAttachment}
+        onClose={() => setViewerAttachment(null)}
+        attachment={viewerAttachment}
+      />
     </div>
   );
 }

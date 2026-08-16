@@ -22,12 +22,15 @@ import {
   CheckCheck,
   MoreHorizontal,
   User,
-  Pin
+  Pin,
+  Eye,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useParentData } from '../../lib/parentData';
+import { AttachmentViewerModal, AttachmentViewerData } from '../../components/shared/AttachmentViewerModal';
 
 export interface AnnouncementItem {
   id: string;
@@ -67,10 +70,44 @@ export function AnnouncementsView() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementItem | null>(null);
+  const [viewerAttachment, setViewerAttachment] = useState<AttachmentViewerData | null>(null);
 
-  const handleDownloadAttachment = (url?: string, name?: string) => {
+  const handleOpenViewer = (item: { attachmentUrl?: string; attachmentName?: string; attachmentType?: 'image' | 'pdf' | 'doc'; attachmentSize?: string }) => {
+    if (!item.attachmentUrl) return;
+    setViewerAttachment({
+      url: item.attachmentUrl,
+      name: item.attachmentName || 'Attached Document',
+      type: item.attachmentType || (/\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl) ? 'image' : 'pdf'),
+      size: item.attachmentSize
+    });
+  };
+
+  const handleDownloadAttachment = async (url?: string, name?: string) => {
     if (!url) return;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      // Fetch + blob: works reliably for CORS-enabled file hosts (ImageKit, Firebase Storage)
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    } catch {
+      // Fallback: open in new tab (browser will prompt save if content-disposition is set)
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name || 'download';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   // Read items persisted in localStorage
@@ -210,23 +247,11 @@ export function AnnouncementsView() {
     }
   };
 
-  const handleDownloadAttachment = (filename: string) => {
-    const dummyContent = `STA. MARIA ELEMENTARY SCHOOL OFFICIAL DOCUMENT ATTACHMENT\nFilename: ${filename}\nDate: ${new Date().toLocaleDateString()}\n\nThis is an official document advisory file issued by the school portal.`;
-    const blob = new Blob([dummyContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F4F7F9] font-sans">
       {/* ── TOP HEADER WITH TITLE, SEARCH & BELL ── */}
-      <header className="bg-white px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
+      <header className="bg-white px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0 border border-red-100">
             <Megaphone className="w-5 h-5" />
@@ -268,40 +293,23 @@ export function AnnouncementsView() {
       </header>
 
       {/* ── MAIN CONTENT AREA ── */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 w-full">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 w-full">
         {/* ── SEGMENTED CONTROL TABS BAR ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 inline-flex items-center gap-1 shadow-2xs self-start">
-            <button
-              onClick={() => setActiveTab('school')}
-              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'school'
-                  ? 'bg-[#D8232A] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              School Advisories
-            </button>
-            <button
-              onClick={() => setActiveTab('subject')}
-              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'subject'
-                  ? 'bg-[#D8232A] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              Subject Teachers
-            </button>
-            <button
-              onClick={() => setActiveTab('adviser')}
-              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'adviser'
-                  ? 'bg-[#D8232A] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              Class Adviser
-            </button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-slate-100/80 p-1 sm:p-1.5 rounded-2xl border border-slate-200/60 flex items-center gap-0.5 sm:gap-1 shadow-2xs self-start w-full sm:w-auto overflow-x-auto no-scrollbar">
+            {(['school', 'subject', 'adviser'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex-1 sm:flex-none ${
+                  activeTab === tab
+                    ? 'bg-[#D8232A] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                {tab === 'school' ? 'School' : tab === 'subject' ? 'Subjects' : 'Adviser'}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -346,7 +354,7 @@ export function AnnouncementsView() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5">
             {filteredAnnouncements.map(item => {
               const isEmergency = item.category === 'Emergency' || item.category === 'Class Suspension';
               const iconBg = isEmergency ? 'bg-rose-50 text-rose-600' : 'bg-red-50 text-[#D8232A]';
@@ -355,7 +363,7 @@ export function AnnouncementsView() {
               return (
                 <div
                   key={item.id}
-                  className={`bg-white rounded-2xl ${item.isPinned ? 'border-amber-200 shadow-[0_4px_20px_rgba(245,158,11,0.08)]' : 'border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]'} border p-6 hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 space-y-4 flex flex-col justify-between overflow-hidden relative`}
+                  className={`bg-white rounded-2xl ${item.isPinned ? 'border-amber-200 shadow-[0_4px_20px_rgba(245,158,11,0.08)]' : 'border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]'} border p-4 sm:p-5 hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 space-y-3 flex flex-col justify-between overflow-hidden relative`}
                 >
                   {/* Pinned Notice Ribbon */}
                   {item.isPinned && (
@@ -411,59 +419,93 @@ export function AnnouncementsView() {
                     <p className="text-xs text-slate-600 leading-relaxed line-clamp-3 font-normal">
                       {item.content}
                     </p>
-                  </div>
 
-                    {/* Attached Photo Banner (If present) */}
-                    {item.attachmentUrl && (item.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl)) && (
-                      <div className="rounded-xl overflow-hidden border border-slate-100 mt-1">
-                        <img
-                          src={item.attachmentUrl}
-                          alt={item.attachmentName || 'Notice Poster'}
-                          className="w-full h-36 object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
-                          onClick={() => handleOpenAnnouncement(item)}
-                        />
-                      </div>
-                    )}
+                    {/* ── GOOGLE CLASSROOM-STYLE ATTACHMENT CARD PREVIEW ── */}
+                    {item.attachmentUrl && (
+                      <div className="pt-1">
+                        <div className="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-3 transition-all duration-200 group/att">
+                          
+                          {/* Left: Thumbnail & File Metadata */}
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenViewer(item);
+                            }}
+                            className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                          >
+                            {item.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl) ? (
+                              /* Compact Image Thumbnail */
+                              <div className="w-14 h-12 rounded-xl overflow-hidden border border-slate-200/90 shrink-0 bg-slate-200 relative group-hover/att:scale-105 transition-transform">
+                                <img
+                                  src={item.attachmentUrl}
+                                  alt={item.attachmentName || 'Attachment thumbnail'}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/15 flex items-center justify-center opacity-0 group-hover/att:opacity-100 transition-opacity">
+                                  <Eye className="w-3.5 h-3.5 text-white" />
+                                </div>
+                              </div>
+                            ) : (
+                              /* Red DepEd PDF Icon */
+                              <div className="w-12 h-12 rounded-xl bg-red-50 text-[#D8232A] border border-red-100 flex items-center justify-center shrink-0 shadow-2xs group-hover/att:scale-105 transition-transform">
+                                <FileText className="w-5 h-5" />
+                              </div>
+                            )}
 
-                    {/* Attached Document Pill (If present) */}
-                    {item.attachmentUrl && item.attachmentType !== 'image' && !/\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl) && (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadAttachment(item.attachmentUrl, item.attachmentName);
-                        }}
-                        className="p-2.5 bg-red-50/60 rounded-xl border border-red-100 flex items-center justify-between gap-2 hover:bg-red-50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="w-4 h-4 text-[#D8232A] shrink-0" />
-                          <span className="text-xs font-bold text-slate-800 truncate">
-                            {item.attachmentName || 'Downloadable Waiver / Slip'}
-                          </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-slate-900 truncate group-hover/att:text-[#D8232A] transition-colors">
+                                {item.attachmentName || 'Downloadable Waiver / Memo'}
+                              </p>
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium mt-0.5">
+                                <span className="uppercase font-extrabold text-[#D8232A] bg-red-50 px-1.5 py-0.2 rounded border border-red-100 text-[9px]">
+                                  {item.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(item.attachmentUrl) ? 'IMAGE' : 'PDF WAIVER'}
+                                </span>
+                                {item.attachmentSize && <span>• {item.attachmentSize}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Quick Action Buttons — stacked side by side on mobile */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenViewer(item);
+                              }}
+                              className="p-1.5 sm:px-2.5 sm:py-1.5 bg-white hover:bg-slate-200/80 border border-slate-200 text-slate-700 font-bold text-[11px] rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title="Preview in-app"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="hidden sm:inline">View</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadAttachment(item.attachmentUrl, item.attachmentName);
+                              }}
+                              className="p-1.5 sm:px-2.5 sm:py-1.5 bg-[#D8232A] hover:bg-red-700 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title="Download to device"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Download</span>
+                            </button>
+                          </div>
+
                         </div>
-                        <span className="text-[10px] font-bold text-[#D8232A] flex items-center gap-1 shrink-0">
-                          <Download className="w-3 h-3" /> Download
-                        </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Card Footer: File Attachment & Read Message Button */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
-                    {item.attachmentName ? (
-                      <div
-                        onClick={() => handleDownloadAttachment(item.attachmentUrl, item.attachmentName)}
-                        className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#D8232A] transition-colors cursor-pointer"
-                      >
-                        <Paperclip className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="truncate max-w-[160px]">{item.attachmentName}</span>
-                      </div>
-                    ) : <div />}
-
+                  {/* Card Footer: Read Message Button */}
+                  <div className="flex items-center justify-end pt-3 border-t border-slate-100 text-xs">
                     <button
                       onClick={() => handleOpenAnnouncement(item)}
                       className="text-[#D8232A] font-bold hover:underline flex items-center gap-1 cursor-pointer ml-auto"
                     >
-                      Read Message <ArrowRight className="w-3.5 h-3.5" />
+                      Read Advisory <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -476,13 +518,13 @@ export function AnnouncementsView() {
       {/* ── FULL ANNOUNCEMENT DETAIL MODAL ── */}
       <AnimatePresence>
         {selectedAnnouncement && (
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-slate-100 space-y-6 max-h-[85vh] overflow-y-auto"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white rounded-t-3xl sm:rounded-3xl p-5 sm:p-8 max-w-xl w-full shadow-2xl border border-slate-100 space-y-5 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
             >
               {/* Modal Header */}
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
@@ -520,52 +562,52 @@ export function AnnouncementsView() {
                 <p className="text-slate-500 font-medium">{selectedAnnouncement.authorRole}</p>
               </div>
 
-              {/* Attached Image in Modal */}
-              {selectedAnnouncement.attachmentUrl && (selectedAnnouncement.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(selectedAnnouncement.attachmentUrl)) && (
-                <div className="rounded-2xl overflow-hidden border border-slate-200">
-                  <a href={selectedAnnouncement.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                    <img
-                      src={selectedAnnouncement.attachmentUrl}
-                      alt={selectedAnnouncement.attachmentName || 'Notice Image'}
-                      className="w-full max-h-72 object-cover hover:scale-102 transition-transform duration-200"
-                    />
-                  </a>
-                </div>
-              )}
-
               {/* Body Text */}
               <div className="text-slate-700 text-sm leading-relaxed space-y-3 font-normal">
                 <p className="whitespace-pre-line">{selectedAnnouncement.content}</p>
               </div>
 
-              {/* Attachment Download Box */}
+              {/* Attachment Download & In-App View Box */}
               {selectedAnnouncement.attachmentUrl && (
-                <div className="p-4 bg-red-50/60 border border-red-100 rounded-2xl flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 bg-white border border-red-200 rounded-xl flex items-center justify-center text-[#D8232A] shadow-2xs shrink-0">
-                      {selectedAnnouncement.attachmentType === 'image' ? (
-                        <Paperclip className="w-4.5 h-4.5" />
+                <div className="p-3 sm:p-4 bg-red-50/60 border border-red-100 rounded-2xl flex flex-col sm:flex-row sm:items-center gap-3">
+                  {/* File Metadata Row */}
+                  <div
+                    onClick={() => handleOpenViewer(selectedAnnouncement)}
+                    className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                  >
+                    <div className="w-10 h-10 bg-white border border-red-200 rounded-xl flex items-center justify-center text-[#D8232A] shadow-2xs shrink-0">
+                      {selectedAnnouncement.attachmentType === 'image' || /\.(jpg|jpeg|png|webp)$/i.test(selectedAnnouncement.attachmentUrl) ? (
+                        <ImageIcon className="w-5 h-5" />
                       ) : (
-                        <FileText className="w-4.5 h-4.5" />
+                        <FileText className="w-5 h-5" />
                       )}
                     </div>
                     <div className="min-w-0">
-                      <span className="text-xs font-bold text-slate-900 block truncate">
+                      <span className="text-xs font-bold text-slate-900 block truncate hover:text-[#D8232A] transition-colors">
                         {selectedAnnouncement.attachmentName || 'Official Attachment'}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-semibold">
+                      <span className="text-[10px] text-slate-500 font-semibold">
                         {selectedAnnouncement.attachmentSize || (selectedAnnouncement.attachmentType === 'image' ? 'Image File' : 'PDF Document / Waiver')}
                       </span>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadAttachment(selectedAnnouncement.attachmentUrl, selectedAnnouncement.attachmentName)}
-                    className="px-3.5 py-2 bg-[#D8232A] hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Download
-                  </button>
+                  {/* Action Buttons — full width on mobile */}
+                  <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenViewer(selectedAnnouncement)}
+                      className="flex-1 sm:flex-none px-3 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-500" /> View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAttachment(selectedAnnouncement.attachmentUrl, selectedAnnouncement.attachmentName)}
+                      className="flex-1 sm:flex-none px-3.5 py-2.5 bg-[#D8232A] hover:bg-red-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -582,6 +624,13 @@ export function AnnouncementsView() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── IN-APP ATTACHMENT VIEWER LIGHTBOX MODAL (GOOGLE CLASSROOM STYLE) ── */}
+      <AttachmentViewerModal
+        isOpen={!!viewerAttachment}
+        onClose={() => setViewerAttachment(null)}
+        attachment={viewerAttachment}
+      />
     </div>
   );
 }
