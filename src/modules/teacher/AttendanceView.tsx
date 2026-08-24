@@ -313,9 +313,6 @@ export function AttendanceView() {
           if (tInDate && selectedDate < tInDate) return false;
         }
 
-        // Handle enrollment date if specified
-        if (s.enrollmentDate && selectedDate < s.enrollmentDate) return false;
-
         return true;
       })
       .sort((a, b) => {

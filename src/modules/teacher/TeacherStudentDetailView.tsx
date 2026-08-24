@@ -121,14 +121,14 @@ export function TeacherStudentDetailView({
         status: cardStatus,
         'medical.height': cardHeight,
         'medical.weight': cardWeight,
-        transferredOutSchoolName: cardTransferredOutSchoolName,
-        transferredOutSchoolType: cardTransferredOutSchoolType,
-        transferredOutDate: cardTransferredOutDate,
-        transferredInSchoolName: cardTransferredInSchoolName,
-        transferredInSchoolType: cardTransferredInSchoolType,
-        transferredInDate: cardTransferredInDate,
-        droppedReason: cardDroppedReason,
-        droppedDate: cardDroppedDate
+        transferredOutSchoolName: (cardStatus === 'Transferred Out' || cardStatus === 'Transferred') ? cardTransferredOutSchoolName : '',
+        transferredOutSchoolType: (cardStatus === 'Transferred Out' || cardStatus === 'Transferred') ? cardTransferredOutSchoolType : '',
+        transferredOutDate: (cardStatus === 'Transferred Out' || cardStatus === 'Transferred') ? cardTransferredOutDate : '',
+        transferredInSchoolName: cardStatus === 'Transferred In' ? cardTransferredInSchoolName : '',
+        transferredInSchoolType: cardStatus === 'Transferred In' ? cardTransferredInSchoolType : '',
+        transferredInDate: cardStatus === 'Transferred In' ? cardTransferredInDate : '',
+        droppedReason: cardStatus === 'Dropped' ? cardDroppedReason : '',
+        droppedDate: cardStatus === 'Dropped' ? cardDroppedDate : ''
       };
       await updateDoc(doc(db, 'enrollments', child.id), updates);
       setIsEditingCard(false);

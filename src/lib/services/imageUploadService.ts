@@ -1,13 +1,13 @@
 /**
- * ImageKit Upload Service
- * Clean, flat top-level folder structure with standardized filenames:
- *   /students/student-profiles/           -> Grade6_SectionA_FrancisMinoza.jpg
- *   /students/psa-certificates/           -> Grade6_SectionA_FrancisMinoza_PSA.pdf
- *   /students/report-cards/               -> Grade6_SectionA_FrancisMinoza_ReportCard.pdf
- *   /students/good-moral-certificates/    -> Grade6_SectionA_FrancisMinoza_GoodMoral.pdf
- *   /students/medical-records/            -> Grade6_SectionA_FrancisMinoza_Medical.pdf
- *   /parents/parent-profiles/             -> Parent_JuanDelaCruz.jpg
+ * Multi-Provider Image & Document Upload Service
+ * Supported Storage Providers:
+ *   1. ImageKit (if VITE_IMAGEKIT_PUBLIC_KEY is configured)
+ *   2. Firebase Storage (using initialized Firebase app storage bucket)
+ *   3. Base64 Data URL (fail-safe offline fallback)
  */
+
+import { storage } from '../firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 export const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit for images and documents
 export const ALLOWED_UPLOAD_TYPES = [
@@ -15,9 +15,12 @@ export const ALLOWED_UPLOAD_TYPES = [
   'image/jpg',
   'image/png',
   'image/webp',
-  'application/pdf'
+  'image/gif',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 ];
-export const ALLOWED_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+export const ALLOWED_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf', '.doc', '.docx'];
 
 export interface UploadValidationResult {
   valid: boolean;
@@ -45,14 +48,13 @@ export function sanitizeNameString(str: string): string {
   if (!str) return 'User';
   return str
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics (ñ -> n)
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
     .replace(/[^a-zA-Z0-9]/g, '')     // Alphanumeric characters only
     .trim();
 }
 
 /**
  * Formats Grade level string cleanly without spaces or special characters.
- * Example: "Grade 6" -> "Grade6", "6" -> "Grade6"
  */
 export function sanitizeGradeString(grade?: string): string {
   if (!grade || !grade.trim()) return 'GradeUnassigned';
@@ -64,7 +66,6 @@ export function sanitizeGradeString(grade?: string): string {
 
 /**
  * Formats Section string cleanly without spaces or special characters.
- * Example: "Section A" -> "SectionA", "A" -> "SectionA"
  */
 export function sanitizeSectionString(section?: string): string {
   if (!section || !section.trim()) return 'SectionGeneral';
@@ -94,7 +95,7 @@ export function getDocumentFilenameSuffix(docType?: string): string {
 }
 
 /**
- * Maps DocumentType string to standardized flat ImageKit folder under /students.
+ * Maps DocumentType string to standardized flat folder under /students.
  */
 export function getDocumentImageKitFolder(docType?: string): string {
   if (!docType) return '/students/student-profiles';
@@ -115,7 +116,7 @@ export function getDocumentImageKitFolder(docType?: string): string {
 }
 
 /**
- * Builds flat top-level ImageKit folder paths without deep nested folder chains.
+ * Builds flat top-level folder paths.
  */
 export function buildImageKitFolder(params: {
   role: 'parent' | 'student';
@@ -134,11 +135,7 @@ export function buildImageKitFolder(params: {
 }
 
 /**
- * Generates standardized ImageKit filenames containing Grade, Section, Full Name, and Document Suffix.
- * Examples:
- *   Student Profile: Grade6_SectionA_FrancisMinoza.jpg
- *   PSA:             Grade6_SectionA_FrancisMinoza_PSA.pdf
- *   Parent Profile:  Parent_JuanDelaCruz.jpg
+ * Generates standardized filenames containing Grade, Section, Full Name, and Document Suffix.
  */
 export function buildStandardizedFileName(params: {
   role: 'parent' | 'student';
@@ -163,9 +160,6 @@ export function buildStandardizedFileName(params: {
   return `${cleanGrade}_${cleanSection}_${cleanName}${suffixStr}.${ext}`;
 }
 
-/**
- * Backward compatibility alias for buildStandardizedFileName
- */
 export function buildImageKitFileName(fullName: string, originalFileName: string, suffix?: string): string {
   return buildStandardizedFileName({
     role: 'student',
@@ -191,7 +185,7 @@ export function validateImageFile(file: File): UploadValidationResult {
   if (!isAllowedType) {
     return {
       valid: false,
-      error: `Invalid file format (${extension}). Only JPG, PNG, WEBP, and PDF files are allowed.`
+      error: `Invalid file format (${extension}). Allowed formats: JPG, PNG, WEBP, GIF, PDF, DOC, DOCX.`
     };
   }
 
@@ -204,6 +198,58 @@ export function validateImageFile(file: File): UploadValidationResult {
   }
 
   return { valid: true };
+}
+
+/**
+ * Converts a file to an optimized Base64 data URL.
+ */
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Uploads a file using Firebase Storage with progress tracking.
+ */
+async function uploadToFirebaseStorage(
+  file: File,
+  folder: string,
+  fileName: string,
+  onProgress?: (percent: number) => void
+): Promise<string> {
+  const cleanFolder = folder.replace(/^\/+|\/+$/g, '');
+  const storagePath = `${cleanFolder}/${fileName}`;
+  const storageRef = ref(storage, storagePath);
+
+  return new Promise((resolve, reject) => {
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = Math.round(
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        );
+        if (onProgress) onProgress(progress);
+      },
+      (error) => {
+        console.warn('[UploadService] Firebase Storage upload error:', error);
+        reject(error);
+      },
+      async () => {
+        try {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadUrl);
+        } catch (err) {
+          reject(err);
+        }
+      }
+    );
+  });
 }
 
 /**
@@ -242,119 +288,116 @@ async function fetchImageKitAuthParams(): Promise<ImageKitAuthResponse | null> {
 
   try {
     const res = await fetch(authEndpoint);
-    if (!res.ok) {
-      throw new Error(`Auth endpoint returned status ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Auth endpoint returned status ${res.status}`);
     const data = await res.json();
     if (data.token && data.signature && data.expire) {
       return data as ImageKitAuthResponse;
     }
     return null;
   } catch (err: any) {
-    console.warn('[ImageUploadService] Failed to fetch ImageKit auth parameters from backend:', err?.message || err);
     return null;
   }
 }
 
 /**
- * Uploads an image or document file to ImageKit using the REST Upload API.
+ * Universal multi-provider upload handler.
+ * Automatically tries:
+ *   1. ImageKit (if keys are provided in .env)
+ *   2. Firebase Storage (native project storage)
+ *   3. Base64 Data URL fallback
  */
 export async function uploadToImageKit(
   file: File,
   options: UploadOptions = {}
 ): Promise<string> {
-  // 1. Validate file format and size limit
+  // 1. Validate file
   const validation = validateImageFile(file);
   if (!validation.valid) {
     throw new Error(validation.error || 'Invalid file');
   }
 
-  const publicKey = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY;
-  const urlEndpoint = import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT;
-  const privateKey = import.meta.env.VITE_IMAGEKIT_PRIVATE_KEY;
-
-  if (!publicKey || publicKey.includes('your_public_key')) {
-    throw new Error(
-      'ImageKit credentials are missing or invalid. Please check VITE_IMAGEKIT_PUBLIC_KEY in .env.'
-    );
-  }
-
-  // 2. Prepare FormData
   const cleanFileName =
     options.fileName || `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
   const folder = options.folder || '/students/student-profiles';
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('fileName', cleanFileName);
-  formData.append('publicKey', publicKey);
-  formData.append('folder', folder);
-  const useUnique = options.useUniqueFileName !== undefined ? String(options.useUniqueFileName) : 'false';
-  formData.append('useUniqueFileName', useUnique);
+  // Strategy 1: Check if ImageKit keys are configured
+  const publicKey = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY;
+  const urlEndpoint = import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT;
+  const privateKey = import.meta.env.VITE_IMAGEKIT_PRIVATE_KEY;
 
-  // 3. Attach authentication parameters (token, signature, expire)
-  let authParams = await fetchImageKitAuthParams();
+  const hasImageKitConfig = publicKey && !publicKey.includes('your_') && publicKey.trim() !== '';
 
-  if (!authParams && privateKey) {
-    const token = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const expire = Math.floor(Date.now() / 1000) + 2400; // 40 minutes expiry
-    const signature = await generateClientSignature(privateKey, token, expire);
-    authParams = { token, signature, expire };
-  }
+  if (hasImageKitConfig) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', cleanFileName);
+      formData.append('publicKey', publicKey);
+      formData.append('folder', folder);
+      const useUnique = options.useUniqueFileName !== undefined ? String(options.useUniqueFileName) : 'false';
+      formData.append('useUniqueFileName', useUnique);
 
-  if (authParams) {
-    formData.append('token', authParams.token);
-    formData.append('signature', authParams.signature);
-    formData.append('expire', authParams.expire.toString());
-  }
-
-  if (options.onProgress) {
-    options.onProgress(30);
-  }
-
-  // 4. Perform Upload
-  try {
-    const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
-      method: 'POST',
-      body: formData
-    });
-
-    if (options.onProgress) {
-      options.onProgress(80);
-    }
-
-    if (!response.ok) {
-      let errText = 'Upload failed';
-      try {
-        const errorJson = await response.json();
-        errText = errorJson.message || errorJson.help || response.statusText;
-      } catch {
-        errText = await response.text();
+      let authParams = await fetchImageKitAuthParams();
+      if (!authParams && privateKey) {
+        const token = typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        const expire = Math.floor(Date.now() / 1000) + 2400;
+        const signature = await generateClientSignature(privateKey, token, expire);
+        authParams = { token, signature, expire };
       }
-      throw new Error(`ImageKit Upload Error (${response.status}): ${errText}`);
+
+      if (authParams) {
+        formData.append('token', authParams.token);
+        formData.append('signature', authParams.signature);
+        formData.append('expire', authParams.expire.toString());
+      }
+
+      if (options.onProgress) options.onProgress(30);
+
+      const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (options.onProgress) options.onProgress(100);
+        if (result.url || result.filePath) {
+          return result.url || `${(urlEndpoint || '').replace(/\/$/, '')}/${result.filePath.replace(/^\//, '')}`;
+        }
+      }
+    } catch (imageKitErr) {
+      console.warn('[UploadService] ImageKit upload failed, falling back to Firebase Storage:', imageKitErr);
     }
+  }
 
-    const result = await response.json();
-
-    if (options.onProgress) {
-      options.onProgress(100);
-    }
-
-    if (!result.url && !result.filePath) {
-      throw new Error('ImageKit returned an invalid response payload.');
-    }
-
-    const finalUrl =
-      result.url || `${urlEndpoint.replace(/\/$/, '')}/${result.filePath.replace(/^\//, '')}`;
-
-    return finalUrl;
-  } catch (error: any) {
-    console.error('[ImageUploadService] Upload failed:', error);
-    throw new Error(
-      error?.message || 'Failed to upload file to ImageKit. Please check your network and credentials.'
+  // Strategy 2: Firebase Storage
+  try {
+    if (options.onProgress) options.onProgress(40);
+    const firebaseUrl = await uploadToFirebaseStorage(
+      file,
+      folder,
+      cleanFileName,
+      options.onProgress
     );
+    if (firebaseUrl) {
+      if (options.onProgress) options.onProgress(100);
+      return firebaseUrl;
+    }
+  } catch (firebaseErr) {
+    console.warn('[UploadService] Firebase Storage upload failed, falling back to Base64 Data URL:', firebaseErr);
+  }
+
+  // Strategy 3: Base64 Data URL Fail-safe
+  try {
+    if (options.onProgress) options.onProgress(80);
+    const base64Url = await fileToBase64(file);
+    if (options.onProgress) options.onProgress(100);
+    return base64Url;
+  } catch (fallbackErr) {
+    console.error('[UploadService] All upload methods failed:', fallbackErr);
+    throw new Error('Failed to upload file. Please check your internet connection.');
   }
 }
 

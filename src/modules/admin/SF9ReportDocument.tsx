@@ -130,8 +130,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
 
   // --- ATTENDANCE SUMMARY DATA ---
   const getAttendanceSummary = (studentId: string) => {
-    const filteredAttendance = attendance.filter(a => !advisorId || !a.teacherId || a.teacherId === advisorId);
-    const studentAtt = filteredAttendance.filter((a) => a.studentId === studentId);
+    const studentAtt = (attendance || []).filter((a) => a.studentId === studentId);
     const monthsDef = [
       { name: 'June', index: 5 },
       { name: 'July', index: 6 },
@@ -150,7 +149,8 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
     const absentDays: Record<number, number> = {};
     const sectionDatesPerMonth: Record<number, Set<string>> = {};
 
-    filteredAttendance.forEach((a) => {
+    (attendance || []).forEach((a) => {
+      if (!a.date) return;
       const d = new Date(a.date);
       if (isNaN(d.getTime())) return;
       const m = d.getMonth();
@@ -161,24 +161,35 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
       sectionDatesPerMonth[m].add(dStr);
     });
 
+    // Deduplicate student records per date (keep the most explicit/latest record)
+    const studentAttByDate = new Map<string, any>();
     studentAtt.forEach((a) => {
+      if (!a.date) return;
+      const dStr = a.date.split('T')[0];
+      studentAttByDate.set(dStr, a);
+    });
+
+    studentAttByDate.forEach((a) => {
       const d = new Date(a.date);
       if (isNaN(d.getTime())) return;
       const m = d.getMonth();
 
-      const amPres = (a as any).amStatus === 'Present' || (a as any).amStatus === 'Late';
-      const pmPres = (a as any).pmStatus === 'Present' || (a as any).pmStatus === 'Late';
+      const rawStatus = (a.status || '').toString().trim().toLowerCase();
+      const amStatus = ((a as any).amStatus || '').toString().trim().toLowerCase();
+      const pmStatus = ((a as any).pmStatus || '').toString().trim().toLowerCase();
 
       let presentWeight = 0;
       let absentWeight = 0;
 
-      if (a.status) {
-        const s = a.status.toLowerCase();
-        if (s === 'present' || s === 'late') presentWeight = 1;
-        else if (s === 'absent') absentWeight = 1;
-      } else {
+      if (rawStatus === 'present' || rawStatus === 'late') {
+        presentWeight = 1;
+      } else if (rawStatus === 'absent') {
+        absentWeight = 1;
+      } else if (amStatus || pmStatus) {
+        const amPres = amStatus === 'present' || amStatus === 'late';
+        const pmPres = pmStatus === 'present' || pmStatus === 'late';
         if (amPres && pmPres) presentWeight = 1;
-        else if (!amPres && !pmPres) absentWeight = 1;
+        else if (!amPres && !pmPres && (amStatus === 'absent' || pmStatus === 'absent')) absentWeight = 1;
         else {
           presentWeight = 0.5;
           absentWeight = 0.5;

@@ -444,28 +444,88 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
   }, [currentSection]);
 
   const updateAttendance = async (studentId: string, date: string, status: 'Present' | 'Absent' | 'Late' | 'Unmarked') => {
-    if (!currentSection) return;
+    if (!studentId || !date) return;
 
-    const existing = attendance.find(a => a.studentId === studentId && a.date === date);
-    
-    if (existing) {
-      await updateDoc(doc(db, 'attendance', existing.id), { status });
-    } else {
-      await addDoc(collection(db, 'attendance'), {
-        studentId,
-        date,
-        status,
-        sectionId: currentSection,
-        teacherId: user?.uid || userData?.id || "",
-        createdAt: serverTimestamp()
+    const currentSecId = currentSection || "";
+    const teacherUid = user?.uid || userData?.id || "";
+
+    try {
+      // Find all existing attendance records for this student and date in Firestore
+      const q = query(
+        collection(db, 'attendance'),
+        where('studentId', '==', studentId),
+        where('date', '==', date)
+      );
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        // Update the primary document
+        const primaryDoc = snap.docs[0];
+        await updateDoc(doc(db, 'attendance', primaryDoc.id), {
+          status,
+          amStatus: status,
+          pmStatus: status,
+          sectionId: currentSecId || primaryDoc.data().sectionId || "",
+          teacherId: teacherUid || primaryDoc.data().teacherId || "",
+          updatedAt: serverTimestamp()
+        });
+
+        // Clean up any duplicate records for the same student on the same date
+        if (snap.docs.length > 1) {
+          for (let i = 1; i < snap.docs.length; i++) {
+            await deleteDoc(doc(db, 'attendance', snap.docs[i].id)).catch(() => {});
+          }
+        }
+      } else {
+        // Create new record
+        await addDoc(collection(db, 'attendance'), {
+          studentId,
+          date,
+          status,
+          amStatus: status,
+          pmStatus: status,
+          sectionId: currentSecId,
+          teacherId: teacherUid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      // Optimistically update local state
+      setAttendance(prev => {
+        const withoutDate = prev.filter(a => !(a.studentId === studentId && a.date === date));
+        const newEntry: AttendanceEntry = {
+          id: snap.empty ? `local_${Date.now()}` : snap.docs[0].id,
+          studentId,
+          date,
+          status,
+          sectionId: currentSecId,
+          teacherId: String(teacherUid || "")
+        };
+        return [...withoutDate, newEntry];
       });
+    } catch (err) {
+      console.error("Error updating attendance:", err);
+      throw err;
     }
   };
 
   const deleteAttendance = async (studentId: string, date: string) => {
-    const existing = attendance.find(a => a.studentId === studentId && a.date === date);
-    if (existing) {
-      await deleteDoc(doc(db, 'attendance', existing.id));
+    if (!studentId || !date) return;
+    try {
+      const q = query(
+        collection(db, 'attendance'),
+        where('studentId', '==', studentId),
+        where('date', '==', date)
+      );
+      const snap = await getDocs(q);
+      const promises = snap.docs.map(d => deleteDoc(doc(db, 'attendance', d.id)));
+      await Promise.all(promises);
+
+      setAttendance(prev => prev.filter(a => !(a.studentId === studentId && a.date === date)));
+    } catch (err) {
+      console.error("Error deleting attendance:", err);
+      throw err;
     }
   };
 
@@ -477,7 +537,6 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
     if (status === 'Enrolled') {
       const sId = targetSectionId || currentSection;
       let sName = currentSectionName;
-      const todayStr = new Date().toISOString().split('T')[0];
       let adviserName = (userData?.firstName && userData?.lastName) 
         ? `${userData.firstName} ${userData.lastName}` 
         : (userData?.fullName || 'Teacher');
@@ -506,13 +565,18 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      await updateDoc(doc(db, 'enrollments', id), { 
+      const updates: any = { 
         status, 
         sectionId: sId,
         section: sName || '',
         adviser: adviserName || '',
-        enrollmentDate: todayStr 
-      });
+        transferredOutSchoolName: '',
+        transferredOutSchoolType: '',
+        transferredOutDate: '',
+        droppedReason: '',
+        droppedDate: ''
+      };
+      await updateDoc(doc(db, 'enrollments', id), updates);
     } else {
       await updateDoc(doc(db, 'enrollments', id), { status });
     }

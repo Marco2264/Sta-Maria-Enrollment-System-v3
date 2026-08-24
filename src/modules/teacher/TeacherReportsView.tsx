@@ -8,7 +8,8 @@ import {
   Award,
   TrendingUp,
   FileText,
-  Calendar
+  Calendar,
+  Printer
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import { useTeacherData } from '../../lib/teacherData';
@@ -19,6 +20,7 @@ import { SF2ReportDocument } from '../admin/SF2ReportDocument';
 import { SF8ReportDocument } from '../admin/SF8ReportDocument';
 import { SF9ReportDocument } from '../admin/SF9ReportDocument';
 import { SF5ReportDocument } from '../admin/SF5ReportDocument';
+import { SF10ReportDocument } from '../admin/SF10ReportDocument';
 import { ReportDataService } from '../../lib/services/reportDataService';
 import { HealthAnalyticsService } from '../../lib/services/healthAnalyticsService';
 import { getCurrentSchoolYear } from '../../lib/utils';
@@ -38,6 +40,7 @@ export function TeacherReportsView() {
   const [viewingSF8, setViewingSF8] = useState<any | null>(null);
   const [viewingSF9, setViewingSF9] = useState<any | null>(null);
   const [viewingSF5, setViewingSF5] = useState<any | null>(null);
+  const [viewingSF10, setViewingSF10] = useState<any | null>(null);
   const [viewingReportId, setViewingReportId] = useState<string | null>(null);
   const [sf2Month, setSf2Month] = useState<string>(new Date().toLocaleString('en-US', { month: 'long' }));
 
@@ -129,6 +132,16 @@ export function TeacherReportsView() {
           students: sectionStudents,
           adviserName: teacherName
         });
+      } else if (id === 'sf10') {
+        const sectionStudents = students.filter(s => ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR'].includes(s.status || '') && (s.sectionId === sectId || !s.sectionId));
+        const teacherName = userData ? `${userData.firstName || ''} ${userData.lastName || ''}`.trim() : 'Assigned Adviser';
+        setViewingSF10({
+          schoolYear: academicYear,
+          gradeLevel: gradeLvl,
+          section: sectionDisplayName,
+          students: sectionStudents.length > 0 ? sectionStudents : students,
+          adviserName: teacherName
+        });
       }
     } catch (error) {
       console.error('Failed to load report for viewing', error);
@@ -178,6 +191,14 @@ export function TeacherReportsView() {
       desc: 'Individual student report cards with quarterly grades, attendance summary, and teacher remarks.',
       icon: Award,
       iconClass: 'bg-amber-100 text-amber-600'
+    },
+    {
+      id: 'sf10',
+      title: 'School Form 10 (SF10-ES)',
+      subtitle: "Learner's Permanent Academic Record",
+      desc: "Permanent record of learner's academic progress, general averages, and eligibility across elementary grades.",
+      icon: FileText,
+      iconClass: 'bg-emerald-100 text-emerald-600'
     }
   ];
 
@@ -242,7 +263,7 @@ export function TeacherReportsView() {
                     </div>
                   )}
                   <div className="flex flex-col sm:flex-row gap-2 mt-4">
-                    {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' || report.id === 'sf8' || report.id === 'sf9') && (
+                    {(report.id === 'sf1' || report.id === 'sf2' || report.id === 'sf5' || report.id === 'sf8' || report.id === 'sf9' || report.id === 'sf10') && (
                       <Button
                         variant="outline"
                         className="flex-1 rounded-xl h-11 font-semibold transition-all bg-white border-slate-200 shadow-sm"
@@ -258,6 +279,17 @@ export function TeacherReportsView() {
                     )}
                     {(() => {
                       const isRestricted = report.id === 'sf2' && !isAdvisorForCurrentSection;
+                      if (report.id === 'sf10') {
+                        return (
+                          <Button
+                            className="flex-1 rounded-xl h-11 font-semibold transition-all bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                            onClick={() => handleViewPrint('sf10')}
+                            disabled={isGenerating || viewingReportId === 'sf10'}
+                          >
+                            <Printer className="w-4 h-4 mr-1.5" />Print SF10
+                          </Button>
+                        );
+                      }
                       return (
                         <Button
                           className={`flex-1 rounded-xl h-11 font-semibold transition-all ${isSuccess
@@ -304,6 +336,9 @@ export function TeacherReportsView() {
       )}
       {viewingSF9 && (
         <SF9ReportDocument data={viewingSF9} onClose={() => setViewingSF9(null)} />
+      )}
+      {viewingSF10 && (
+        <SF10ReportDocument data={viewingSF10} onClose={() => setViewingSF10(null)} />
       )}
     </div>
   );

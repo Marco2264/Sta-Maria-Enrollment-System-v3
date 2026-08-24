@@ -67,7 +67,7 @@ function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () =>
         const subjProg: Record<string, number> = {};
 
         const gradeKey = section.gradeLevel ? section.gradeLevel.trim().replace(/Grade /i, 'Grade ') : 'Grade 6';
-        
+
         const allSubjects = (section.taughtSubjectCodes && section.taughtSubjectCodes.length > 0)
           ? section.taughtSubjectCodes
           : (section.advisedSubjectCodes || []);
@@ -75,10 +75,10 @@ function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () =>
         allSubjects.forEach((code: any) => {
           const terms = ['Term 1', 'Term 2', 'Finals'];
           const activeCols = configsList.filter((c: any) => c.subjectCode === code && terms.includes(c.term) && c.type !== 'submission');
-          
+
           let expectedForSubj = activeCols.length * sectionStudents.length;
           let encodedForSubj = 0;
-          
+
           if (expectedForSubj > 0) {
             sectionStudents.forEach(s => {
               const subjData = s.grades?.[gradeKey]?.[code];
@@ -122,7 +122,7 @@ function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () =>
     loadStats();
   }, [section]);
 
-  const allSubjects = Array.from(new Set([...(section.taughtSubjectCodes||[]), ...(section.advisedSubjectCodes||[])]));
+  const allSubjects = Array.from(new Set([...(section.taughtSubjectCodes || []), ...(section.advisedSubjectCodes || [])]));
 
   return (
     <Card className="border border-slate-200/60 shadow-2xs hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col bg-white rounded-2xl group">
@@ -137,60 +137,60 @@ function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () =>
         </div>
 
         <div className="mb-6 flex-1">
-           <div className="flex items-center gap-2 text-slate-400 mb-3 text-[10px] font-extrabold uppercase tracking-widest">
-             <BookOpen className="w-3.5 h-3.5" /> Assigned Subjects
-           </div>
-           {loadingCard ? (
-             <div className="flex gap-2">
-               <div className="h-7 w-24 bg-slate-100 rounded-lg animate-pulse" />
-               <div className="h-7 w-24 bg-slate-100 rounded-lg animate-pulse" />
-             </div>
-           ) : (
-             <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-                {allSubjects.map((code: any) => {
-                   const progress = stats.subjectProgress[code] || 0;
-                   let progressColor = 'bg-slate-400';
-                   if (progress === 100) progressColor = 'bg-emerald-500';
-                   else if (progress >= 80) progressColor = 'bg-teal-500';
-                   else if (progress >= 40) progressColor = 'bg-amber-500';
-                   else progressColor = 'bg-rose-450';
+          <div className="flex items-center gap-2 text-slate-400 mb-3 text-[10px] font-extrabold uppercase tracking-widest">
+            <BookOpen className="w-3.5 h-3.5" /> Assigned Subjects
+          </div>
+          {loadingCard ? (
+            <div className="flex gap-2">
+              <div className="h-7 w-24 bg-slate-100 rounded-lg animate-pulse" />
+              <div className="h-7 w-24 bg-slate-100 rounded-lg animate-pulse" />
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+              {allSubjects.map((code: any) => {
+                const progress = stats.subjectProgress[code] || 0;
+                let progressColor = 'bg-slate-400';
+                if (progress === 100) progressColor = 'bg-emerald-500';
+                else if (progress >= 80) progressColor = 'bg-teal-500';
+                else if (progress >= 40) progressColor = 'bg-amber-500';
+                else progressColor = 'bg-rose-450';
 
-                   return (
-                     <div key={code} className="bg-slate-50 border border-slate-200/60 rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100/50">
-                        <div className={`w-1.5 h-1.5 rounded-full ${progressColor}`}></div>
-                        {code} <span className="text-[10px] text-slate-400 font-normal">({progress}%)</span>
-                     </div>
-                   )
-                })}
-                {allSubjects.length === 0 && (
-                   <span className="text-slate-400 text-xs italic">No specific subjects assigned</span>
-                )}
-             </div>
-           )}
+                return (
+                  <div key={code} className="bg-slate-50 border border-slate-200/60 rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100/50">
+                    <div className={`w-1.5 h-1.5 rounded-full ${progressColor}`}></div>
+                    {code} <span className="text-[10px] text-slate-400 font-normal">({progress}%)</span>
+                  </div>
+                )
+              })}
+              {allSubjects.length === 0 && (
+                <span className="text-slate-400 text-xs italic">No specific subjects assigned</span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-auto pt-4 border-t border-slate-50">
           <div className="flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">
-             <span>Overall Progress</span>
-             <span className="text-[#D8232A]">{loadingCard ? '-' : stats.progress}%</span>
+            <span>Overall Progress</span>
+            <span className="text-[#D8232A]">{loadingCard ? '-' : stats.progress}%</span>
           </div>
           <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-4">
-             <div 
-               className="h-full bg-gradient-to-r from-red-500 to-[#D8232A] rounded-full transition-all duration-1000" 
-               style={{ width: loadingCard ? '0%' : `${stats.progress}%` }}
-             />
+            <div
+              className="h-full bg-gradient-to-r from-red-500 to-[#D8232A] rounded-full transition-all duration-1000"
+              style={{ width: loadingCard ? '0%' : `${stats.progress}%` }}
+            />
           </div>
 
           <div className="flex items-center justify-between pt-1">
-             <span className="text-xs font-bold text-slate-500">
-               {loadingCard ? '-' : stats.studentCount} Enrolled Students
-             </span>
-             <button 
-                onClick={onOpen}
-                className="text-xs font-bold text-[#D8232A] hover:text-[#b91c22] flex items-center gap-1 transition-colors group/btn cursor-pointer bg-transparent border-none outline-none"
-             >
-                Open Gradebook <ArrowLeft className="w-3.5 h-3.5 rotate-180 group-hover/btn:translate-x-0.5 transition-transform" />
-             </button>
+            <span className="text-xs font-bold text-slate-500">
+              {loadingCard ? '-' : stats.studentCount} Enrolled Students
+            </span>
+            <button
+              onClick={onOpen}
+              className="text-xs font-bold text-[#D8232A] hover:text-[#b91c22] flex items-center gap-1 transition-colors group/btn cursor-pointer bg-transparent border-none outline-none"
+            >
+              Open Gradebook <ArrowLeft className="w-3.5 h-3.5 rotate-180 group-hover/btn:translate-x-0.5 transition-transform" />
+            </button>
           </div>
         </div>
       </div>
@@ -209,12 +209,12 @@ export function GradesView() {
   const [isGradebookOpen, setIsGradebookOpen] = useState(false);
   const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>('');
   const [selectedTerm, setSelectedTerm] = useState<'Term 1' | 'Term 2' | 'Finals'>('Term 1');
-  
+
   const [localGrades, setLocalGrades] = useState<Record<string, Record<string, string>>>({});
   const [isAttendance, setIsAttendance] = useState(false);
   const [attStartDate, setAttStartDate] = useState('');
   const [attEndDate, setAttEndDate] = useState('');
-  
+
   const [editColIsAttendance, setEditColIsAttendance] = useState(false);
   const [editColStartDate, setEditColStartDate] = useState('');
   const [editColEndDate, setEditColEndDate] = useState('');
@@ -280,10 +280,10 @@ export function GradesView() {
               .filter(a => a.sectionId === currentSection && a.date >= col.startDate && a.date <= col.endDate)
               .map(a => a.date)
           ));
-          const presentDays = attendance.filter(a => 
-            a.studentId === s.id && 
-            a.date >= col.startDate && 
-            a.date <= col.endDate && 
+          const presentDays = attendance.filter(a =>
+            a.studentId === s.id &&
+            a.date >= col.startDate &&
+            a.date <= col.endDate &&
             (a.status === 'Present' || a.status === 'Late' || (a as any).amStatus === 'Present' || (a as any).amStatus === 'Late')
           ).length;
           const score = rangeDates.length > 0 ? (presentDays / rangeDates.length) * 100 : 0;
@@ -305,7 +305,7 @@ export function GradesView() {
     setSaved(true);
 
     if (updatesToMake.length > 0) {
-      Promise.all(updatesToMake.map(up => 
+      Promise.all(updatesToMake.map(up =>
         updateDynamicStudentGrade(up.studentId, selectedSubjectCode, selectedTerm, up.columnId, up.val)
       )).catch(err => console.error("Error auto-updating attendance grades:", err));
     }
@@ -357,7 +357,7 @@ export function GradesView() {
   const handleBlur = async (studentId: string, columnId: string, val: string) => {
     if (!isAuthorized) return;
     const trimmed = (val || '').trim();
-    
+
     setIsSaving(true);
     setSaved(false);
     try {
@@ -417,9 +417,9 @@ export function GradesView() {
       return;
     }
     await addGradeColumn(
-      selectedSubjectCode, 
-      selectedTerm, 
-      newColName.trim(), 
+      selectedSubjectCode,
+      selectedTerm,
+      newColName.trim(),
       weight,
       isAttendance,
       attStartDate,
@@ -437,7 +437,7 @@ export function GradesView() {
     if (!editingColumnId) return;
     const weight = parseFloat(editColWeight);
     if (!editColName.trim() || !editColWeight || isNaN(weight)) return;
-    
+
     const editingCol = gradeConfigurations.find(c => c.id === editingColumnId);
     const oldWeight = editingCol?.weight || 0;
     const maxWeight = remainingWeight + oldWeight;
@@ -453,8 +453,8 @@ export function GradesView() {
     }
 
     await editGradeColumn(
-      editingColumnId, 
-      editColName.trim(), 
+      editingColumnId,
+      editColName.trim(),
       weight,
       editColIsAttendance ? editColStartDate : undefined,
       editColIsAttendance ? editColEndDate : undefined
@@ -517,9 +517,9 @@ export function GradesView() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {assignedSections.map(section => (
-                <SectionDashboardCard 
-                  key={section.sectionId} 
-                  section={section} 
+                <SectionDashboardCard
+                  key={section.sectionId}
+                  section={section}
                   onOpen={() => {
                     setCurrentSection(section.sectionId);
                     const firstSubj = (section.taughtSubjectCodes && section.taughtSubjectCodes.length > 0)
@@ -529,7 +529,7 @@ export function GradesView() {
                         : '';
                     setSelectedSubjectCode(firstSubj);
                     setIsGradebookOpen(true);
-                  }} 
+                  }}
                 />
               ))}
             </div>
@@ -546,7 +546,7 @@ export function GradesView() {
       {/* Left Sidebar */}
       <div className="w-66 bg-white border-r border-slate-200 shrink-0 flex flex-col hidden md:flex shadow-3xs relative z-10">
         <div className="p-6 border-b border-slate-100">
-          <button 
+          <button
             onClick={() => {
               setIsGradebookOpen(false);
               setSelectedSubjectCode('');
@@ -555,7 +555,7 @@ export function GradesView() {
           >
             <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" /> BACK TO LIST
           </button>
-          
+
           <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Selected Section</div>
           <h2 className="text-base font-extrabold text-slate-800 leading-tight">{currentGradeLevel} — {currentSectionName}</h2>
           {isAdvisorForCurrentSection && (
@@ -573,11 +573,10 @@ export function GradesView() {
                 <button
                   key={code}
                   onClick={() => setSelectedSubjectCode(code)}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer border-none outline-none ${
-                    selectedSubjectCode === code 
-                    ? 'bg-red-50 text-[#D8232A] shadow-3xs ring-1 ring-red-500/10' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer border-none outline-none ${selectedSubjectCode === code
+                      ? 'bg-red-50 text-[#D8232A] shadow-3xs ring-1 ring-red-500/10'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
                 >
                   <div className={`w-1.5 h-1.5 rounded-full ${selectedSubjectCode === code ? 'bg-[#D8232A]' : 'bg-transparent'}`}></div>
                   {code}
@@ -596,11 +595,10 @@ export function GradesView() {
                 <button
                   key={code}
                   onClick={() => setSelectedSubjectCode(code)}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex flex-col gap-1 cursor-pointer border-none outline-none ${
-                    selectedSubjectCode === code 
-                    ? 'bg-slate-100 text-slate-900 shadow-3xs ring-1 ring-slate-200' 
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                  }`}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex flex-col gap-1 cursor-pointer border-none outline-none ${selectedSubjectCode === code
+                      ? 'bg-slate-100 text-slate-900 shadow-3xs ring-1 ring-slate-200'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                    }`}
                 >
                   <div className="flex items-center justify-between w-full min-w-0 gap-2">
                     <span className="truncate">{code}</span>
@@ -619,7 +617,7 @@ export function GradesView() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         <div className="p-6 lg:p-8 flex-1 overflow-y-auto">
-          
+
           {/* Segmented Advisor Banner */}
           {isAdvisorForCurrentSection && (
             <div className="mb-6 bg-red-50/50 border border-red-100 rounded-xl p-4 flex items-start gap-3 shadow-2xs">
@@ -634,28 +632,26 @@ export function GradesView() {
           {isAdvisorForCurrentSection && (
             <div className="flex justify-center mb-6">
               <div className="bg-slate-100/80 p-1.5 rounded-2xl inline-flex shadow-inner border border-slate-200/50">
-                <button 
+                <button
                   onClick={() => {
                     if (selectedSubjectCode === 'MASTER_SHEET') {
                       setSelectedSubjectCode(advisedSubjects[0] || taughtSubjects[0] || '');
                     }
                   }}
-                  className={`px-8 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-none outline-none ${
-                    selectedSubjectCode !== 'MASTER_SHEET' 
-                    ? 'bg-white text-slate-800 shadow-2xs' 
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                  }`}
+                  className={`px-8 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-none outline-none ${selectedSubjectCode !== 'MASTER_SHEET'
+                      ? 'bg-white text-slate-800 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                    }`}
                 >
                   <BookOpen className={`w-4 h-4 ${selectedSubjectCode !== 'MASTER_SHEET' ? 'text-[#D8232A]' : 'text-slate-400'}`} />
                   Subject Gradebook
                 </button>
-                <button 
+                <button
                   onClick={() => setSelectedSubjectCode('MASTER_SHEET')}
-                  className={`px-8 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-none outline-none ${
-                    selectedSubjectCode === 'MASTER_SHEET' 
-                    ? 'bg-white text-[#D8232A] shadow-2xs' 
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                  }`}
+                  className={`px-8 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-none outline-none ${selectedSubjectCode === 'MASTER_SHEET'
+                      ? 'bg-white text-[#D8232A] shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                    }`}
                 >
                   <Star className={`w-4 h-4 ${selectedSubjectCode === 'MASTER_SHEET' ? 'text-[#D8232A]' : 'text-slate-400'}`} />
                   Master Overview
@@ -672,7 +668,7 @@ export function GradesView() {
                 {selectedSubjectCode === 'MASTER_SHEET' ? 'Master Gradebook Report' : selectedSubjectCode || 'No Subject Selected'}
               </h1>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {selectedSubjectCode === 'MASTER_SHEET' && (
                 <Button variant="outline" onClick={() => window.print()} className="gap-2 bg-white border-slate-200 shadow-sm hidden sm:flex font-semibold rounded-xl text-xs h-9">
@@ -696,11 +692,10 @@ export function GradesView() {
                 <button
                   key={term}
                   onClick={() => setSelectedTerm(term)}
-                  className={`px-6 py-3 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer ${
-                    selectedTerm === term 
-                    ? 'bg-white border-[#D8232A] text-[#D8232A] shadow-3xs' 
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
-                  }`}
+                  className={`px-6 py-3 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer ${selectedTerm === term
+                      ? 'bg-white border-[#D8232A] text-[#D8232A] shadow-3xs'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                    }`}
                 >
                   {term}
                 </button>
@@ -731,81 +726,81 @@ export function GradesView() {
                     ))}
                     <TableHead className="font-bold text-[#D8232A] py-3 text-center pr-6 min-w-[90px] border-l border-slate-200 sticky right-0 bg-slate-50 z-20 shadow-[-1px_0_0_0_#e2e8f0]">GWA</TableHead>
                   </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedEnrolled.map(s => {
-                      const gradeKey = currentGradeLevel ? currentGradeLevel.replace(/Grade /i, 'Grade ') : 'Grade 6';
-                      let validSubjects = 0;
-                      let totalGWA = 0;
-                      
-                      const subjGrades = Array.from(new Set([...taughtSubjects, ...advisedSubjects])).map(code => {
-                        const subjectData = (s.grades as Record<string, any>)?.[gradeKey]?.[code] || {};
-                        const finalOverride = subjectData.finalGradeOverride;
+                </TableHeader>
+                <TableBody>
+                  {paginatedEnrolled.map(s => {
+                    const gradeKey = currentGradeLevel ? currentGradeLevel.replace(/Grade /i, 'Grade ') : 'Grade 6';
+                    let validSubjects = 0;
+                    let totalGWA = 0;
 
-                        let subjectFinal: number | null = null;
-                        
-                        if (finalOverride !== undefined && finalOverride !== null) {
-                           subjectFinal = Number(finalOverride);
-                        } else {
-                          const termGrades = terms.map(term => {
-                             const cols = gradeConfigurations.filter(c => c.subjectCode === code && c.term === term && c.type !== 'submission');
-                             if (cols.length === 0) return null;
-                             let termTotal = 0;
-                             let hasGrade = false;
-                             const termData = subjectData[term] || {};
-                             cols.forEach(col => {
-                               const val = termData[col.id];
-                               if (val !== undefined && val !== '') {
-                                 termTotal += (parseFloat(val) * (col.weight / 100));
-                                 hasGrade = true;
-                               }
-                             });
-                             return hasGrade ? termTotal : null;
-                          }).filter(v => v !== null) as number[];
+                    const subjGrades = Array.from(new Set([...taughtSubjects, ...advisedSubjects])).map(code => {
+                      const subjectData = (s.grades as Record<string, any>)?.[gradeKey]?.[code] || {};
+                      const finalOverride = subjectData.finalGradeOverride;
 
-                          if (termGrades.length > 0) {
-                             subjectFinal = termGrades.reduce((a, b) => a + b, 0) / termGrades.length;
-                          }
+                      let subjectFinal: number | null = null;
+
+                      if (finalOverride !== undefined && finalOverride !== null) {
+                        subjectFinal = Number(finalOverride);
+                      } else {
+                        const termGrades = terms.map(term => {
+                          const cols = gradeConfigurations.filter(c => c.subjectCode === code && c.term === term && c.type !== 'submission');
+                          if (cols.length === 0) return null;
+                          let termTotal = 0;
+                          let hasGrade = false;
+                          const termData = subjectData[term] || {};
+                          cols.forEach(col => {
+                            const val = termData[col.id];
+                            if (val !== undefined && val !== '') {
+                              termTotal += (parseFloat(val) * (col.weight / 100));
+                              hasGrade = true;
+                            }
+                          });
+                          return hasGrade ? termTotal : null;
+                        }).filter(v => v !== null) as number[];
+
+                        if (termGrades.length > 0) {
+                          subjectFinal = termGrades.reduce((a, b) => a + b, 0) / termGrades.length;
                         }
+                      }
 
-                        if (subjectFinal !== null) {
-                           totalGWA += subjectFinal;
-                           validSubjects++;
-                        }
-                        
-                        return { code, value: subjectFinal, isOverride: finalOverride !== undefined && finalOverride !== null };
-                      });
+                      if (subjectFinal !== null) {
+                        totalGWA += subjectFinal;
+                        validSubjects++;
+                      }
 
-                      const gwa = validSubjects > 0 ? (totalGWA / validSubjects).toFixed(2) : '—';
-                      const isFailing = validSubjects > 0 && (totalGWA / validSubjects) < 75;
+                      return { code, value: subjectFinal, isOverride: finalOverride !== undefined && finalOverride !== null };
+                    });
 
-                      return (
-                        <TableRow key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-100 ${isFailing ? 'bg-red-50/20' : 'bg-white'}`}>
-                          <TableCell className={`pl-6 py-3.5 sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] ${isFailing ? 'bg-red-50/80' : 'bg-white'}`}>
-                            <span className={`font-bold text-[13px] ${isFailing ? 'text-red-700' : 'text-slate-800'} whitespace-nowrap`}>
-                              {formatStudentName(s.firstName, s.lastName)}
-                            </span>
+                    const gwa = validSubjects > 0 ? (totalGWA / validSubjects).toFixed(2) : '—';
+                    const isFailing = validSubjects > 0 && (totalGWA / validSubjects) < 75;
+
+                    return (
+                      <TableRow key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-100 ${isFailing ? 'bg-red-50/20' : 'bg-white'}`}>
+                        <TableCell className={`pl-6 py-3.5 sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] ${isFailing ? 'bg-red-50/80' : 'bg-white'}`}>
+                          <span className={`font-bold text-[13px] ${isFailing ? 'text-red-700' : 'text-slate-800'} whitespace-nowrap`}>
+                            {formatStudentName(s.firstName, s.lastName)}
+                          </span>
+                        </TableCell>
+                        {subjGrades.map(sg => (
+                          <TableCell key={sg.code} className={`text-center py-3.5 px-1 font-mono text-xs font-semibold ${sg.isOverride ? 'text-amber-700 bg-amber-50/30 font-bold' : (sg.value !== null && Number(sg.value) < 75 ? 'text-rose-600 font-bold bg-rose-50/30' : 'text-slate-650')}`}>
+                            {sg.value !== null ? Number(sg.value).toFixed(1) : '—'}
                           </TableCell>
-                          {subjGrades.map(sg => (
-                            <TableCell key={sg.code} className={`text-center py-3.5 px-1 font-mono text-xs font-semibold ${sg.isOverride ? 'text-amber-700 bg-amber-50/30 font-bold' : (sg.value !== null && Number(sg.value) < 75 ? 'text-rose-600 font-bold bg-rose-50/30' : 'text-slate-650')}`}>
-                              {sg.value !== null ? Number(sg.value).toFixed(1) : '—'}
-                            </TableCell>
-                          ))}
-                          <TableCell className={`text-center pr-6 py-3.5 font-mono font-bold text-[13px] border-l border-slate-100 sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] ${isFailing ? 'text-rose-700 bg-rose-50/80' : 'text-[#D8232A] bg-red-50/40'}`}>
-                            {gwa}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {enrolled.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={Array.from(new Set([...taughtSubjects, ...advisedSubjects])).length + 2} className="text-center py-12 text-slate-400 font-medium">
-                          No students enrolled.
+                        ))}
+                        <TableCell className={`text-center pr-6 py-3.5 font-mono font-bold text-[13px] border-l border-slate-100 sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] ${isFailing ? 'text-rose-700 bg-rose-50/80' : 'text-[#D8232A] bg-red-50/40'}`}>
+                          {gwa}
                         </TableCell>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    );
+                  })}
+                  {enrolled.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={Array.from(new Set([...taughtSubjects, ...advisedSubjects])).length + 2} className="text-center py-12 text-slate-400 font-medium">
+                        No students enrolled.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </Card>
           ) : (
             <Card className="bg-white border border-slate-200/50 shadow-2xs rounded-2xl overflow-hidden flex flex-col">
@@ -823,19 +818,18 @@ export function GradesView() {
                       <span className="text-xs font-bold text-slate-500">Read-Only Mode</span>
                     </>
                   )}
-                  <Badge variant="outline" className={`ml-2 text-[9px] font-bold uppercase tracking-wider rounded-lg border-opacity-40 px-2 py-0.5 ${
-                    submissionStatus === 'locked' ? 'bg-red-50 text-[#D8232A] border-red-200' :
-                    submissionStatus === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                    'bg-slate-100 text-slate-600 border-slate-200'
-                  }`}>
+                  <Badge variant="outline" className={`ml-2 text-[9px] font-bold uppercase tracking-wider rounded-lg border-opacity-40 px-2 py-0.5 ${submissionStatus === 'locked' ? 'bg-red-50 text-[#D8232A] border-red-200' :
+                      submissionStatus === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
                     {submissionStatus === 'locked' ? 'Locked' : submissionStatus === 'pending' ? 'Approval Pending' : 'Draft'}
                   </Badge>
                 </div>
 
                 <div className="flex items-center gap-2">
                   {isAuthorized && (
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       onClick={() => setIsAddColumnOpen(true)}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-8 border-none"
                     >
@@ -979,13 +973,13 @@ export function GradesView() {
                               <button onClick={() => openEditModal(col)} className="text-slate-500 hover:text-blue-600 p-0.5 border-none bg-transparent cursor-pointer">
                                 <Edit3 className="w-3 h-3" />
                               </button>
-                              <button 
+                              <button
                                 onClick={async () => {
                                   if (window.confirm(`Delete grading column "${col.name}"? This removes all scores recorded in this column.`)) {
                                     await deleteGradeColumn(col.id);
                                     toast.success("Column deleted!");
                                   }
-                                }} 
+                                }}
                                 className="text-slate-500 hover:text-rose-600 p-0.5 border-none bg-transparent cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -1019,7 +1013,7 @@ export function GradesView() {
                   <TableBody>
                     {paginatedEnrolled.map(s => {
                       const studentGrades = localGrades[s.id] || {};
-                      
+
                       // Calculate dynamic live term total average
                       let termTotal = 0;
                       let hasGrade = false;
@@ -1066,9 +1060,8 @@ export function GradesView() {
                                 onBlur={() => {
                                   if (isAuthorized) handleBlur(s.id, col.id, studentGrades[col.id] || '');
                                 }}
-                                className={`h-8 font-mono text-xs font-semibold text-center rounded-lg border bg-white ${
-                                  !isAuthorized ? 'border-slate-100 bg-slate-50 text-slate-500' : 'border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500'
-                                }`}
+                                className={`h-8 font-mono text-xs font-semibold text-center rounded-lg border bg-white ${!isAuthorized ? 'border-slate-100 bg-slate-50 text-slate-500' : 'border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500'
+                                  }`}
                                 max="100"
                                 min="0"
                               />
@@ -1166,19 +1159,19 @@ export function GradesView() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label className="text-xs font-bold text-slate-600">Column Name (e.g., Written Work, Quiz 1)</Label>
-              <Input 
-                placeholder="Column Name" 
-                value={newColName} 
+              <Input
+                placeholder="Column Name"
+                value={newColName}
                 onChange={e => setNewColName(e.target.value)}
                 className="h-9 text-xs rounded-xl border-slate-200"
               />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold text-slate-600">Weight Percentage (%)</Label>
-              <Input 
-                type="number" 
-                placeholder="40" 
-                value={newColWeight} 
+              <Input
+                type="number"
+                placeholder="40"
+                value={newColWeight}
                 onChange={e => setNewColWeight(e.target.value)}
                 max={remainingWeight}
                 min="1"
@@ -1231,8 +1224,8 @@ export function GradesView() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setIsAddColumnOpen(false)} className="rounded-xl text-xs h-9 border-slate-250 text-slate-500">Cancel</Button>
-            <Button 
-              onClick={handleAddColumn} 
+            <Button
+              onClick={handleAddColumn}
               disabled={!newColName.trim() || !newColWeight || isNaN(parseFloat(newColWeight)) || parseFloat(newColWeight) > remainingWeight}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-9 border-none"
             >
@@ -1250,20 +1243,20 @@ export function GradesView() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label className="text-xs font-bold text-slate-600">Column Name (e.g., Written Work, Quiz 1)</Label>
-              <Input 
-                placeholder="Name" 
-                value={editColName} 
-                onChange={e => setEditColName(e.target.value)} 
+              <Input
+                placeholder="Name"
+                value={editColName}
+                onChange={e => setEditColName(e.target.value)}
                 className="h-9 text-xs rounded-xl border-slate-200"
               />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold text-slate-600">Weight Percentage (%)</Label>
-              <Input 
-                type="number" 
-                placeholder="40" 
-                value={editColWeight} 
-                onChange={e => setEditColWeight(e.target.value)} 
+              <Input
+                type="number"
+                placeholder="40"
+                value={editColWeight}
+                onChange={e => setEditColWeight(e.target.value)}
                 max={remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}
                 min="1"
                 className="h-9 text-xs rounded-xl border-slate-200"
@@ -1296,8 +1289,8 @@ export function GradesView() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingColumnId(null)} className="rounded-xl text-xs h-9 border-slate-250 text-slate-500">Cancel</Button>
-            <Button 
-              onClick={handleEditColumn} 
+            <Button
+              onClick={handleEditColumn}
               disabled={!editColName.trim() || !editColWeight || isNaN(parseFloat(editColWeight)) || parseFloat(editColWeight) > remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-9 border-none"
             >

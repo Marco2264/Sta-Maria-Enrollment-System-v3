@@ -100,9 +100,16 @@ function TeacherDashboardContent() {
     { id: 'sf10', label: 'Permanent Records', icon: FileText, category: 'Documents' }
   ];
 
+  const handleNavigate = (view: string, targetSectionId?: string) => {
+    if (targetSectionId && targetSectionId !== currentSection) {
+      setCurrentSection(targetSectionId);
+    }
+    setActiveView(view);
+  };
+
   const renderActiveView = () => {
     switch (activeView) {
-      case 'dashboard': return <TeacherDashboardView />;
+      case 'dashboard': return <TeacherDashboardView onNavigate={handleNavigate} />;
       case 'enrollments': return <EnrollmentsView />;
       case 'students': return <StudentsView />;
       case 'attendance': return <AttendanceView />;
@@ -114,7 +121,7 @@ function TeacherDashboardContent() {
       case 'sf10': return <SF10Module students={students} sections={assignedSections} isAdmin={false} />;
       case 'settings': return <TeacherSettingsView />;
       case 'health': return <HealthDashboardView />;
-      default: return <TeacherDashboardView />;
+      default: return <TeacherDashboardView onNavigate={handleNavigate} />;
     }
   };
 

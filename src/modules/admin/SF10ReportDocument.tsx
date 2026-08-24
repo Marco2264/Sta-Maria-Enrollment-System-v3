@@ -56,33 +56,39 @@ const isMatchingGrade = (g1: string, g2: string) => {
 
 const subjectDisplayNames: Record<string, string> = {
   'FILIPINO': 'Filipino',
+  'FIL': 'Filipino',
   'ENGLISH': 'English',
+  'ENG': 'English',
   'MATH': 'Mathematics',
   'SCIENCE': 'Science',
-  'AP': 'Araling Panlipunan',
+  'SCI': 'Science',
+  'AP': 'Araling Panlipunan (AP)',
   'ESP': 'Good Manners and Right Conduct (GMRC)',
+  'GMRC': 'Good Manners and Right Conduct (GMRC)',
   'EPP_TLE': 'Technology and Livelihood Education (TLE)',
   'TLE': 'Technology and Livelihood Education (TLE)',
+  'EPP': 'Technology and Livelihood Education (TLE)',
   'MUSIC': 'Music',
   'ARTS': 'Arts',
   'PE': 'Physical Education',
   'HEALTH': 'Health',
   'PE_HEALTH': 'PE & Health',
-  'MAPEH': 'MAPEH',
+  'MAPEH': 'Music & Arts',
   'LANGUAGE': 'Language',
-  'READING': 'Reading',
-  'LITERACY': 'Literacy',
+  'READING': 'Reading and Literacy',
+  'LITERACY': 'Reading and Literacy',
   'READING_AND_LITERACY': 'Reading and Literacy',
-  'MAKABANSA': 'Makabansa'
+  'MAKABANSA': 'Makabansa',
+  'MAK': 'Makabansa'
 };
 
 const getNormalizedSubjectCode = (nameOrCode: string): string => {
   const clean = nameOrCode.toLowerCase().trim();
-  if (clean === 'filipino') return 'FILIPINO';
-  if (clean === 'english') return 'ENGLISH';
+  if (clean === 'filipino' || clean === 'fil') return 'FILIPINO';
+  if (clean === 'english' || clean === 'eng') return 'ENGLISH';
   if (clean === 'mathematics' || clean === 'math') return 'MATH';
-  if (clean === 'science') return 'SCIENCE';
-  if (clean === 'araling panlipunan' || clean === 'ap' || clean === 'ap/makabansa' || clean === 'makabansa') return 'MAKABANSA';
+  if (clean === 'science' || clean === 'sci') return 'SCIENCE';
+  if (clean === 'araling panlipunan' || clean === 'ap' || clean === 'ap/makabansa' || clean === 'makabansa' || clean === 'mak') return 'MAKABANSA';
   if (clean === 'good manners and right conduct (gmrc)' || clean === 'gmrc' || clean === 'edukasyon sa pagpapakatao' || clean === 'esp') return 'ESP';
   if (clean === 'epp' || clean === 'tle' || clean === 'epp/tle' || clean === 'technology and livelihood education (tle)') return 'TLE';
   if (clean === 'music') return 'MUSIC';
@@ -90,7 +96,7 @@ const getNormalizedSubjectCode = (nameOrCode: string): string => {
   if (clean === 'physical education' || clean === 'pe') return 'PE';
   if (clean === 'health') return 'HEALTH';
   if (clean === 'language') return 'LANGUAGE';
-  if (clean === 'reading and literacy' || clean === 'reading') return 'READING_AND_LITERACY';
+  if (clean === 'reading and literacy' || clean === 'reading' || clean === 'literacy') return 'READING_AND_LITERACY';
   return nameOrCode.toUpperCase().replace(/\s+/g, '_');
 };
 
@@ -289,27 +295,75 @@ export function SF10ReportDocument({ onClose, data }: SF10ReportDocumentProps) {
     ];
   };
 
-  const resolveTermGrade = (subjectGrades: any, term: string, subjectCode: string, sectionId: string, gradeConfigs: any[]) => {
-    if (!subjectGrades || typeof subjectGrades !== 'object') return '';
-    
-    // 1. Direct manual inputs
-    const termKeyMap: Record<string, string[]> = {
-      'Term 1': ['t1', 'q1'],
-      'Term 2': ['t2', 'q2'],
-      'Term 3': ['t3', 'q3'],
-      'Quarter 1': ['q1', 't1'],
-      'Quarter 2': ['q2', 't2'],
-      'Quarter 3': ['q3', 't3'],
-      'Quarter 4': ['q4']
-    };
-    
-    const keysToCheck = termKeyMap[term] || [];
-    for (const k of keysToCheck) {
-      if (subjectGrades[k] !== undefined && subjectGrades[k] !== null && subjectGrades[k] !== '') {
-        return parseFloat(subjectGrades[k]);
+  const resolveTermGrade = (subjectGrades: any, term: string, subjectCode?: string, sectionId?: string, gradeConfigs?: any[]) => {
+    if (!subjectGrades) return '';
+    if (typeof subjectGrades === 'number') return subjectGrades;
+
+    if (typeof subjectGrades !== 'object') {
+      const parsed = parseFloat(String(subjectGrades));
+      return isNaN(parsed) ? '' : parsed;
+    }
+
+    // Check direct override
+    if (term === 'Final' || term === 'final' || term === 'Finals') {
+      if (subjectGrades.finalGradeOverride !== undefined && subjectGrades.finalGradeOverride !== null && subjectGrades.finalGradeOverride !== '') {
+        const num = parseFloat(String(subjectGrades.finalGradeOverride));
+        if (!isNaN(num)) return num;
       }
     }
-    
+
+    const termKeyMap: Record<string, string[]> = {
+      'Term 1': ['t1', 'q1', 'Term 1', 'term 1', 'Term1', 'term1', 'Quarter 1', 'quarter 1', 'Quarter1', 'quarter1', 'Q1', 'q1', '1'],
+      'Term 2': ['t2', 'q2', 'Term 2', 'term 2', 'Term2', 'term2', 'Quarter 2', 'quarter 2', 'Quarter2', 'quarter2', 'Q2', 'q2', '2'],
+      'Term 3': ['t3', 'q3', 'Term 3', 'term 3', 'Term3', 'term3', 'Quarter 3', 'quarter 3', 'Quarter3', 'quarter3', 'Q3', 'q3', '3'],
+      'Quarter 1': ['q1', 't1', 'Quarter 1', 'quarter 1', 'Quarter1', 'quarter1', 'Term 1', 'term 1', 'Term1', 'term1', 'Q1', 'q1', '1'],
+      'Quarter 2': ['q2', 't2', 'Quarter 2', 'quarter 2', 'Quarter2', 'quarter2', 'Term 2', 'term 2', 'Term2', 'term2', 'Q2', 'q2', '2'],
+      'Quarter 3': ['q3', 't3', 'Quarter 3', 'quarter 3', 'Quarter3', 'quarter3', 'Term 3', 'term 3', 'Term3', 'term3', 'Q3', 'q3', '3'],
+      'Quarter 4': ['q4', 'Quarter 4', 'quarter 4', 'Quarter4', 'quarter4', 'Q4', 'q4', '4']
+    };
+
+    const keysToCheck = termKeyMap[term] || [term, term.toLowerCase()];
+    for (const k of keysToCheck) {
+      const val = subjectGrades[k];
+      if (val !== undefined && val !== null && val !== '') {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') {
+          const num = parseFloat(val);
+          if (!isNaN(num)) return num;
+        }
+        // If val is an object (Dynamic Gradebook: { col1: score1, col2: score2 })
+        if (typeof val === 'object' && val !== null) {
+          const columnScores = Object.entries(val).filter(([_, score]) => score !== undefined && score !== null && score !== '' && !isNaN(Number(score)));
+          if (columnScores.length > 0) {
+            if (Array.isArray(gradeConfigs) && gradeConfigs.length > 0) {
+              let totalWeight = 0;
+              let weightedSum = 0;
+              let unweightedScores: number[] = [];
+              columnScores.forEach(([colId, score]) => {
+                const numScore = Number(score);
+                const conf = gradeConfigs.find(c => c.id === colId);
+                if (conf && typeof conf.weight === 'number' && conf.weight > 0) {
+                  totalWeight += conf.weight;
+                  weightedSum += numScore * (conf.weight / 100);
+                } else {
+                  unweightedScores.push(numScore);
+                }
+              });
+              if (totalWeight > 0) {
+                return Math.round(weightedSum * (100 / totalWeight));
+              }
+              if (unweightedScores.length > 0) {
+                return Math.round(unweightedScores.reduce((a, b) => a + b, 0) / unweightedScores.length);
+              }
+            } else {
+              const nums = columnScores.map(([_, s]) => Number(s));
+              return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+            }
+          }
+        }
+      }
+    }
+
     return '';
   };
 

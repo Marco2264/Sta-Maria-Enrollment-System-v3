@@ -47,12 +47,10 @@ service cloud.firestore {
     }
     
     // Enrollments
-    // Admins have full access.
-    // Teachers can read (e.g., to see students in their class).
+    // Admins and Teachers have access to manage enrollments and permanent records.
     // Parents can read only their child's enrollments.
     match /enrollments/{doc} {
-      allow read, write: if hasAdminAccess();
-      allow read, update: if isTeacher();
+      allow read, write: if hasAdminAccess() || isTeacher();
       allow read, update, delete: if isParent() && resource.data.parentId == request.auth.uid;
       allow create: if isParent() && request.resource.data.parentId == request.auth.uid;
     }

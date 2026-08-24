@@ -25,9 +25,11 @@ import { StudentsView } from '../components/teacher/StudentsView';
 import { AttendanceView } from '../components/teacher/AttendanceView';
 import { GradesView } from '../components/teacher/GradesView';
 import { TeacherReportsView } from '../components/teacher/TeacherReportsView';
+import { SF10Module } from '../modules/admin/SF10Module';
+
 function TeacherDashboardContent() {
   const navigate = useNavigate();
-  const { students } = useTeacherData();
+  const { students, assignedSections } = useTeacherData();
   const [activeView, setActiveView] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const pendingCount = students.filter((s) => s.status === 'Pending').length;
@@ -49,10 +51,14 @@ function TeacherDashboardContent() {
     { id: 'sf10', label: 'Permanent Records', icon: FileText, category: 'Documents' }
   ];
 
+  const handleNavigate = (view: string) => {
+    setActiveView(view);
+  };
+
   const renderActiveView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <TeacherDashboardView />;
+        return <TeacherDashboardView onNavigate={handleNavigate} />;
       case 'enrollments':
         return <EnrollmentsView />;
       case 'students':
@@ -63,8 +69,10 @@ function TeacherDashboardContent() {
         return <GradesView />;
       case 'reports':
         return <TeacherReportsView />;
+      case 'sf10':
+        return <SF10Module students={students} sections={assignedSections} isAdmin={false} />;
       default:
-        return <TeacherDashboardView />;
+        return <TeacherDashboardView onNavigate={handleNavigate} />;
     }
   };
   const SidebarContent = () =>
