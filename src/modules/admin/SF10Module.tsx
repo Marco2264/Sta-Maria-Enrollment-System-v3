@@ -11,7 +11,7 @@ import {
   ChevronLeft, ChevronRight, CheckCircle2, CornerDownRight, Trash2, 
   RotateCcw, BookOpen, User, Calendar, GraduationCap, School, Award, 
   Sparkles, Copy, Check, AlertCircle, Clock, ArrowRight, ShieldCheck, 
-  Layers, BarChart3, Sparkle
+  Layers, BarChart3, Sparkle, ShieldAlert
 } from 'lucide-react';
 import { getGlobalSettings } from '../../lib/services/settingsService';
 import toast from 'react-hot-toast';
@@ -392,23 +392,25 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
       });
       return () => unsub();
     } else {
-      // For Teacher: Load teacher's assigned sections and enrich with Firestore section details
-      const assignedIds = new Set((sections || []).map(s => s.id || s.sectionId).filter(Boolean));
-      if (assignedIds.size === 0) {
-        setAllSections(sections || []);
+      // For Teacher: Load teacher's ADVISORY sections ONLY and enrich with Firestore section details
+      const advisorySectionsList = (sections || []).filter(s => s.isAdvisor === true || s.isAdvisor === undefined);
+      const advisoryIds = new Set(advisorySectionsList.map(s => s.id || s.sectionId).filter(Boolean));
+      
+      if (advisoryIds.size === 0) {
+        setAllSections([]);
         return;
       }
       const unsub = onSnapshot(collection(db, 'sections'), (snap) => {
         const matchingSections = snap.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(s => assignedIds.has(s.id));
+          .map(doc => ({ id: doc.id, ...doc.data(), isAdvisor: true }))
+          .filter(s => advisoryIds.has(s.id));
         if (matchingSections.length > 0) {
           setAllSections(matchingSections);
         } else {
-          setAllSections(sections || []);
+          setAllSections(advisorySectionsList.map(s => ({ ...s, isAdvisor: true })));
         }
       }, () => {
-        setAllSections(sections || []);
+        setAllSections(advisorySectionsList.map(s => ({ ...s, isAdvisor: true })));
       });
       return () => unsub();
     }
@@ -429,32 +431,25 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
       });
       return () => unsub();
     } else {
-      // For Teacher: strictly load students from the teacher's assigned section(s)
-      const mySectionIds = (sections || []).map(s => s.id || s.sectionId).filter(Boolean);
+      // For Teacher: strictly load students from the teacher's advisory section(s) ONLY
+      const advisorySectionsList = (sections || []).filter(s => s.isAdvisor === true || s.isAdvisor === undefined);
+      const myAdvisorySectionIds = advisorySectionsList.map(s => s.id || s.sectionId).filter(Boolean);
 
-      if (mySectionIds.length === 0) {
-        if (students && students.length > 0) {
-          setAllStudents(
-            students.filter((s: any) =>
-              s.isManualHistory !== true &&
-              !['Pending', 'pending', 'Rejected', 'rejected', 'Dropped', 'dropped'].includes(s.status)
-            )
-          );
-        } else {
-          setAllStudents([]);
-        }
+      if (myAdvisorySectionIds.length === 0) {
+        setAllStudents([]);
         return;
       }
 
       const q = query(
         collection(db, 'enrollments'),
-        where('sectionId', 'in', mySectionIds.slice(0, 30))
+        where('sectionId', 'in', myAdvisorySectionIds.slice(0, 30))
       );
       const unsub = onSnapshot(q, (snap) => {
         const docs = snap.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter((s: any) =>
             s.isManualHistory !== true &&
+            myAdvisorySectionIds.includes(s.sectionId) &&
             !['Pending', 'pending', 'Rejected', 'rejected', 'Dropped', 'dropped'].includes(s.status)
           );
         if (docs.length > 0) {
@@ -463,7 +458,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
           setAllStudents(
             students.filter((s: any) =>
               s.isManualHistory !== true &&
-              mySectionIds.includes(s.sectionId) &&
+              myAdvisorySectionIds.includes(s.sectionId) &&
               !['Pending', 'pending', 'Rejected', 'rejected', 'Dropped', 'dropped'].includes(s.status)
             )
           );
@@ -471,15 +466,17 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
           setAllStudents([]);
         }
       }, (err) => {
-        console.error("Error loading teacher's assigned students:", err);
+        console.error("Error loading teacher's advisory students:", err);
         if (students && students.length > 0) {
           setAllStudents(
             students.filter((s: any) =>
               s.isManualHistory !== true &&
-              mySectionIds.includes(s.sectionId) &&
+              myAdvisorySectionIds.includes(s.sectionId) &&
               !['Pending', 'pending', 'Rejected', 'rejected', 'Dropped', 'dropped'].includes(s.status)
             )
           );
+        } else {
+          setAllStudents([]);
         }
       });
       return () => unsub();
@@ -492,14 +489,14 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
       const id = s.id || s.sectionId || '';
       const name = s.name || s.sectionName || 'Unnamed Section';
       const gradeLevel = s.gradeLevel || 'Unknown Grade';
-      const isAdvisor = true;
+      const isAdvisor = s.isAdvisor !== false;
       return { id, name, gradeLevel, isAdvisor };
     });
   }, [allSections]);
 
   // Sorting section list
   const sortedSections = useMemo(() => {
-    // Show all assigned sections for the teacher
+    // Show advisory sections only
     return [...normalizedSections].sort((a, b) => {
       const gA = a.gradeLevel || '';
       const gB = b.gradeLevel || '';
@@ -513,6 +510,13 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [isSectionSelectorOpen, setIsSectionSelectorOpen] = useState(false);
   const [sectionSearchQuery, setSectionSearchQuery] = useState('');
+
+  // Auto-select single advisory section for teachers
+  useEffect(() => {
+    if (!isAdmin && sortedSections.length === 1) {
+      setSelectedSectionId(sortedSections[0].id);
+    }
+  }, [isAdmin, sortedSections]);
 
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -1557,8 +1561,10 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
                   className="flex items-center justify-between w-full bg-slate-50/80 hover:bg-slate-100/70 border border-slate-200/80 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none transition-all shadow-2xs"
                 >
                   <span className="truncate">
-                    {selectedSectionId === 'all'
-                      ? (isAdmin ? 'All Sections' : 'All My Sections')
+                    {sortedSections.length === 0 && !isAdmin
+                      ? 'No Advisory Section'
+                      : selectedSectionId === 'all'
+                      ? (isAdmin ? 'All Sections' : (sortedSections.length === 1 ? `${sortedSections[0].gradeLevel} — ${sortedSections[0].name}` : 'All Advisory Sections'))
                       : (() => {
                         const sec = sortedSections.find(s => s.id === selectedSectionId);
                         return sec ? `${sec.gradeLevel} — ${sec.name}` : 'Select Section';
@@ -1600,7 +1606,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
                               : 'text-slate-700 hover:bg-slate-50'
                           }`}
                         >
-                          {isAdmin ? 'All Sections' : 'All My Sections'}
+                          {isAdmin ? 'All Sections' : (sortedSections.length === 1 ? 'Advisory Section' : 'All Advisory Sections')}
                         </button>
                         {sortedSections
                           .filter(s => {
@@ -2678,6 +2684,19 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
               )}
 
             </div>
+          ) : !isAdmin && sortedSections.length === 0 ? (
+            /* NO ADVISORY SECTION EMPTY STATE */
+            <Card className="flex flex-col items-center justify-center p-16 sm:p-24 text-slate-400 bg-white border border-slate-200/80 rounded-3xl shadow-xs text-center space-y-4">
+              <div className="w-20 h-20 rounded-3xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-xs">
+                <ShieldAlert className="w-10 h-10 text-amber-600" />
+              </div>
+              <div className="space-y-1 max-w-md">
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">No Advisory Section Assigned</h3>
+                <p className="text-xs font-medium text-slate-500 leading-relaxed">
+                  School Form 10 (SF10) Learner's Permanent Academic Record management is restricted to Class Advisers. You are currently not assigned as the adviser for any section.
+                </p>
+              </div>
+            </Card>
           ) : (
             /* NO LEARNER SELECTED HERO EMPTY STATE */
             <Card className="flex flex-col items-center justify-center p-16 sm:p-24 text-slate-400 bg-white border border-slate-200/80 rounded-3xl shadow-xs text-center space-y-4">
@@ -2687,7 +2706,7 @@ export function SF10Module({ students = [], sections = [], isAdmin = true }: SF1
               <div className="space-y-1 max-w-md">
                 <h3 className="text-lg font-black text-slate-900 tracking-tight">Select a Learner to Begin</h3>
                 <p className="text-xs font-medium text-slate-500 leading-relaxed">
-                  Choose a section and search for a student above to manage, encode past grade levels, view academic summaries, or print the DepEd SF10 permanent record.
+                  Choose an advisory section and search for a student above to manage, encode past grade levels, view academic summaries, or print the DepEd SF10 permanent record.
                 </p>
               </div>
             </Card>

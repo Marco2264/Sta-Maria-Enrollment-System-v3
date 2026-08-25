@@ -23,6 +23,7 @@ import {
   Megaphone,
   FileSpreadsheet,
   Activity,
+  Heart,
   CalendarDays
 } from 'lucide-react';
 import { useTeacherData, Student, AttendanceEntry } from '../../lib/teacherData';
@@ -32,6 +33,7 @@ import { collection, query, where, getDocs, onSnapshot, limit } from 'firebase/f
 import { Schedule } from '../../lib/adminData';
 import { getCurrentSchoolYear } from '../../lib/utils';
 import { Announcement } from '../../lib/services/announcementsService';
+import { NotificationBell } from '../../components/shared/NotificationBell';
 
 export interface TeacherDashboardViewProps {
   onNavigate?: (view: string, sectionId?: string) => void;
@@ -628,6 +630,7 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
 
   const teacherFirstName = userData?.firstName || (typeof userData?.displayName === 'string' ? userData.displayName.split(' ')[0] : 'Teacher');
+  const teacherFullName = userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Teacher User';
 
   if (loading) {
     return (
@@ -641,813 +644,327 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f8fafc] overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-full bg-[#f8fafc] overflow-y-auto custom-scrollbar font-sans">
       
-      {/* 1. Header Banner */}
-      <header className="px-6 sm:px-8 py-5 border-b border-slate-200/80 bg-white sticky top-0 z-30 shadow-2xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+      {/* 1. Header Bar */}
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200/80 bg-white sticky top-0 z-30 shadow-2xs flex items-center justify-between shrink-0">
+        <div className="flex items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
           
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#D8232A] to-[#9E171D] text-white flex items-center justify-center shadow-md shadow-red-500/20 shrink-0">
-              <GraduationCap className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D8232A] to-[#9E171D] text-white flex items-center justify-center shadow-md shadow-red-500/15 shrink-0">
+              <GraduationCap className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black tracking-tight text-slate-900">
-                  Welcome back, {String(teacherFirstName)}! 👋
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">
+                  Teacher Homepage
                 </h1>
-                <Badge variant="outline" className="hidden sm:inline-flex bg-slate-50 border-slate-200 text-slate-600 font-extrabold text-[10px] px-2 py-0.5">
+                <Badge variant="outline" className="hidden sm:inline-flex bg-red-50 text-[#D8232A] border-red-200 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full">
                   S.Y. {syName}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-500 font-medium">
-                Comprehensive academic overview, live teaching schedule, and student assistance monitoring.
+              <p className="text-xs text-slate-500 font-medium leading-none mt-1 hidden md:block">
+                Quick access to your daily teaching tools, classroom records, and schedule.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <div className="flex items-center gap-3 shrink-0">
             {advisorySection && (
-              <Badge className="bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-xs font-black uppercase tracking-wider py-1.5 px-3.5 shadow-2xs rounded-xl flex items-center gap-1.5 select-none">
+              <Badge className="hidden xl:inline-flex bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[11px] font-black uppercase tracking-wider py-1.5 px-3 rounded-xl items-center gap-1.5 select-none shadow-2xs">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Advisory: {advisorySection.gradeLevel} - {advisorySection.name}</span>
               </Badge>
             )}
 
-            <div className="flex items-center gap-1 bg-slate-100/80 px-3 py-1.5 rounded-xl border border-slate-200/60 text-xs font-bold text-slate-700">
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
+            {/* Live Clock / Date */}
+            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>{currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
               <span className="text-slate-300">|</span>
               <span className="text-slate-500">{currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            </div>
+
+            {/* Notification Bell */}
+            <NotificationBell onNavigate={onNavigate ? (v) => onNavigate(v) : undefined} />
+
+            {/* Quick Profile Summary Badge */}
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+              {typeof userData?.photoURL === 'string' && userData.photoURL.length > 0 ? (
+                <img src={userData.photoURL} alt="Avatar" className="w-8 h-8 rounded-full object-cover shadow-inner border border-slate-200" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shadow-inner">
+                  {teacherFullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]">
+                  {teacherFullName}
+                </span>
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-tight">
+                  Faculty Teacher
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Container */}
-      <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-[1600px] mx-auto w-full">
 
-        {/* 2. REAL-TIME TEACHING SCHEDULE HUB ("What class is the teacher in this time") */}
-        <Card className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs overflow-hidden relative">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        {/* ── 2. CLEAN & PROFESSIONAL WELCOME CARD (WITH LIVE SCHEDULE & ACTIONS) ── */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="space-y-2 max-w-2xl">
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">
+              Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening'}, Teacher {String(teacherFirstName)}! 👋
+            </h2>
             
-            <div className="flex-1 space-y-3">
-              <div className="flex items-center gap-2.5">
-                <span className="text-[11px] font-black uppercase tracking-widest text-[#D8232A] flex items-center gap-1.5">
-                  <CalendarClock className="w-4 h-4" /> Live Teaching Schedule
+            {activeScheduleStatus.activePeriod ? (
+              <div className="flex items-center gap-2 flex-wrap text-sm">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  IN SESSION NOW
                 </span>
-                
-                {activeScheduleStatus.activePeriod ? (
-                  <Badge className="bg-emerald-500 text-white font-black text-[10px] tracking-wider px-2.5 py-0.5 rounded-full animate-pulse flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                    IN SESSION NOW
-                  </Badge>
-                ) : activeScheduleStatus.isWeekend ? (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-[10px]">
-                    WEEKEND
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 font-bold text-[10px]">
-                    PLANNING / BREAK
-                  </Badge>
-                )}
+                <span className="font-bold text-slate-800">
+                  {activeScheduleStatus.activePeriod.startTimeFormatted} – {activeScheduleStatus.activePeriod.endTimeFormatted}
+                </span>
+                <span className="text-slate-300">•</span>
+                <span className="font-extrabold text-[#D8232A]">
+                  {activeScheduleStatus.activePeriod.sectionName}
+                </span>
+                <span className="font-semibold text-slate-600">
+                  ({activeScheduleStatus.activePeriod.subjectName})
+                </span>
+                <span className="text-xs text-emerald-700 font-bold bg-emerald-50/80 px-2 py-0.5 rounded-md">
+                  {activeScheduleStatus.activePeriod.minutesRemaining}m remaining
+                </span>
               </div>
+            ) : activeScheduleStatus.nextPeriod ? (
+              <div className="flex items-center gap-2 flex-wrap text-sm">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold">
+                  NEXT UP
+                </span>
+                <span className="font-bold text-slate-800">
+                  {activeScheduleStatus.nextPeriod.startTimeFormatted} – {activeScheduleStatus.nextPeriod.endTimeFormatted}
+                </span>
+                <span className="text-slate-300">•</span>
+                <span className="font-extrabold text-[#D8232A]">
+                  {activeScheduleStatus.nextPeriod.sectionName}
+                </span>
+                <span className="font-semibold text-slate-600">
+                  ({activeScheduleStatus.nextPeriod.subjectName})
+                </span>
+                <span className="text-xs text-slate-500 font-medium">
+                  starts in {activeScheduleStatus.nextPeriod.minutesUntilStart}m
+                </span>
+              </div>
+            ) : activeScheduleStatus.isWeekend ? (
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                It's the weekend! Take time to rest and recharge.
+              </p>
+            ) : (
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                All scheduled teaching periods for today are completed.
+              </p>
+            )}
+          </div>
 
-              {activeScheduleStatus.activePeriod ? (
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-baseline gap-3">
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                      {activeScheduleStatus.activePeriod.subjectName}
-                    </h2>
-                    <span className="text-sm sm:text-base font-extrabold text-[#D8232A] bg-red-50 px-3 py-1 rounded-xl border border-red-100">
-                      {activeScheduleStatus.activePeriod.sectionName}
-                    </span>
-                  </div>
-                  <p className="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                    <span>Period: <strong>{activeScheduleStatus.activePeriod.startTimeFormatted} - {activeScheduleStatus.activePeriod.endTimeFormatted}</strong></span>
-                    <span>•</span>
-                    <span className="text-emerald-600 font-bold">{activeScheduleStatus.activePeriod.minutesRemaining} mins remaining</span>
-                  </p>
-                  
-                  <div className="w-full max-w-md h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-1000"
-                      style={{ width: `${activeScheduleStatus.activePeriod.progressPercent}%` }}
-                    />
-                  </div>
-                </div>
-              ) : activeScheduleStatus.nextPeriod ? (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Coffee className="w-5 h-5 text-amber-500" />
-                    <h2 className="text-lg sm:text-xl font-bold text-slate-800">
-                      No Class in Session Right Now
-                    </h2>
-                  </div>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Up next at <strong>{activeScheduleStatus.nextPeriod.startTimeFormatted}</strong>: <span className="font-bold text-slate-800">{activeScheduleStatus.nextPeriod.subjectName}</span> with <span className="font-bold text-[#D8232A]">{activeScheduleStatus.nextPeriod.sectionName}</span> (in {activeScheduleStatus.nextPeriod.minutesUntilStart} mins).
-                  </p>
-                </div>
-              ) : activeScheduleStatus.isWeekend ? (
-                <div className="space-y-1">
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <Coffee className="w-5 h-5 text-amber-500" /> It's the Weekend!
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Take time to rest and recharge. Your teaching schedule resumes on Monday morning.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <Moon className="w-5 h-5 text-indigo-500" /> Classes Completed For Today
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    All scheduled teaching periods for today have finished.
-                  </p>
-                </div>
-              )}
+          {/* Action Buttons Integrated Right in the Hero */}
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+            <Button
+              onClick={() => onNavigate?.('attendance', activeScheduleStatus.activePeriod?.schedule.sectionId || activeScheduleStatus.nextPeriod?.schedule.sectionId)}
+              className="h-9 sm:h-10 px-4 rounded-xl bg-[#D8232A] hover:bg-[#b91c22] text-white text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Take Attendance</span>
+            </Button>
+            <Button
+              onClick={() => onNavigate?.('grades', activeScheduleStatus.activePeriod?.schedule.sectionId || activeScheduleStatus.nextPeriod?.schedule.sectionId)}
+              variant="outline"
+              className="h-9 sm:h-10 px-4 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              <BookOpen className="w-4 h-4 text-slate-500" />
+              <span>Open Gradebook</span>
+            </Button>
+            <Button
+              onClick={() => onNavigate?.('schedule')}
+              variant="ghost"
+              className="h-9 sm:h-10 px-3 rounded-xl text-slate-600 hover:text-[#D8232A] hover:bg-red-50 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <CalendarClock className="w-4 h-4" />
+              <span>Full Schedule</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* ── 4. SECONDARY QUICK SHORTCUTS ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3.5">
+            <div>
+              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Additional Modules</h3>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            {/* Shortcut A: Class Students */}
+            <div
+              onClick={() => onNavigate?.('students')}
+              className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors truncate">Class Students</p>
+                <p className="text-[11px] text-slate-400 font-medium truncate">Roster & Profiles</p>
+              </div>
             </div>
 
-            <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
-              {activeScheduleStatus.activePeriod && (
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <Button
-                    onClick={() => {
-                      if (onNavigate && activeScheduleStatus.activePeriod) {
-                        onNavigate('attendance', activeScheduleStatus.activePeriod.schedule.sectionId);
-                      }
-                    }}
-                    className="h-10 px-4 rounded-xl bg-gradient-to-r from-[#D8232A] to-[#b91c22] text-white text-xs font-bold shadow-md shadow-red-500/20 hover:opacity-95 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Take Roll Call</span>
-                  </Button>
+            {/* Shortcut B: School Forms */}
+            <div
+              onClick={() => onNavigate?.('reports')}
+              className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors truncate">School Forms</p>
+                <p className="text-[11px] text-slate-400 font-medium truncate">SF2, SF9 & SF10</p>
+              </div>
+            </div>
 
-                  <Button
-                    onClick={() => {
-                      if (onNavigate && activeScheduleStatus.activePeriod) {
-                        onNavigate('grades', activeScheduleStatus.activePeriod.schedule.sectionId);
-                      }
-                    }}
-                    variant="outline"
-                    className="h-10 px-4 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold shadow-2xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <BookOpen className="w-4 h-4 text-slate-600" />
-                    <span>Gradebook</span>
-                  </Button>
+            {/* Shortcut C: Observed Values */}
+            <div
+              onClick={() => onNavigate?.('observed-values')}
+              className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
+                <Award className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors truncate">Observed Values</p>
+                <p className="text-[11px] text-slate-400 font-medium truncate">Core Values</p>
+              </div>
+            </div>
+
+            {/* Shortcut D: Health & Nutrition */}
+            <div
+              onClick={() => onNavigate?.('health')}
+              className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
+                <Heart className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors truncate">Health & Nutrition</p>
+                <p className="text-[11px] text-slate-400 font-medium truncate">BMI & Wellness</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 5. TODAY'S SCHEDULE OVERVIEW (FULL-WIDTH CONSOLE) ── */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-7 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100 shadow-2xs">
+                  <CalendarClock className="w-5 h-5" />
                 </div>
-              )}
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">Today's Class Schedule</h3>
+                  <p className="text-xs text-slate-500 font-medium">Complete daily timetable, periods, and room assignments</p>
+                </div>
+              </div>
 
               <Button
                 onClick={() => onNavigate?.('schedule')}
                 variant="ghost"
-                className="text-xs font-bold text-slate-600 hover:text-[#D8232A] hover:bg-red-50 rounded-xl px-3 h-8 flex items-center gap-1 cursor-pointer transition-colors"
+                className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-8 px-3 rounded-xl cursor-pointer"
               >
-                <span>View Full Schedule ({activeScheduleStatus.totalClassesToday} classes today)</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                Full Schedule <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
               </Button>
             </div>
-          </div>
 
-          {activeScheduleStatus.timeline.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 shrink-0 mr-1">
-                Today's Timeline:
-              </span>
-              {activeScheduleStatus.timeline.map((item, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => onNavigate?.('attendance', item.schedule.sectionId)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 border transition-all cursor-pointer select-none",
-                    item.status === 'in-progress'
-                      ? "bg-red-50 border-[#D8232A] text-[#D8232A] shadow-xs ring-2 ring-red-500/20"
-                      : item.status === 'completed'
-                      ? "bg-slate-50 border-slate-200/60 text-slate-400"
-                      : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                  )}
-                >
-                  <span className="text-[10px] font-medium text-slate-400">{item.startTimeFormatted}</span>
-                  <span>{item.subjectName}</span>
-                  <span className="text-[10px] font-semibold text-slate-500">({item.sectionName.split(' - ')[1] || item.sectionName})</span>
-                  {item.status === 'in-progress' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />}
-                  {item.status === 'completed' && <CheckCircle className="w-3 h-3 text-emerald-500" />}
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        {/* 3. CORE RECOMMENDED METRIC CARDS (4 Cards) */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
-          
-          {/* Card 1: Total Students */}
-          <Card className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs space-y-3 hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                <Users className="w-5 h-5" />
-              </div>
-              <Badge variant="outline" className="text-[10px] font-bold bg-slate-50 border-slate-200 text-slate-600">
-                {assignedSections.length} Sections
-              </Badge>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Students</p>
-              <p className="text-2xl sm:text-3xl font-black text-slate-900">{enrolled.length} Students</p>
-              <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                {pending.length > 0 ? `${pending.length} pending admission` : 'Active enrolled learners'}
-              </p>
-            </div>
-          </Card>
-
-          {/* Card 2: Attendance Overview */}
-          <Card className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs space-y-3 hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                <CheckCircle className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-black text-emerald-600">{attendanceRate}% Rate</span>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Daily Attendance</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-xl sm:text-2xl font-black text-slate-900">
-                  {todayAttendance.length > 0 ? presentToday : '--'} Present
-                </span>
-              </div>
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                Present: {presentToday} • Absent: {absentToday} • Late: {lateToday}
-              </p>
-            </div>
-          </Card>
-
-          {/* Card 3: Class Academic Average */}
-          <Card className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs space-y-3 hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                <BarChart className="w-5 h-5" />
-              </div>
-              <Badge variant="outline" className="text-[10px] font-bold bg-purple-50 text-purple-700 border-purple-200">
-                Academic Avg
-              </Badge>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Class General Average</p>
-              <p className="text-2xl sm:text-3xl font-black text-slate-900">{classGeneralAverage}%</p>
-              <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                Overall class academic performance
-              </p>
-            </div>
-          </Card>
-
-          {/* Card 4: Action Items & Alerts */}
-          <Card className={cn(
-            "p-5 rounded-2xl border shadow-xs space-y-3 transition-all",
-            pendingTasks.length > 0
-              ? "bg-gradient-to-br from-amber-50/60 to-white border-amber-200"
-              : "bg-white border-slate-200/70"
-          )}>
-            <div className="flex items-center justify-between">
-              <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center font-bold",
-                pendingTasks.length > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
-              )}>
-                <ListTodo className="w-5 h-5" />
-              </div>
-              {pendingTasks.length > 0 ? (
-                <Badge className="bg-amber-600 text-white font-extrabold text-[10px] px-2 py-0.5">
-                  {pendingTasks.length} Action Items
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200">
-                  All Cleared
-                </Badge>
-              )}
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Action Items</p>
-              <p className="text-2xl sm:text-3xl font-black text-slate-900">{pendingTasks.length}</p>
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                {pendingTasks.length > 0 ? "Items requiring teacher attention" : "No pending items right now"}
-              </p>
-            </div>
-          </Card>
-        </div>
-
-        {/* 4. ACTION CENTER & FAST LAUNCH HUB */}
-        <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
-          
-          {/* PENDING TASKS CARD (7 cols) */}
-          <Card className="lg:col-span-7 bg-white border border-slate-200/80 rounded-3xl shadow-xs p-5 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                    <ListTodo className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">Action Items & Tasks</h3>
-                    <p className="text-xs text-slate-500">Pending grade entries, admissions review, and roll call</p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-xs font-bold bg-slate-50 border-slate-200">
-                  {pendingTasks.length} Pending
-                </Badge>
-              </div>
-
-              {pendingTasks.length > 0 ? (
-                <div className="space-y-2.5">
-                  {pendingTasks.map((t) => (
-                    <div
-                      key={t.id}
-                      className="p-3 rounded-2xl border border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3 hover:bg-slate-50 transition-all"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "w-2 h-2 rounded-full",
-                            t.priority === 'high' ? "bg-red-500" : "bg-amber-500"
-                          )} />
-                          <p className="text-xs font-black text-slate-900 truncate">{t.title}</p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">{t.desc}</p>
-                      </div>
-
-                      <Button
-                        onClick={() => onNavigate?.(t.view, t.sectionId)}
-                        className="h-8 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shrink-0 cursor-pointer"
-                      >
-                        {t.actionLabel}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-slate-400">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-1.5" />
-                  <p className="text-xs font-bold text-slate-700">All Tasks Completed</p>
-                  <p className="text-[11px] text-slate-400">You're completely up to date with attendance and grading.</p>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Automatic system check</span>
-              <span className="font-bold text-slate-700">{syName}</span>
-            </div>
-          </Card>
-
-          {/* QUICK ACTIONS SECTION (5 cols) */}
-          <Card className="lg:col-span-5 bg-white border border-slate-200/80 rounded-3xl shadow-xs p-5 flex flex-col justify-between">
-            <div>
-              <h3 className="text-base font-black text-slate-900 mb-1">Quick Actions</h3>
-              <p className="text-xs text-slate-500 font-medium mb-3.5">Frequently used shortcuts and teaching modules</p>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                
-                {/* 1. Take Attendance */}
-                <button
-                  onClick={() => onNavigate?.('attendance')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-red-50 hover:border-red-200 border border-slate-100 text-left transition-all group cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-red-100 text-[#D8232A] flex items-center justify-center font-bold mb-1.5 group-hover:scale-110 transition-transform">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-black text-slate-900">Attendance</p>
-                  <p className="text-[10px] text-slate-400">Daily roll call</p>
-                </button>
-
-                {/* 2. Enter Grades */}
-                <button
-                  onClick={() => onNavigate?.('grades')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-slate-100 text-left transition-all group cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold mb-1.5 group-hover:scale-110 transition-transform">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-black text-slate-900">Gradebook</p>
-                  <p className="text-[10px] text-slate-400">Encode grades</p>
-                </button>
-
-                {/* 3. View Students */}
-                <button
-                  onClick={() => onNavigate?.('students')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 border border-slate-100 text-left transition-all group cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mb-1.5 group-hover:scale-110 transition-transform">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <p className="text-xs font-black text-slate-900">Students</p>
-                  <p className="text-[10px] text-slate-400">Roster & profile</p>
-                </button>
-
-                {/* 4. Announcements */}
-                <button
-                  onClick={() => onNavigate?.('announcements')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-amber-50 hover:border-amber-200 border border-slate-100 text-left transition-all group cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold mb-1.5 group-hover:scale-110 transition-transform">
-                    <Megaphone className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-black text-slate-900">Announce</p>
-                  <p className="text-[10px] text-slate-400">Post notices</p>
-                </button>
-
-                {/* 5. School Forms */}
-                <button
-                  onClick={() => onNavigate?.('reports')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-teal-50 hover:border-teal-200 border border-slate-100 text-left transition-all group cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold mb-1.5 group-hover:scale-110 transition-transform">
-                    <FileSpreadsheet className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-black text-slate-900">School Forms</p>
-                  <p className="text-[10px] text-slate-400">SF2, SF9, SF10</p>
-                </button>
-
-                {/* 6. Schedule */}
-                <button
-                  onClick={() => onNavigate?.('schedule')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-100 text-left transition-all group cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold mb-1.5 group-hover:scale-110 transition-transform">
-                    <CalendarDays className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-black text-slate-900">Schedule</p>
-                  <p className="text-[10px] text-slate-400">Timetable</p>
-                </button>
-
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Quick Launcher</span>
-              <span className="font-semibold text-slate-700">6 Core Shortcuts</span>
-            </div>
-          </Card>
-        </div>
-
-        {/* 5. TOP RANKING STUDENTS + MULTI-FACTOR STUDENTS AT RISK */}
-        <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
-          
-          {/* TOP RANKING STUDENTS (7 cols) */}
-          <Card className="lg:col-span-7 bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold border border-amber-200/60 shadow-2xs">
-                  <Award className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Top Ranking Students</h3>
-                  <p className="text-xs text-slate-500 font-medium">Honor roll candidates and highest academic performers</p>
-                </div>
-              </div>
-
-              {/* Scope pill filter */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-                <button
-                  onClick={() => setAcademicScopeFilter('all')}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg transition-all",
-                    academicScopeFilter === 'all' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  All
-                </button>
-                {advisorySection && (
-                  <button
-                    onClick={() => setAcademicScopeFilter('advisory')}
+            {activeScheduleStatus.timeline.length > 0 ? (
+              <div className="space-y-2.5 max-h-[380px] overflow-y-auto custom-scrollbar">
+                {activeScheduleStatus.timeline.map((item, idx) => (
+                  <div
+                    key={idx}
                     className={cn(
-                      "px-2.5 py-1 rounded-lg transition-all",
-                      academicScopeFilter === 'advisory' ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                      "p-3.5 rounded-2xl border flex items-center justify-between gap-4 transition-all",
+                      item.status === 'in-progress'
+                        ? "bg-red-50/70 border-red-200 text-slate-900 shadow-xs"
+                        : item.status === 'completed'
+                        ? "bg-slate-50/60 border-slate-200/60 text-slate-500"
+                        : "bg-white border-slate-200/80 text-slate-800 hover:border-slate-300"
                     )}
                   >
-                    Advisory
-                  </button>
-                )}
-              </div>
-            </div>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <span className="text-xs font-bold text-slate-500 shrink-0 w-28">
+                        {item.startTimeFormatted} – {item.endTimeFormatted}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                          {item.subjectName}
+                        </p>
+                        <p className="text-xs text-slate-500 font-medium truncate">
+                          {item.sectionName}
+                        </p>
+                      </div>
+                    </div>
 
-            <div className="p-4 sm:p-5 flex-1 overflow-y-auto max-h-[460px]">
-              {topRankedStudents.length > 0 ? (
-                <div className="space-y-2.5">
-                  {topRankedStudents.map((item, index) => {
-                    const rank = index + 1;
-                    return (
-                      <div
-                        key={item.student.id}
-                        className={cn(
-                          "flex items-center justify-between p-3.5 rounded-2xl border transition-all hover:shadow-2xs",
-                          rank === 1
-                            ? "bg-gradient-to-r from-amber-50/60 via-amber-50/20 to-white border-amber-200"
-                            : rank === 2
-                            ? "bg-gradient-to-r from-slate-100/60 via-slate-50/20 to-white border-slate-300"
-                            : rank === 3
-                            ? "bg-gradient-to-r from-orange-50/40 via-orange-50/10 to-white border-orange-200"
-                            : "bg-white border-slate-100 hover:border-slate-200"
-                        )}
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      {item.status === 'in-progress' ? (
+                        <Badge className="bg-[#D8232A] text-white font-extrabold text-[10px] px-2.5 py-0.5 animate-pulse">
+                          In Session
+                        </Badge>
+                      ) : item.status === 'completed' ? (
+                        <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200 text-[10px]">
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-white text-slate-600 border-slate-200 text-[10px]">
+                          Upcoming
+                        </Badge>
+                      )}
+
+                      <Button
+                        onClick={() => onNavigate?.('attendance', item.schedule.sectionId)}
+                        variant="outline"
+                        className="h-8 px-3 text-xs font-bold text-slate-700 hover:text-[#D8232A] hover:bg-white rounded-xl border-slate-200"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={cn(
-                            "w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs",
-                            rank === 1 ? "bg-amber-400 text-slate-900 ring-2 ring-amber-300" :
-                            rank === 2 ? "bg-slate-300 text-slate-800" :
-                            rank === 3 ? "bg-amber-600 text-white" :
-                            "bg-slate-100 text-slate-500"
-                          )}>
-                            {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`}
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="text-sm font-black text-slate-900 truncate">
-                              {item.student.lastName}, {item.student.firstName}
-                            </p>
-                            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-400">
-                              <span>LRN: {item.student.lrn || 'N/A'}</span>
-                              <span>•</span>
-                              <span>{item.student.gender}</span>
-                              {item.highestSubject && (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-emerald-700 font-bold truncate">
-                                    Top: {item.highestSubject.subject} ({item.highestSubject.grade}%)
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0">
-                          {item.honorsTag && (
-                            <Badge className={cn("hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-lg", item.honorsTag.badgeClass)}>
-                              {item.honorsTag.label}
-                            </Badge>
-                          )}
-                          <div className="text-right">
-                            <span className="text-base sm:text-lg font-black text-slate-900">
-                              {item.overallAverage.toFixed(1)}%
-                            </span>
-                            <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">
-                              {item.subjectCount} Subjects
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="py-16 text-center text-slate-400">
-                  <Award className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm font-bold text-slate-700">No Grades Recorded Yet</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1">
-                    Encode scores in the Gradebook to automatically calculate class rankings.
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* MULTI-FACTOR "STUDENTS AT RISK" (5 cols) */}
-          <Card className="lg:col-span-5 bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 bg-rose-50/40 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-red-100 text-red-700 flex items-center justify-center font-bold border border-red-200 shadow-2xs">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Students At Risk</h3>
-                  <p className="text-xs text-slate-500 font-medium">Multi-factor risk: grades, absenteeism, missing docs</p>
-                </div>
-              </div>
-              <Badge className="bg-red-100 text-red-800 border-red-200 font-black text-[10px]">
-                {holisticAtRiskStudents.length} Flagged
-              </Badge>
-            </div>
-
-            <div className="p-4 sm:p-5 flex-1 overflow-y-auto max-h-[460px]">
-              {holisticAtRiskStudents.length > 0 ? (
-                <div className="space-y-3">
-                  {holisticAtRiskStudents.map((item) => (
-                    <div
-                      key={item.student.id}
-                      className="p-3.5 rounded-2xl bg-white border border-red-100 hover:border-red-200 hover:shadow-2xs transition-all space-y-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-black text-slate-900 truncate">
-                            {item.student.lastName}, {item.student.firstName}
-                          </p>
-                          <p className="text-[11px] font-semibold text-slate-400">
-                            LRN: {item.student.lrn || 'N/A'} • {item.student.gender}
-                          </p>
-                        </div>
-                        <Badge className="bg-rose-100 text-rose-800 border-rose-200 font-extrabold text-[10px]">
-                          Risk Score: {item.riskScore}%
-                        </Badge>
-                      </div>
-
-                      {/* Factor badges */}
-                      <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        {item.riskFactors.map((f, fIdx) => (
-                          <div key={fIdx} className="flex items-start gap-1.5 text-xs">
-                            <span className={cn(
-                              "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
-                              f.severity === 'high' ? 'bg-red-500' : f.severity === 'medium' ? 'bg-amber-500' : 'bg-slate-400'
-                            )} />
-                            <div>
-                              <strong className="text-slate-800">{f.title}:</strong> <span className="text-slate-600">{f.detail}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Action jump */}
-                      <div className="flex items-center justify-end gap-2 pt-1">
-                        <Button
-                          onClick={() => onNavigate?.('grades', item.student.sectionId)}
-                          variant="ghost"
-                          className="h-7 px-2 text-[11px] font-bold text-[#D8232A] hover:bg-red-50 rounded-lg flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Open Gradebook</span>
-                          <ChevronRight className="w-3 h-3" />
-                        </Button>
-                      </div>
+                        Take Attendance
+                      </Button>
+                      <Button
+                        onClick={() => onNavigate?.('grades', item.schedule.sectionId)}
+                        variant="outline"
+                        className="h-8 px-3 text-xs font-bold text-slate-700 hover:text-[#D8232A] hover:bg-white rounded-xl border-slate-200"
+                      >
+                        Gradebook
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-16 text-center text-slate-400">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2">
-                    <CheckCircle2 className="w-6 h-6" />
                   </div>
-                  <p className="text-sm font-bold text-slate-800">No Learners Currently At Risk</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1">
-                    All students are passing, attending regularly, and have complete requirements.
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* 6. ANNOUNCEMENTS & RECENT STUDENT ACTIVITY */}
-        <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
-          
-          {/* RECENT ANNOUNCEMENTS (7 cols) */}
-          <Card className="lg:col-span-7 bg-white border border-slate-200/80 rounded-3xl shadow-xs p-5 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center font-bold">
-                    <Megaphone className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">Recent Announcements</h3>
-                    <p className="text-xs text-slate-500">School notices, faculty updates, and academic memos</p>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => onNavigate?.('announcements')}
-                  variant="ghost"
-                  className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-7 px-2 rounded-lg cursor-pointer"
-                >
-                  Manage <ChevronRight className="w-3 h-3" />
-                </Button>
+                ))}
               </div>
-
-              {announcements.length > 0 ? (
-                <div className="space-y-2.5 max-h-[320px] overflow-y-auto">
-                  {announcements.map((ann) => (
-                    <div
-                      key={ann.id}
-                      onClick={() => setSelectedAnnouncement(ann)}
-                      className="p-3 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-red-50/40 hover:border-red-200 transition-all cursor-pointer space-y-1"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge className={cn("text-[9px] px-2 py-0 font-bold", ann.category === 'Emergency' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800')}>
-                          {ann.category || 'General'}
-                        </Badge>
-                        {ann.isPinned && (
-                          <span className="text-[10px] font-extrabold text-[#D8232A]">📌 Pinned</span>
-                        )}
-                      </div>
-                      <p className="text-xs font-bold text-slate-900 line-clamp-1">{ann.title}</p>
-                      <p className="text-[11px] text-slate-500 line-clamp-1">{ann.content}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center text-slate-400">
-                  <Megaphone className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
-                  <p className="text-xs font-bold text-slate-700">No Announcements</p>
-                  <p className="text-[11px] text-slate-400">School bulletins and faculty updates will display here.</p>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Sta. Maria Enrollment Portal</span>
-              <Button
-                onClick={() => onNavigate?.('announcements')}
-                variant="ghost"
-                className="h-6 p-0 text-xs font-bold text-[#D8232A]"
-              >
-                Post New Announcement
-              </Button>
-            </div>
-          </Card>
-
-          {/* RECENT STUDENT ACTIVITY (5 cols) */}
-          <Card className="lg:col-span-5 bg-white border border-slate-200/80 rounded-3xl shadow-xs p-5 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold">
-                    <Activity className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">Recent Student Activity</h3>
-                    <p className="text-xs text-slate-500">Attendance marks, enrollment updates, and learner logs</p>
-                  </div>
-                </div>
-                <Clock className="w-4 h-4 text-slate-400" />
+            ) : (
+              <div className="py-16 text-center text-slate-400">
+                <Coffee className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-700">No scheduled classes right now</p>
+                <p className="text-xs text-slate-400">Your timetable is clear for today.</p>
               </div>
+            )}
+          </div>
 
-              {recentStudentActivities.length > 0 ? (
-                <div className="space-y-2.5 max-h-[320px] overflow-y-auto">
-                  {recentStudentActivities.map((act) => (
-                    <div
-                      key={act.id}
-                      className="p-3 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0", act.iconColor)}>
-                          <CheckCircle className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">{act.title}</p>
-                          <p className="text-[11px] text-slate-500 font-medium truncate">{act.subtitle}</p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-400 shrink-0">{act.time}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center text-slate-400">
-                  <Clock className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
-                  <p className="text-xs font-bold text-slate-700">No Recent Activity</p>
-                  <p className="text-[11px] text-slate-400">Recorded student actions will list here.</p>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Live activity stream</span>
-              <span className="font-bold text-slate-700">{recentStudentActivities.length} Events</span>
-            </div>
-          </Card>
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 mt-4">
+            <span>Daily Timetable Console</span>
+            <span className="font-bold text-slate-700">{activeScheduleStatus.totalClassesToday} Classes Scheduled Today • S.Y. {syName}</span>
+          </div>
         </div>
 
       </div>
-
-      {/* MODAL: Read Full Announcement */}
-      {selectedAnnouncement && (
-        <Dialog open={!!selectedAnnouncement} onOpenChange={() => setSelectedAnnouncement(null)}>
-          <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 shadow-xl space-y-4">
-            <DialogHeader>
-              <div className="flex items-center gap-2 mb-1">
-                <Badge className={cn("text-[10px] px-2 py-0.5", selectedAnnouncement.category === 'Emergency' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800')}>
-                  {selectedAnnouncement.category || 'General'}
-                </Badge>
-                {selectedAnnouncement.isPinned && (
-                  <span className="text-xs font-bold text-[#D8232A]">📌 Pinned</span>
-                )}
-              </div>
-              <DialogTitle className="text-lg font-black text-slate-900">
-                {selectedAnnouncement.title}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-              {selectedAnnouncement.content}
-            </div>
-
-            <DialogFooter>
-              <Button
-                onClick={() => setSelectedAnnouncement(null)}
-                className="rounded-xl h-10 px-5 bg-slate-900 text-white font-bold"
-              >
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
 
     </div>
   );

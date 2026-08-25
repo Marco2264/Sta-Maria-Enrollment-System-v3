@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { cn } from '../../lib/utils';
 import { db } from '../../lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Card } from '../../components/ui/Card';
@@ -9,14 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '../../components/ui/Table';
 import { StudentAttendanceCalendar } from '../../components/parent/StudentAttendanceCalendar';
 import { ObservedValuesCard } from '../../components/parent/ObservedValuesCard';
 import {
@@ -31,25 +24,26 @@ import {
   Edit,
   Calendar,
   Baby,
-  Fingerprint,
   MapPin,
-  Scale,
-  Ruler,
   Phone,
   BarChart3,
   GraduationCap,
   Loader2,
-  ImageIcon,
-  Upload,
-  X,
   Camera,
-  Search,
   Bell,
-  FileText,
   Lock,
   ShieldCheck,
   Users,
-  ChevronDown
+  ChevronDown,
+  Award,
+  BookOpen,
+  Copy,
+  Check,
+  Layers,
+  Sparkles,
+  Mail,
+  Activity,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
@@ -66,6 +60,10 @@ export function ChildDetailView({
   const child = children.find((c) => c.id === childId);
 
   const [gradeConfigs, setGradeConfigs] = useState<any[]>([]);
+  const [selectedAcademicTerm, setSelectedAcademicTerm] = useState<'ALL' | 'T1' | 'T2' | 'T3'>('ALL');
+  const [selectedSubjectDetail, setSelectedSubjectDetail] = useState<string | null>(null);
+  const [activeProfileSection, setActiveProfileSection] = useState<'personal' | 'guardian' | 'medical'>('personal');
+  const [copiedLrn, setCopiedLrn] = useState(false);
 
   useEffect(() => {
     if (!child?.sectionId) return;
@@ -79,12 +77,28 @@ export function ChildDetailView({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<any>(null);
-  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+
+  // Photo Upload State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploadSuccess, setIsUploadSuccess] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoInputRef = React.useRef<HTMLInputElement>(null);
 
   if (!child) return null;
 
+  const handleCopyLrn = () => {
+    const lrnVal = child.lrn || (child as any).studentId || '';
+    if (lrnVal) {
+      navigator.clipboard.writeText(lrnVal);
+      setCopiedLrn(true);
+      setTimeout(() => setCopiedLrn(false), 2000);
+    }
+  };
+
   const handleOpenEdit = () => {
-    // Make a deep copy to edit independently
     setEditData(JSON.parse(JSON.stringify(child)));
     setIsEditOpen(true);
   };
@@ -93,7 +107,6 @@ export function ChildDetailView({
     if (!editData) return;
     setIsSaving(true);
     try {
-      // Remove fields that shouldn't be updated here if any
       const { id, parentId, submittedAt, attendance, status, requirements, requirementUploads, schemaVersion, ...updates } = editData;
       await updateChild(child.id, updates);
       setIsEditOpen(false);
@@ -105,268 +118,148 @@ export function ChildDetailView({
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Enrolled':
-        return (
-          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none px-3 py-1 font-semibold shadow-sm rounded-full">
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Enrolled
-          </Badge>
-        );
-      case 'Pending':
-        return (
-          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none px-3 py-1 font-semibold shadow-sm rounded-full">
-            <CircleDashed className="w-3.5 h-3.5 mr-1.5 animate-spin-slow" /> Pending
-          </Badge>
-        );
-      case 'Rejected':
-        return (
-          <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-none px-3 py-1 font-semibold shadow-sm rounded-full">
-            <XCircle className="w-3.5 h-3.5 mr-1.5" /> Rejected
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const getAttendanceBadge = (status: string) => {
-    switch (status) {
-      case 'Present':
-        return (
-          <Badge className="bg-emerald-100 text-emerald-700 border-none font-semibold px-2.5 py-0.5 rounded-md shadow-sm">
-            Present
-          </Badge>
-        );
-      case 'Absent':
-        return (
-          <Badge className="bg-rose-100 text-rose-700 border-none font-semibold px-2.5 py-0.5 rounded-md shadow-sm">
-            Absent
-          </Badge>
-        );
-      case 'Late':
-        return (
-          <Badge className="bg-amber-100 text-amber-700 border-none font-semibold px-2.5 py-0.5 rounded-md shadow-sm">
-            Late
-          </Badge>
-        );
-      default:
-        return (
-          <span className="text-slate-400 text-xs font-medium">
-            --
-          </span>
-        );
-    }
-  };
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fileInfo, setFileInfo] = useState<{ name: string; size: string; type: string } | null>(null);
-  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploadSuccess, setIsUploadSuccess] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const photoInputRef = React.useRef<HTMLInputElement>(null);
-
   const startAutoUpload = async (file: File, objectUrl: string) => {
     setIsPhotoUploading(true);
     setIsUploadSuccess(false);
     setPhotoError(null);
-    setSuccessMessage(null);
-    setUploadProgress(5);
-
-    const startTime = Date.now();
+    setUploadProgress(10);
 
     const progressTimer = setInterval(() => {
       setUploadProgress(prev => {
-        if (prev < 35) return prev + 7;
-        if (prev < 70) return prev + 8;
-        if (prev < 92) return prev + 4;
+        if (prev < 40) return prev + 8;
+        if (prev < 75) return prev + 6;
+        if (prev < 92) return prev + 3;
         return prev;
       });
-    }, 110);
+    }, 120);
 
     try {
-      let photoUrl = '';
-      try {
-        const folder = buildImageKitFolder({
-          role: 'student',
-          category: 'profiles'
-        });
-        const fileName = buildStandardizedFileName({
-          role: 'student',
-          fullName: `${child.firstName} ${child.lastName}`,
-          originalFileName: file.name,
-          gradeLevel: child.gradeLevel,
-          section: child.section
-        });
+      const folder = buildImageKitFolder({
+        role: 'student',
+        category: 'profiles'
+      });
 
-        photoUrl = await uploadToImageKit(file, {
-          folder,
-          fileName,
-          useUniqueFileName: false
-        });
-      } catch (cloudErr: any) {
-        console.error('ImageKit upload failed:', cloudErr);
-        throw new Error(cloudErr?.message || 'Failed to upload student photo to ImageKit.');
+      const fileName = buildStandardizedFileName({
+        role: 'student',
+        fullName: `${child.firstName} ${child.lastName}`,
+        originalFileName: file.name,
+        gradeLevel: child.gradeLevel,
+        section: child.section
+      });
+
+      let finalUrl: string;
+      try {
+        finalUrl = await uploadToImageKit(file, { folder, fileName, useUniqueFileName: false });
+      } catch {
+        finalUrl = await uploadToCloudinary(file);
       }
+
+      await updateChild(child.id, {
+        photoURL: finalUrl
+      });
 
       clearInterval(progressTimer);
       setUploadProgress(100);
       setIsUploadSuccess(true);
 
-      // Save image URL to student profile in Firebase & local context immediately
-      await updateChild(child.id, { photoURL: photoUrl });
-
-      try {
-        await logActivity({
-          parentId: child.parentId || user?.uid || '',
-          title: 'Student Photo Updated',
-          subtitle: `Updated profile picture for ${child.firstName} ${child.lastName}.`,
-          type: 'profile',
-          badgeText: 'SUCCESSFUL',
-          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          dotColor: 'bg-emerald-500'
-        });
-      } catch (err) {
-        console.warn('Could not log student photo activity:', err);
-      }
-
-      // Keep 100% indicator visible for ~1 second
-      const elapsed = Date.now() - startTime;
-      const remainingDelay = Math.max(1000 - elapsed, 1000);
-
       setTimeout(() => {
         setIsPhotoUploading(false);
         setIsUploadSuccess(false);
-        URL.revokeObjectURL(objectUrl);
         setSelectedFile(null);
         setPreviewUrl(null);
-        setFileInfo(null);
-        setUploadProgress(0);
-        if (photoInputRef.current) {
-          photoInputRef.current.value = '';
-        }
-        setSuccessMessage('Student profile photo updated successfully.');
-      }, remainingDelay);
-    } catch (err) {
+      }, 1200);
+
+    } catch (err: any) {
       clearInterval(progressTimer);
       setIsPhotoUploading(false);
-      setIsUploadSuccess(false);
-      setUploadProgress(0);
-      console.error('Failed to update student photo:', err);
-      setPhotoError('Upload failed. Please try again.');
+      setPhotoError(err.message || 'Upload failed. Please try again.');
     }
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    setPhotoError(null);
-    setSuccessMessage(null);
-
     if (!file) return;
 
-    // Validation: JPG, JPEG, PNG, and WEBP under 5MB
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type.toLowerCase())) {
-      setPhotoError('Invalid file type. Please select a JPG, JPEG, PNG, or WEBP image.');
-      if (photoInputRef.current) photoInputRef.current.value = '';
+    if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
+      setPhotoError('Please select a JPG, PNG, or WebP image.');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setPhotoError('File size exceeds 5 MB. Please select a smaller photo.');
-      if (photoInputRef.current) photoInputRef.current.value = '';
+      setPhotoError('Image must be under 5 MB.');
       return;
     }
 
-    const formattedSize = file.size > 1024 * 1024
-      ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-      : `${Math.round(file.size / 1024)} KB`;
-
     const objectUrl = URL.createObjectURL(file);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    // Set preview state for explicit user confirmation
     setSelectedFile(file);
     setPreviewUrl(objectUrl);
-    setFileInfo({
-      name: file.name,
-      size: formattedSize,
-      type: file.type.split('/')[1]?.toUpperCase() || 'IMAGE'
-    });
+    setPhotoError(null);
   };
 
   const handleCancelPhotoSelect = () => {
-    if (isPhotoUploading) return;
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setSelectedFile(null);
     setPreviewUrl(null);
-    setFileInfo(null);
     setPhotoError(null);
-    if (photoInputRef.current) {
-      photoInputRef.current.value = '';
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  // DepEd Category Weights Helper
+  const getSubjectWeights = (subjCode: string) => {
+    const s = subjCode.toLowerCase();
+    if (s.includes('math') || s.includes('science')) {
+      return {
+        writtenWork: 40,
+        performanceTask: 40,
+        assessment: 20,
+        category: 'Mathematics & Sciences',
+        categoryColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      };
     }
+    if (s.includes('mapeh') || s.includes('music') || s.includes('art') || s.includes('pe') || s.includes('health') || s.includes('epp') || s.includes('tle')) {
+      return {
+        writtenWork: 20,
+        performanceTask: 60,
+        assessment: 20,
+        category: 'Skills & Performance',
+        categoryColor: 'bg-amber-50 text-amber-700 border-amber-200'
+      };
+    }
+    return {
+      writtenWork: 30,
+      performanceTask: 50,
+      assessment: 20,
+      category: 'Languages & Humanities',
+      categoryColor: 'bg-blue-50 text-blue-700 border-blue-200'
+    };
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    handlePhotoSelect(e);
-    setIsPhotoModalOpen(true);
-  };
+  // Structured subject item parser across T1, T2, T3
+  const parseSubjectGrades = (subjCode: string, subjVal: any) => {
+    if (!subjVal || typeof subjVal !== 'object') return null;
 
-  // Performance calculations
-  const getStudentAverage = (c: any): string => {
-    if (!c.grades) return 'N/A';
-    const gLvl = c.gradeLevel || 'Grade 6';
-    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '') === `grade${gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '')}`);
-    if (!matchedKey) return 'N/A';
-    const studentGrades = c.grades[matchedKey];
-    if (!studentGrades || typeof studentGrades !== 'object') return 'N/A';
-
-    const subjectFinalGrades: number[] = [];
-    Object.entries(studentGrades).forEach(([subjCode, subjVal]: [string, any]) => {
-      if (!subjVal || typeof subjVal !== 'object') return;
-      
-      // 1. Direct override
-      if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
-        const parsed = parseFloat(subjVal.finalGradeOverride);
-        if (!isNaN(parsed)) {
-          subjectFinalGrades.push(parsed);
-          return;
+    const getTermScore = (termIdx: '1' | '2' | '3') => {
+      const directKeys = termIdx === '1' ? ['t1', 'q1'] :
+                         termIdx === '2' ? ['t2', 'q2'] :
+                         ['t3', 'q3'];
+      for (const key of directKeys) {
+        if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
+          const parsed = parseFloat(subjVal[key]);
+          if (!isNaN(parsed)) return parsed;
         }
       }
 
-      // 2. Resolve term grades
-      const termAverages: number[] = [];
-      const isThreeTerm = ['4', '5', '6', 'grade 4', 'grade 5', 'grade 6'].includes(gLvl.toString().toLowerCase().replace(/grade/i, '').trim());
-      const terms = isThreeTerm ? ['Term 1', 'Term 2', 'Finals'] : ['Quarter 1', 'Quarter 2', 'Quarter 3', 'Quarter 4'];
+      const termNames = termIdx === '1' ? ['Term 1', 'Quarter 1'] :
+                        termIdx === '2' ? ['Term 2', 'Quarter 2'] :
+                        ['Term 3', 'Finals', 'Quarter 3'];
 
-      terms.forEach(term => {
-        const directKeys = term === 'Term 1' || term === 'Quarter 1' ? ['t1', 'q1'] :
-                           term === 'Term 2' || term === 'Quarter 2' ? ['t2', 'q2'] :
-                           term === 'Term 3' || term === 'Quarter 3' ? ['t3', 'q3'] : ['q4'];
-        for (const key of directKeys) {
-          if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
-            const parsed = parseFloat(subjVal[key]);
-            if (!isNaN(parsed)) {
-              termAverages.push(parsed);
-              return;
-            }
-          }
-        }
-
-        // Use configurations if available
-        const cols = gradeConfigs.filter(cfg => 
-          cfg.subjectCode?.toLowerCase() === subjCode.toLowerCase() && 
-          cfg.term === term && 
+      for (const tName of termNames) {
+        const cols = gradeConfigs.filter(cfg =>
+          cfg.subjectCode?.toLowerCase() === subjCode.toLowerCase() &&
+          cfg.term === tName &&
           cfg.type !== 'submission'
         );
-
-        const termData = subjVal[term];
+        const termData = subjVal[tName];
         if (cols.length > 0 && termData && typeof termData === 'object') {
           let termTotal = 0;
           let hasGrade = false;
@@ -380,41 +273,138 @@ export function ChildDetailView({
               }
             }
           });
-          if (hasGrade) {
-            termAverages.push(termTotal);
-            return;
-          }
+          if (hasGrade) return Math.round(termTotal * 10) / 10;
         }
 
-        // Fallback to simple average of column values in this term
         if (termData && typeof termData === 'object') {
           const values: number[] = [];
           Object.values(termData).forEach((v: any) => {
             const num = parseFloat(v);
             if (!isNaN(num)) values.push(num);
           });
-          if (values.length > 0) {
-            termAverages.push(values.reduce((a, b) => a + b, 0) / values.length);
-          }
+          if (values.length > 0) return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
         }
-      });
-
-      if (termAverages.length > 0) {
-        subjectFinalGrades.push(termAverages.reduce((a, b) => a + b, 0) / termAverages.length);
       }
-    });
+      return null;
+    };
 
-    if (subjectFinalGrades.length === 0) return 'N/A';
-    return (subjectFinalGrades.reduce((a, b) => a + b, 0) / subjectFinalGrades.length).toFixed(1);
+    const t1 = getTermScore('1');
+    const t2 = getTermScore('2');
+    const t3 = getTermScore('3');
+
+    let finalGrade: number | null = null;
+    if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
+      const parsed = parseFloat(subjVal.finalGradeOverride);
+      if (!isNaN(parsed)) finalGrade = parsed;
+    }
+    if (finalGrade === null) {
+      const activeTerms = [t1, t2, t3].filter((v): v is number => v !== null);
+      if (activeTerms.length > 0) {
+        finalGrade = Math.round((activeTerms.reduce((a, b) => a + b, 0) / activeTerms.length) * 10) / 10;
+      }
+    }
+
+    const weights = getSubjectWeights(subjCode);
+
+    return {
+      subject: subjCode,
+      t1,
+      t2,
+      t3,
+      finalGrade,
+      weights,
+      raw: subjVal
+    };
   };
+
+  // Get all parsed subject items
+  const getAllParsedSubjects = (c: any) => {
+    if (!c?.grades) return [];
+    const gLvl = c.gradeLevel || 'Grade 6';
+    const normalizedGLvl = gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '');
+    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '').replace(/grade/i, '') === normalizedGLvl) || Object.keys(c.grades)[0];
+    if (!matchedKey) return [];
+    const studentGrades = c.grades[matchedKey];
+    if (!studentGrades || typeof studentGrades !== 'object') return [];
+
+    return Object.entries(studentGrades)
+      .map(([subjCode, subjVal]) => parseSubjectGrades(subjCode, subjVal))
+      .filter((s): s is NonNullable<typeof s> => s !== null);
+  };
+
+  // Helper to get teacher-configured columns and student scores
+  const getTeacherSubjectColumns = (subjCode: string, termKey: 'T1' | 'T2' | 'T3' | 'ALL', subjVal: any) => {
+    const termNames = termKey === 'T1' ? ['Term 1', 'Quarter 1'] :
+                      termKey === 'T2' ? ['Term 2', 'Quarter 2'] :
+                      termKey === 'T3' ? ['Term 3', 'Finals', 'Quarter 3'] :
+                      ['Term 1', 'Term 2', 'Term 3', 'Finals', 'Quarter 1', 'Quarter 2', 'Quarter 3'];
+
+    const matchedCols = gradeConfigs.filter(cfg =>
+      cfg.subjectCode?.toLowerCase() === subjCode.toLowerCase() &&
+      termNames.includes(cfg.term) &&
+      cfg.type !== 'submission'
+    );
+
+    return matchedCols.map(col => {
+      let score: number | null = null;
+      const termData = subjVal?.[col.term];
+      if (termData && typeof termData === 'object') {
+        const val = termData[col.id];
+        if (val !== undefined && val !== null && val !== '') {
+          const parsed = parseFloat(val);
+          if (!isNaN(parsed)) score = parsed;
+        }
+      }
+
+      const weight = typeof col.weight === 'number' ? col.weight : parseFloat(col.weight || '0');
+      const contribution = score !== null ? ((score * weight) / 100).toFixed(1) : null;
+
+      return {
+        id: col.id,
+        name: col.name || 'Component',
+        term: col.term,
+        weight,
+        score,
+        contribution,
+        isAttendance: !!col.isAttendance
+      };
+    });
+  };
+
+  const getStudentAverage = (c: any): string => {
+    const subjects = getAllParsedSubjects(c);
+    const validScores = subjects.map(s => s.finalGrade).filter((v): v is number => v !== null);
+    if (validScores.length === 0) return 'N/A';
+    return (validScores.reduce((a, b) => a + b, 0) / validScores.length).toFixed(1);
+  };
+
+  // General Averages for T1, T2, T3 and Overall
+  const getTermAverages = (c: any) => {
+    const subjects = getAllParsedSubjects(c);
+    const t1s = subjects.map(s => s.t1).filter((v): v is number => v !== null);
+    const t2s = subjects.map(s => s.t2).filter((v): v is number => v !== null);
+    const t3s = subjects.map(s => s.t3).filter((v): v is number => v !== null);
+    const finals = subjects.map(s => s.finalGrade).filter((v): v is number => v !== null);
+
+    return {
+      t1: t1s.length > 0 ? (t1s.reduce((a, b) => a + b, 0) / t1s.length).toFixed(1) : null,
+      t2: t2s.length > 0 ? (t2s.reduce((a, b) => a + b, 0) / t2s.length).toFixed(1) : null,
+      t3: t3s.length > 0 ? (t3s.reduce((a, b) => a + b, 0) / t3s.length).toFixed(1) : null,
+      overall: finals.length > 0 ? (finals.reduce((a, b) => a + b, 0) / finals.length).toFixed(1) : null,
+      subjectCount: subjects.length
+    };
+  };
+
+  const termAveragesData = getTermAverages(child);
 
   const getAcademicStandingBadge = (avgStr: string) => {
     const num = parseFloat(avgStr);
     if (isNaN(num)) return null;
-    if (num >= 95) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', status: 'Performing Well', statusColor: 'bg-emerald-500' };
+    if (num >= 95) return { label: 'Outstanding', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', status: 'Performing Well', statusColor: 'bg-emerald-500' };
     if (num >= 90) return { label: 'Very Good', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', status: 'Performing Well', statusColor: 'bg-emerald-500' };
-    if (num >= 85) return { label: 'Good', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', status: 'Performing Well', statusColor: 'bg-emerald-500' };
-    if (num >= 80) return { label: 'Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200', status: 'Monitor Progress', statusColor: 'bg-amber-500' };
+    if (num >= 85) return { label: 'Good', color: 'bg-blue-50 text-blue-700 border-blue-200', status: 'Performing Well', statusColor: 'bg-blue-500' };
+    if (num >= 80) return { label: 'Satisfactory', color: 'bg-teal-50 text-teal-700 border-teal-200', status: 'Satisfactory', statusColor: 'bg-teal-500' };
+    if (num >= 75) return { label: 'Fairly Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200', status: 'Monitor Progress', statusColor: 'bg-amber-500' };
     return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200', status: 'Needs Attention', statusColor: 'bg-rose-500' };
   };
 
@@ -423,58 +413,27 @@ export function ChildDetailView({
   const standingInfo = getAcademicStandingBadge(rawAvg);
 
   const getSubjectStatus = (gradeNum: number) => {
-    if (gradeNum >= 90) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (gradeNum >= 80) return { label: 'Good', color: 'bg-red-50 text-[#D8232A] border-red-200' };
+    if (gradeNum >= 90) return { label: 'Outstanding', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    if (gradeNum >= 85) return { label: 'Very Good', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    if (gradeNum >= 80) return { label: 'Good', color: 'bg-teal-50 text-teal-700 border-teal-200' };
+    if (gradeNum >= 75) return { label: 'Passed', color: 'bg-slate-100 text-slate-700 border-slate-200' };
     return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200' };
   };
 
   const getPerformanceSummaryMessage = (avgStr: string) => {
     const num = parseFloat(avgStr);
-    if (isNaN(num)) return "Grades have not been encoded yet by subject teachers for this term.";
-    if (num >= 92) return "Student is performing above the class average and maintaining excellent academic standing.";
-    if (num >= 85) return "Student is performing well in most subjects across the curriculum.";
-    return "Student requires additional academic support and guidance in selected subjects.";
-  };
-
-  // Performance & Attendance Calculations according to Apple design guidelines
-  const getPerformanceDetails = (c: any) => {
-    const avgStr = getStudentAverage(c);
-    const num = parseFloat(avgStr);
-    if (isNaN(num)) {
-      return {
-        average: 'No grades available yet',
-        label: null,
-        badgeClass: ''
-      };
-    }
-    const formattedAvg = `${num.toFixed(2)}%`;
-    let label = '🟢 Excellent';
-    let badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (num >= 90) {
-      label = '🟢 Excellent';
-      badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    } else if (num >= 85) {
-      label = '🔵 Very Good';
-      badgeClass = 'bg-red-50 text-red-700 border-red-200';
-    } else if (num >= 75) {
-      label = '🟠 Needs Improvement';
-      badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
-    } else {
-      label = '🔴 At Risk';
-      badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
-    }
-    return {
-      average: formattedAvg,
-      label,
-      badgeClass
-    };
+    if (isNaN(num)) return "Grades are actively encoded by subject teachers across academic periods.";
+    if (num >= 90) return "Student demonstrates high mastery across all curriculum competencies and maintains exemplary academic standing.";
+    if (num >= 85) return "Student is performing consistently well across core subject areas.";
+    if (num >= 75) return "Student is fulfilling core academic standards. Ongoing study reinforcement is encouraged.";
+    return "Targeted learning interventions and advisory guidance are recommended for this learner.";
   };
 
   const getAttendanceDetails = (c: any) => {
     if (!c.attendance || c.attendance.length === 0) {
       return {
-        percentage: '98.4%',
-        detail: '98 / 100 Days Present'
+        percentage: '100%',
+        detail: 'Roll Call Synced'
       };
     }
     let presentCount = 0;
@@ -484,920 +443,898 @@ export function ChildDetailView({
       const stat = rec.status || rec.amStatus;
       if (stat === 'Present' || stat === 'Late') presentCount += 1;
     });
-    const pct = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(1) : '98.4';
-    const totalDays = totalCount || 100;
-    const presentDays = presentCount || 98;
+    const pct = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : '100';
     return {
       percentage: `${pct}%`,
-      detail: `${presentDays} / ${totalDays} Days Present`
+      detail: `${presentCount} / ${totalCount} Days Logged`
     };
   };
 
-  const perfDetails = getPerformanceDetails(child);
   const attDetails = getAttendanceDetails(child);
 
   return (
-    <div className="flex flex-col h-full bg-[#F4F7F9]">
-      {/* ── TOP HEADER / BREADCRUMBS BAR ── */}
-      <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-        {/* Left: Breadcrumb Navigation */}
-        <div className="flex items-center gap-2 text-sm">
-          <button
-            onClick={onBack}
-            className="text-slate-400 hover:text-slate-700 font-medium transition-colors cursor-pointer"
-          >
-            Students
-          </button>
-          <span className="text-slate-300">›</span>
-          <span className="font-bold text-slate-900">
-            {child.firstName} {child.lastName}
-          </span>
-        </div>
+    <div className="flex flex-col min-h-screen bg-[#F4F7F9] font-sans">
+      
+      {/* ── 1. SLEEK TOP NAVIGATION & ACTIONS HEADER ── */}
+      <header className="px-5 sm:px-8 py-4 bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-2xs backdrop-blur-md bg-white/95">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-7xl mx-auto">
+          {/* Back Button & Breadcrumbs */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Students</span>
+            </button>
+            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="text-sm font-black text-slate-900 truncate">
+                {child.firstName} {child.lastName}
+              </span>
+              <span className="text-xs font-semibold text-slate-400">
+                • Grade {child.gradeLevel || '6'}
+              </span>
+            </div>
+          </div>
 
-        {/* Right: Actions / Lock Status */}
-        <div className="flex items-center gap-3">
-
-          <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative cursor-pointer">
-            <Bell className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={handleOpenEdit}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-          >
-            <Edit className="w-3.5 h-3.5" />
-            {child.status === 'Enrolled' || child.status === 'Approved' ? 'Update Contact Info' : 'Edit Profile'}
-          </button>
+          {/* Quick Right Actions */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={handleOpenEdit}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              <span>{child.status === 'Enrolled' || child.status === 'Approved' ? 'Update Contact Info' : 'Edit Profile'}</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* ── MAIN CONTENT AREA ── */}
-      <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-        <div className="w-full space-y-6">
-          {child.status === 'Pending' && (
-            <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 text-amber-800 p-5 rounded-2xl flex items-start gap-4 shadow-sm">
-              <div className="w-10 h-10 rounded-full bg-amber-200/50 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-5 h-5 text-amber-600" />
+      {/* ── 2. MAIN CONTAINER ── */}
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6">
+        
+        {/* Status Advisory Banner (Compact) */}
+        {child.status === 'Pending' && (
+          <div className="bg-amber-50/90 border border-amber-200/90 p-4 rounded-2xl flex items-center gap-3 shadow-2xs">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div className="text-xs text-amber-800 font-medium">
+              <strong className="font-bold text-amber-900">Enrollment Under Review:</strong> This application is currently being processed by the school registrar. Academic records will unlock once officially approved.
+            </div>
+          </div>
+        )}
+
+        {/* Cohesive 2-Column Responsive Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          {/* ══════════════════════════════════════════════════
+              LEFT COLUMN: CONSOLIDATED STUDENT IDENTITY (4 Cols)
+             ══════════════════════════════════════════════════ */}
+          <div className="lg:col-span-4 space-y-5">
+            
+            {/* 1. Identity & Avatar Card */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-2xs text-center space-y-4 relative overflow-hidden">
+              
+              {/* Photo Avatar with Live Upload Ring */}
+              <div className="relative flex flex-col items-center">
+                <div className="relative w-24 h-24 flex items-center justify-center">
+                  <div
+                    onClick={() => {
+                      if (!isPhotoUploading) {
+                        setPhotoError(null);
+                        photoInputRef.current?.click();
+                      }
+                    }}
+                    className="w-22 h-22 rounded-full border-4 border-white bg-slate-100 shadow-sm flex items-center justify-center overflow-hidden relative group cursor-pointer"
+                    title={isPhotoUploading ? 'Uploading...' : 'Click to change photo'}
+                  >
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (() => {
+                      const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
+                      const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+                      return photo ? (
+                        <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-2xl font-black text-[#D8232A]">
+                          {child.firstName?.[0]}{child.lastName?.[0]}
+                        </span>
+                      );
+                    })()}
+
+                    {!isPhotoUploading && (
+                      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <Camera className="w-4 h-4 text-white" />
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-white mt-0.5">Edit</span>
+                      </div>
+                    )}
+
+                    {isPhotoUploading && (
+                      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-10">
+                        {isUploadSuccess ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400 animate-bounce" />
+                        ) : (
+                          <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {!isPhotoUploading && (
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-600 hover:text-[#D8232A] transition-colors z-20 cursor-pointer"
+                      title="Upload new photo"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  {isPhotoUploading && (
+                    <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none z-20" viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="44" className="stroke-red-100" strokeWidth="3.5" fill="none" />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="44"
+                        className={cn(isUploadSuccess ? 'stroke-emerald-500' : 'stroke-[#D8232A]', "transition-all duration-200")}
+                        strokeWidth="3.5"
+                        strokeDasharray={276.46}
+                        strokeDashoffset={276.46 - (uploadProgress / 100) * 276.46}
+                        strokeLinecap="round"
+                        fill="none"
+                      />
+                    </svg>
+                  )}
+                </div>
+
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
               </div>
-              <div className="flex-1 pt-1">
-                <h4 className="font-bold text-amber-900">
-                  Enrollment is pending approval
-                </h4>
-                <p className="text-sm mt-1 text-amber-700 leading-relaxed">
-                  Your child's enrollment is currently being reviewed by the school administration.
+
+              {/* Photo Confirm Buttons */}
+              {selectedFile && !isPhotoUploading && (
+                <div className="grid grid-cols-2 gap-2 pt-1 animate-fade-in">
+                  <button
+                    type="button"
+                    onClick={() => selectedFile && previewUrl && startAutoUpload(selectedFile, previewUrl)}
+                    className="py-1.5 px-3 bg-[#D8232A] hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-2xs cursor-pointer"
+                  >
+                    Save Photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelPhotoSelect}
+                    className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {photoError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-[11px] rounded-xl p-2.5 font-semibold text-left">
+                  {photoError}
+                </div>
+              )}
+
+              {/* Student Name & Academic Header */}
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 uppercase tracking-tight">
+                  {child.firstName} {child.middleName ? `${child.middleName} ` : ''}{child.lastName}
+                </h2>
+                <p className="text-xs font-bold text-slate-500">
+                  Grade {child.gradeLevel || '6'} {(child as any).sectionName || child.section ? `• Section ${(child as any).sectionName || child.section}` : ''}
+                </p>
+                <p className="text-[11px] text-slate-400 font-medium">
+                  Adviser: <span className="text-slate-700 font-bold">{child.adviser || (child as any).adviserName || 'Class Adviser'}</span>
                 </p>
               </div>
+
+              {/* LRN & Status Badge Strip */}
+              <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+                {child.status === 'Enrolled' || child.status === 'Approved' ? (
+                  <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-extrabold inline-flex items-center gap-1.5 shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Officially Enrolled
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[11px] font-extrabold inline-flex items-center gap-1.5 shadow-2xs">
+                    <CircleDashed className="w-3 h-3 text-amber-500 animate-spin-slow" /> Pending Evaluation
+                  </span>
+                )}
+
+                {/* Quick Copy LRN Tag */}
+                <button
+                  type="button"
+                  onClick={handleCopyLrn}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-full text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Click to copy LRN"
+                >
+                  <span>LRN: {child.lrn || (child as any).studentId || '123456789123'}</span>
+                  {copiedLrn ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                </button>
+              </div>
+
+              {/* Dual KPI Strip: Attendance & Overall Average */}
+              <div className="grid grid-cols-2 gap-2.5 pt-3 border-t border-slate-100 text-left">
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100/80 space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attendance</span>
+                  <div className="text-base font-black text-slate-900">{attDetails.percentage}</div>
+                  <p className="text-[10px] text-slate-500 font-medium">{attDetails.detail}</p>
+                </div>
+                <div className="bg-red-50/40 p-3 rounded-2xl border border-red-100/60 space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Gen. Average</span>
+                  <div className="text-base font-black text-slate-900">{avgDisplay}</div>
+                  <p className="text-[10px] font-bold text-[#D8232A]">{standingInfo?.label || 'General Standing'}</p>
+                </div>
+              </div>
             </div>
-          )}
 
-          {(child.status === 'Enrolled' || child.status === 'Approved') && (
-            <div className="bg-red-50/80 border border-red-100 text-red-900 p-4 rounded-2xl flex items-center gap-3 text-xs font-medium shadow-2xs">
-              <ShieldCheck className="w-5 h-5 text-[#D8232A] shrink-0" />
-              <span>
-                <strong className="font-bold">Official Enrolled Record:</strong> This student is officially enrolled for Academic Year 2026–2027. Personal information and demographic data are locked, but you may update your contact information using the button above. To request official record updates, please contact the school administration.
-              </span>
+            {/* 2. Structured Student Records Card (Segmented Nav) */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
+              
+              {/* Segmented Selector for Details */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl gap-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveProfileSection('personal')}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1",
+                    activeProfileSection === 'personal' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Personal</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveProfileSection('guardian')}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1",
+                    activeProfileSection === 'guardian' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Guardian</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveProfileSection('medical')}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1",
+                    activeProfileSection === 'medical' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  <HeartPulse className="w-3.5 h-3.5" />
+                  <span>Health</span>
+                </button>
+              </div>
+
+              {/* A. Personal & Address Content */}
+              {activeProfileSection === 'personal' && (
+                <div className="space-y-3 text-xs animate-fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Birth Date</span>
+                    <span className="font-bold text-slate-900">{child.birthDate || 'August 10, 2010'}</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Gender</span>
+                    <span className="font-bold text-slate-900">{child.gender || 'Male'}</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Mother Tongue</span>
+                    <span className="font-bold text-slate-900">{child.additional?.motherTongue || 'Filipino'}</span>
+                  </div>
+                  <div className="pt-1">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-[#D8232A]" /> Residence Address
+                    </p>
+                    <p className="font-medium text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed text-[11px]">
+                      {child.address?.street ? `${child.address.street}, ` : ''}{child.address?.barangay || 'Guiwan'}, {child.address?.city || 'Zamboanga City'}, {child.address?.zipCode || '7000'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* B. Guardian Content */}
+              {activeProfileSection === 'guardian' && (
+                <div className="space-y-3 text-xs animate-fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Guardian Name</span>
+                    <span className="font-bold text-slate-900 truncate max-w-[150px]">
+                      {child.medical?.emergencyContact || (child as any).guardianDetails?.fullName || 'Parent / Guardian'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Relationship</span>
+                    <span className="font-bold text-slate-900">
+                      {(child as any).guardianDetails?.relationship || 'Parent'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Emergency Phone</span>
+                    <span className="font-bold text-slate-900 font-mono">
+                      {child.medical?.emergencyPhone || (child as any).guardianDetails?.contactNumber || '--'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-slate-500 font-medium">Email Address</span>
+                    <span className="font-bold text-slate-900 truncate max-w-[150px]">
+                      {(child as any).guardianDetails?.email || (user as any)?.email || '--'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* C. Medical Content */}
+              {activeProfileSection === 'medical' && (
+                <div className="space-y-3 text-xs animate-fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Height & Weight</span>
+                    <span className="font-bold text-slate-900">
+                      {child.medical?.height ? `${child.medical.height} cm` : '--'} • {child.medical?.weight ? `${child.medical.weight} kg` : '--'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Blood Type</span>
+                    <span className="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 text-[11px]">
+                      {child.medical?.bloodType || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-medium">Allergies</span>
+                    <span className="font-bold text-slate-900 truncate max-w-[140px]">
+                      {child.medical?.allergies || 'None reported'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-slate-500 font-medium">Diagnoses</span>
+                    <span className="font-bold text-slate-900 truncate max-w-[140px]">
+                      {child.medical?.diagnoses?.join(', ') || 'None'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
             </div>
-          )}
+          </div>
 
-          <Tabs defaultValue="personal" className="w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* ══════════════════════════════════════════════════
+              RIGHT COLUMN: ACADEMIC RECORD & ATTENDANCE TABS (8 Cols)
+             ══════════════════════════════════════════════════ */}
+          <div className="lg:col-span-8 space-y-6">
 
-              {/* ── LEFT COLUMN: PROFILE CARD & STUDENT SUMMARY ── */}
-              <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-8 h-fit">
+            <Tabs defaultValue="academic" className="w-full space-y-5">
+              
+              {/* Tab Navigation Pill Bar (Grades, Attendance, Observed Values) */}
+              <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+                <TabsList className="bg-transparent border-none p-0 h-auto gap-1.5 w-full justify-start">
+                  <TabsTrigger
+                    value="academic"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 data-[state=active]:bg-[#D8232A] data-[state=active]:text-white data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Grades</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="attendance"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 data-[state=active]:bg-[#D8232A] data-[state=active]:text-white data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <CalendarCheck className="w-4 h-4" />
+                    <span>Attendance</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="values"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 data-[state=active]:bg-[#D8232A] data-[state=active]:text-white data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Observed Values</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-                {/* 1. Student Profile Card */}
-                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 text-center space-y-4 animate-fade-up">
-                  {/* Circular Avatar Container */}
-                  <div className="relative flex flex-col items-center">
-                    <div className="relative w-28 h-28 flex items-center justify-center my-1 z-10">
-                      {isPhotoUploading && (
-                        <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping opacity-75 pointer-events-none" />
-                      )}
+              {/* ── TAB 1: ATTENDANCE CALENDAR ── */}
+              <TabsContent value="attendance" className="mt-0 outline-none space-y-6">
+                {(child.status === 'Pending' || child.status === 'Rejected') ? (
+                  <div className="p-14 text-center bg-white rounded-3xl border border-slate-200/80 shadow-2xs space-y-3">
+                    <CalendarCheck className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h3 className="text-base font-bold text-slate-800">Attendance Log Locked</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Daily roll call and presence records will automatically synchronize once the student is officially enrolled.
+                    </p>
+                  </div>
+                ) : (
+                  <StudentAttendanceCalendar records={child.attendance || []} />
+                )}
+              </TabsContent>
 
-                      <div
-                        onClick={() => {
-                          if (!isPhotoUploading) {
-                            setPhotoError(null);
-                            photoInputRef.current?.click();
-                          }
-                        }}
-                        className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 shadow-md flex items-center justify-center overflow-hidden relative group cursor-pointer"
-                        title={isPhotoUploading ? 'Uploading...' : 'Click to change photo'}
-                      >
-                        {previewUrl ? (
-                          <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                        ) : (() => {
-                          const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
-                          const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
-                          return photo ? (
-                            <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-2xl font-black text-[#D8232A]">
-                              {child.firstName.charAt(0)}{child.lastName.charAt(0)}
-                            </span>
-                          );
-                        })()}
+              {/* ── TAB 2: ACADEMIC RECORD ── */}
+              <TabsContent value="academic" className="mt-0 outline-none space-y-6">
+                {(child.status === 'Pending' || child.status === 'Rejected') ? (
+                  <div className="p-14 text-center bg-white rounded-3xl border border-slate-200/80 shadow-2xs space-y-3">
+                    <Lock className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h3 className="text-base font-bold text-slate-800">Academic Records Locked</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Subject evaluation marks, term grades, and component weights will be visible here once official enrollment is verified.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 1. GENERAL AVERAGE STRIP (T1, T2, T3 & OVERALL) */}
+                    <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-2xs space-y-5 animate-fade-up">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                        <div>
+                          <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                            <BarChart3 className="w-4.5 h-4.5 text-[#D8232A]" />
+                            General Average Performance
+                          </h3>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">Real-time synchronized term evaluations</p>
+                        </div>
 
-                        {!isPhotoUploading && (
-                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200">
-                            <Camera className="w-4 h-4 mb-0.5 text-white" />
-                            <span className="text-[8px] font-extrabold uppercase tracking-wider text-white">Change</span>
-                          </div>
-                        )}
-
-                        {isPhotoUploading && (
-                          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-10 animate-in fade-in duration-200">
-                            {isUploadSuccess ? (
-                              <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg animate-bounce">
-                                <CheckCircle2 className="w-4 h-4" />
-                              </div>
-                            ) : (
-                              <Loader2 className="w-5 h-5 text-white animate-spin drop-shadow-md" />
-                            )}
+                        {standingInfo && (
+                          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/60 w-fit">
+                            <span className={cn("w-2 h-2 rounded-full", standingInfo.statusColor)} />
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">{standingInfo.status}</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Camera Icon Overlay at Bottom Right */}
-                      {!isPhotoUploading && (
+                      {/* 4 Interactive KPI Cards */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        
+                        {/* Term 1 (T1) */}
+                        <div
+                          onClick={() => setSelectedAcademicTerm('T1')}
+                          className={cn(
+                            "p-3.5 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative overflow-hidden",
+                            selectedAcademicTerm === 'T1'
+                              ? "bg-red-50/70 border-[#D8232A] ring-2 ring-[#D8232A]/20 shadow-xs"
+                              : "bg-slate-50/80 border-slate-200/70 hover:bg-slate-100/80"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Term 1 (T1)</span>
+                            {selectedAcademicTerm === 'T1' && <span className="w-1.5 h-1.5 rounded-full bg-[#D8232A]" />}
+                          </div>
+                          <p className="text-xl font-black text-slate-900">{termAveragesData.t1 ? `${termAveragesData.t1}%` : '--'}</p>
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {termAveragesData.t1 ? (parseFloat(termAveragesData.t1) >= 75 ? 'Passed' : 'Needs Review') : 'Pending'}
+                          </p>
+                        </div>
+
+                        {/* Term 2 (T2) */}
+                        <div
+                          onClick={() => setSelectedAcademicTerm('T2')}
+                          className={cn(
+                            "p-3.5 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative overflow-hidden",
+                            selectedAcademicTerm === 'T2'
+                              ? "bg-red-50/70 border-[#D8232A] ring-2 ring-[#D8232A]/20 shadow-xs"
+                              : "bg-slate-50/80 border-slate-200/70 hover:bg-slate-100/80"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Term 2 (T2)</span>
+                            {selectedAcademicTerm === 'T2' && <span className="w-1.5 h-1.5 rounded-full bg-[#D8232A]" />}
+                          </div>
+                          <p className="text-xl font-black text-slate-900">{termAveragesData.t2 ? `${termAveragesData.t2}%` : '--'}</p>
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {termAveragesData.t2 ? (parseFloat(termAveragesData.t2) >= 75 ? 'Passed' : 'Needs Review') : 'Pending'}
+                          </p>
+                        </div>
+
+                        {/* Term 3 (T3) */}
+                        <div
+                          onClick={() => setSelectedAcademicTerm('T3')}
+                          className={cn(
+                            "p-3.5 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative overflow-hidden",
+                            selectedAcademicTerm === 'T3'
+                              ? "bg-red-50/70 border-[#D8232A] ring-2 ring-[#D8232A]/20 shadow-xs"
+                              : "bg-slate-50/80 border-slate-200/70 hover:bg-slate-100/80"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Term 3 (T3)</span>
+                            {selectedAcademicTerm === 'T3' && <span className="w-1.5 h-1.5 rounded-full bg-[#D8232A]" />}
+                          </div>
+                          <p className="text-xl font-black text-slate-900">{termAveragesData.t3 ? `${termAveragesData.t3}%` : '--'}</p>
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {termAveragesData.t3 ? (parseFloat(termAveragesData.t3) >= 75 ? 'Passed' : 'Needs Review') : 'Pending'}
+                          </p>
+                        </div>
+
+                        {/* Cumulative Overall */}
+                        <div
+                          onClick={() => setSelectedAcademicTerm('ALL')}
+                          className={cn(
+                            "p-3.5 rounded-2xl border transition-all cursor-pointer text-left space-y-1 relative overflow-hidden",
+                            selectedAcademicTerm === 'ALL'
+                              ? "bg-[#D8232A] text-white border-[#D8232A] shadow-xs"
+                              : "bg-slate-900 text-white border-slate-800 hover:bg-slate-800"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-red-100">Cumulative</span>
+                            <Award className="w-3.5 h-3.5 text-white/80" />
+                          </div>
+                          <p className="text-xl font-black text-white">{termAveragesData.overall ? `${termAveragesData.overall}%` : '--'}</p>
+                          <p className="text-[10px] font-bold text-red-100 truncate">
+                            {standingInfo?.label || 'General Average'}
+                          </p>
+                        </div>
+
+                      </div>
+
+                      {/* Term Filter Pills */}
+                      <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Filter:</span>
                         <button
                           type="button"
-                          onClick={() => {
-                            setPhotoError(null);
-                            photoInputRef.current?.click();
-                          }}
-                          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#D8232A] hover:bg-slate-50 transition-colors z-20 cursor-pointer"
-                          title="Change photo"
+                          onClick={() => setSelectedAcademicTerm('ALL')}
+                          className={cn(
+                            "px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer",
+                            selectedAcademicTerm === 'ALL' ? "bg-slate-900 text-white shadow-2xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          )}
                         >
-                          <Camera className="w-3.5 h-3.5" />
+                          All Terms (T1 – T3)
                         </button>
-                      )}
-
-                      {/* Progress Ring with Percentage */}
-                      {isPhotoUploading && (
-                        <>
-                          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none z-20" viewBox="0 0 112 112">
-                            <circle cx="56" cy="56" r="48" className="stroke-red-100" strokeWidth="4" fill="none" />
-                            <circle
-                              cx="56"
-                              cy="56"
-                              r="48"
-                              className={`${isUploadSuccess ? 'stroke-emerald-500' : 'stroke-[#D8232A]'} transition-all duration-300 ease-out`}
-                              strokeWidth="4"
-                              strokeDasharray={301.59}
-                              strokeDashoffset={301.59 - (uploadProgress / 100) * 301.59}
-                              strokeLinecap="round"
-                              fill="none"
-                            />
-                          </svg>
-                          <span className="absolute -bottom-2 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-md text-[9px] font-black text-[#D8232A] z-30">
-                            {uploadProgress}%
-                          </span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Hidden Photo File Input */}
-                    <input
-                      ref={photoInputRef}
-                      type="file"
-                      accept="image/png, image/jpeg, image/jpg, image/webp"
-                      onChange={handlePhotoSelect}
-                      className="hidden"
-                    />
-                  </div>
-
-                  {/* Compact Confirm Upload & Cancel Buttons */}
-                  {selectedFile && !isPhotoUploading && (
-                    <div className="grid grid-cols-2 gap-2 pt-1 animate-in fade-in duration-200">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedFile && previewUrl) {
-                            startAutoUpload(selectedFile, previewUrl);
-                          }
-                        }}
-                        className="w-full py-2 px-3 bg-[#D8232A] hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        Confirm Upload
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancelPhotoSelect}
-                        className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer border border-slate-200/60"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Photo Error Banner with Retry Button */}
-                  {photoError && (
-                    <div className="w-full bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl p-3 font-semibold flex items-center justify-between gap-2 animate-in fade-in-50 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                        <span>{photoError}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAcademicTerm('T1')}
+                          className={cn(
+                            "px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer",
+                            selectedAcademicTerm === 'T1' ? "bg-[#D8232A] text-white shadow-2xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          )}
+                        >
+                          Term 1 (T1)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAcademicTerm('T2')}
+                          className={cn(
+                            "px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer",
+                            selectedAcademicTerm === 'T2' ? "bg-[#D8232A] text-white shadow-2xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          )}
+                        >
+                          Term 2 (T2)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAcademicTerm('T3')}
+                          className={cn(
+                            "px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer",
+                            selectedAcademicTerm === 'T3' ? "bg-[#D8232A] text-white shadow-2xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          )}
+                        >
+                          Term 3 (T3)
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPhotoError(null);
-                          photoInputRef.current?.click();
-                        }}
-                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shrink-0 cursor-pointer"
-                      >
-                        Retry
-                      </button>
                     </div>
-                  )}
 
-                  {/* Student Full Name */}
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-800 tracking-normal">
-                      {child.firstName} {child.middleName ? `${child.middleName} ` : ''}{child.lastName}
-                    </h2>
-                  </div>
-
-                  {/* Status Badges */}
-                  <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
-                    <span className="px-3 py-1 bg-green-50 text-green-700 border border-green-100 rounded-full text-xs font-medium inline-flex items-center gap-1.5 shadow-2xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Active Enrollment
-                    </span>
-                    <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full border border-slate-200/60">
-                      Grade {child.gradeLevel}
-                    </span>
-                    <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full border border-red-100">
-                      School Year 2026–2027
-                    </span>
-                  </div>
-
-                  {/* Attendance & Performance Summary Cards */}
-                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100 text-left">
-                    <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 space-y-1">
-                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">ATTENDANCE</span>
-                      <div className="text-lg font-semibold text-slate-800">{attDetails.percentage}</div>
-                      <p className="text-[10px] font-medium text-slate-500">{attDetails.detail}</p>
-                    </div>
-                    <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 space-y-1">
-                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">GENERAL AVERAGE</span>
-                      <div className="text-lg font-semibold text-slate-800">
-                        {perfDetails.average}
-                      </div>
-                      {perfDetails.label && (
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${perfDetails.badgeClass}`}>
-                          {perfDetails.label}
+                    {/* 2. ENROLLED SUBJECTS BREAKDOWN & TEACHER COLUMN WEIGHTS */}
+                    <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-2xs space-y-5 animate-fade-up">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                        <div>
+                          <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                            <GraduationCap className="w-4.5 h-4.5 text-[#D8232A]" />
+                            {selectedAcademicTerm === 'ALL'
+                              ? 'Subject Performance & Progression'
+                              : `Subject Breakdown — ${selectedAcademicTerm === 'T1' ? 'Term 1' : selectedAcademicTerm === 'T2' ? 'Term 2' : 'Term 3'}`}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            Click any subject card to inspect component weights and teacher gradebook columns
+                          </p>
+                        </div>
+                        <span className="text-[11px] font-extrabold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-xl w-fit">
+                          {getAllParsedSubjects(child).length} Subjects Enrolled
                         </span>
+                      </div>
+
+                      {getAllParsedSubjects(child).length === 0 ? (
+                        <div className="p-12 text-center space-y-2">
+                          <BarChart3 className="w-8 h-8 text-slate-300 mx-auto" />
+                          <h4 className="text-sm font-bold text-slate-700">No Grades Encoded Yet</h4>
+                          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                            Subject teachers have not submitted final marks for this student yet.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {getAllParsedSubjects(child).map((item) => {
+                            const isExpanded = selectedSubjectDetail === item.subject;
+                            const activeTermScore =
+                              selectedAcademicTerm === 'T1' ? item.t1 :
+                              selectedAcademicTerm === 'T2' ? item.t2 :
+                              selectedAcademicTerm === 'T3' ? item.t3 :
+                              item.finalGrade;
+
+                            const termLabel =
+                              selectedAcademicTerm === 'T1' ? 'Term 1' :
+                              selectedAcademicTerm === 'T2' ? 'Term 2' :
+                              selectedAcademicTerm === 'T3' ? 'Term 3' :
+                              'Final Rating';
+
+                            const subjectBadge = activeTermScore !== null ? getSubjectStatus(activeTermScore) : null;
+                            const teacherCols = getTeacherSubjectColumns(item.subject, selectedAcademicTerm, item.raw);
+                            const totalWeight = teacherCols.reduce((acc, c) => acc + c.weight, 0);
+
+                            return (
+                              <div
+                                key={item.subject}
+                                className={cn(
+                                  "rounded-2xl border transition-all duration-200 overflow-hidden",
+                                  isExpanded
+                                    ? "border-[#D8232A]/60 bg-red-50/15 shadow-xs ring-1 ring-[#D8232A]/20"
+                                    : "border-slate-200/80 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300"
+                                )}
+                              >
+                                {/* Subject Header Row */}
+                                <div
+                                  onClick={() => setSelectedSubjectDetail(isExpanded ? null : item.subject)}
+                                  className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer select-none"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 border", item.weights.categoryColor)}>
+                                      <BookOpen className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight truncate">
+                                          {item.subject}
+                                        </h4>
+                                        <span className={cn("text-[10px] font-extrabold px-2 py-0.5 rounded-full border", item.weights.categoryColor)}>
+                                          {item.weights.category}
+                                        </span>
+                                      </div>
+                                      {teacherCols.length > 0 ? (
+                                        <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate max-w-md">
+                                          Columns: {teacherCols.map(c => `${c.name} (${c.weight}%)`).join(' • ')}
+                                        </p>
+                                      ) : (
+                                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                                          Subject Gradebook Record
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Right: Scores & Expand Chevron */}
+                                  <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-4 shrink-0">
+                                    {selectedAcademicTerm === 'ALL' ? (
+                                      <div className="flex items-center gap-2 sm:gap-3 text-center">
+                                        <div className="px-2.5 py-1 rounded-xl bg-white border border-slate-200/70 min-w-[2.5rem]">
+                                          <p className="text-[9px] font-black text-slate-400 uppercase">T1</p>
+                                          <p className="text-xs font-black text-slate-800">{item.t1 !== null ? item.t1 : '--'}</p>
+                                        </div>
+                                        <div className="px-2.5 py-1 rounded-xl bg-white border border-slate-200/70 min-w-[2.5rem]">
+                                          <p className="text-[9px] font-black text-slate-400 uppercase">T2</p>
+                                          <p className="text-xs font-black text-slate-800">{item.t2 !== null ? item.t2 : '--'}</p>
+                                        </div>
+                                        <div className="px-2.5 py-1 rounded-xl bg-white border border-slate-200/70 min-w-[2.5rem]">
+                                          <p className="text-[9px] font-black text-slate-400 uppercase">T3</p>
+                                          <p className="text-xs font-black text-slate-800">{item.t3 !== null ? item.t3 : '--'}</p>
+                                        </div>
+                                        <div className="px-3 py-1 rounded-xl bg-[#D8232A]/10 border border-[#D8232A]/30 min-w-[3rem]">
+                                          <p className="text-[9px] font-black text-[#D8232A] uppercase">Final</p>
+                                          <p className="text-xs sm:text-sm font-black text-[#D8232A]">{item.finalGrade !== null ? item.finalGrade : '--'}</p>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="text-right">
+                                          <span className="text-[10px] font-bold text-slate-400 uppercase block">{termLabel}</span>
+                                          <span className="text-base font-black text-slate-900">
+                                            {activeTermScore !== null ? `${activeTermScore}%` : '--'}
+                                          </span>
+                                        </div>
+                                        {subjectBadge && (
+                                          <span className={cn("px-2.5 py-0.5 rounded-xl text-[10px] font-black border uppercase tracking-wider", subjectBadge.color)}>
+                                            {subjectBadge.label}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      className={cn(
+                                        "w-7 h-7 rounded-xl flex items-center justify-center transition-transform duration-200 bg-white border border-slate-200 text-slate-500",
+                                        isExpanded && "rotate-180 bg-[#D8232A] text-white border-[#D8232A]"
+                                      )}
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Expanded Teacher Columns & Weights Drilldown */}
+                                {isExpanded && (
+                                  <div className="p-4 sm:p-5 border-t border-slate-200/80 bg-white space-y-3 animate-fade-in">
+                                    <div className="flex items-center justify-between flex-wrap gap-2">
+                                      <h5 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Layers className="w-3.5 h-3.5 text-[#D8232A]" />
+                                        Teacher Gradebook Breakdown ({termLabel})
+                                      </h5>
+                                      {teacherCols.length > 0 && (
+                                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/60">
+                                          Allocated Weight: <strong className="text-slate-900 font-black">{totalWeight}%</strong>
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {teacherCols.length > 0 ? (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {teacherCols.map((col) => (
+                                          <div key={col.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span className="text-xs font-bold text-slate-800 truncate" title={col.name}>
+                                                {col.name}
+                                              </span>
+                                              <span className="px-1.5 py-0.5 rounded-md bg-slate-200/70 text-slate-800 font-extrabold text-[9px] shrink-0">
+                                                {col.weight}%
+                                              </span>
+                                            </div>
+                                            <div className="flex items-baseline justify-between pt-0.5">
+                                              <span className="text-base font-black text-slate-900">
+                                                {col.score !== null ? `${col.score}%` : '--'}
+                                              </span>
+                                              <span className="text-[11px] font-extrabold text-slate-500">
+                                                {col.contribution !== null ? `+${col.contribution} pts` : '--'}
+                                              </span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                              <div
+                                                className="bg-[#D8232A] h-full rounded-full transition-all duration-300"
+                                                style={{ width: `${Math.min(100, col.score ?? 0)}%` }}
+                                              />
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70 text-slate-600 text-xs font-medium space-y-0.5">
+                                        <p className="font-bold text-slate-800">Direct Term Evaluation</p>
+                                        <p className="text-slate-500 text-[11px]">
+                                          Teacher has encoded overall grade without sub-columns. Recorded mark is {activeTermScore !== null ? `${activeTermScore}%` : 'Pending'}.
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
 
-                {/* 2. Student Summary Card (Replaces Account Meta) */}
-                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-6 space-y-4 animate-fade-up">
-                  <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">STUDENT SUMMARY</h3>
-
-                  <div className="space-y-3.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">Enrollment Status</span>
-                      <span className="font-extrabold text-[#D8232A] bg-red-50 px-2.5 py-0.5 rounded-full border border-red-100">
-                        {child.status || 'Active'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">Grade Level</span>
-                      <span className="font-bold text-slate-900">Grade {child.gradeLevel}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">Section</span>
-                      <span className="font-bold text-slate-900">{child.section || 'Section A'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">Class Adviser</span>
-                      <span className="font-bold text-slate-900">{child.adviser || 'Maria Santos'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">School Year</span>
-                      <span className="font-bold text-slate-900">SY 2026–2027</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">LRN Number</span>
-                      <span className="font-bold text-slate-900 font-mono">{child.lrn || '126220200414'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">Student ID</span>
-                      <span className="font-bold text-slate-900 font-mono">{child.studentId || child.lrn || '2026-00414'}</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* ── RIGHT COLUMN: TABS & CONTENT PANELS ── */}
-              <div className="lg:col-span-2 space-y-6">
-
-                {/* Tab Navigation Pill Selector (Apple Segmented Control) */}
-                <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 inline-flex items-center gap-1 w-full overflow-x-auto shadow-2xs">
-                  <TabsList className="bg-transparent border-none p-0 h-auto gap-1 w-full justify-start">
-                    <TabsTrigger
-                      value="personal"
-                      className="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-xs transition-all flex items-center gap-2"
-                    >
-                      <User className="w-3.5 h-3.5 text-[#D8232A]" />
-                      Personal Info
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="academic"
-                      className="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-xs transition-all flex items-center gap-2"
-                    >
-                      <BarChart3 className="w-3.5 h-3.5 text-[#D8232A]" />
-                      Academic Record
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="attendance"
-                      className="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-xs transition-all flex items-center gap-2"
-                    >
-                      <CalendarCheck className="w-3.5 h-3.5 text-[#D8232A]" />
-                      Attendance
-                    </TabsTrigger>
-
-                  </TabsList>
-                </div>
-
-                {/* Tab Panels */}
-
-                {/* 1. PERSONAL INFO TAB PANEL */}
-                <TabsContent value="personal" className="mt-0 outline-none space-y-6">
-
-                  {/* Card 1: Personal Information */}
-                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
-                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]">
-                        <User className="w-5 h-5" />
+                    {/* 3. PERFORMANCE SUMMARY ADVISORY */}
+                    <div className="p-5 bg-gradient-to-r from-red-50/80 to-slate-50/90 border border-red-100 rounded-3xl shadow-2xs flex items-start gap-3.5">
+                      <div className="w-8 h-8 rounded-xl bg-white text-[#D8232A] border border-red-200 flex items-center justify-center shrink-0 shadow-2xs">
+                        <Activity className="w-4 h-4" />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Personal Information</h3>
-                        <p className="text-xs text-slate-400 font-medium">Basic student details & demographics</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-6 gap-x-8">
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">FIRST NAME</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.firstName}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">MIDDLE NAME</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.middleName || 'R.'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">LAST NAME</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.lastName}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">DATE OF BIRTH</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.birthDate || 'August 10, 2010'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">GENDER</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.gender || 'Male'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">MOTHER TONGUE</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.additional?.motherTongue || 'Chavacano'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 2: Address & Contact */}
-                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
-                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A]">
-                        <MapPin className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Address & Contact</h3>
-                        <p className="text-xs text-slate-400 font-medium">Primary residence & location details</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">PRIMARY RESIDENCE</p>
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-[15px] font-semibold text-slate-800">
-                          {child.address?.street ? `${child.address.street}, ` : ''}{child.address?.barangay || 'Guiwan'}, {child.address?.city || 'Zamboanga City'}, {child.address?.zipCode || '7000'}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 pt-2">
-                        <div>
-                          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">CITY / MUNICIPALITY</p>
-                          <p className="text-[16px] text-slate-900 font-semibold">{child.address?.city || 'Zamboanga City'}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">PROVINCE</p>
-                          <p className="text-[16px] text-slate-900 font-semibold">{child.address?.province || 'Zamboanga Del Sur'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Guardian & Emergency Contact */}
-                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
-                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                        <Users className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Guardian & Emergency Contact</h3>
-                        <p className="text-xs text-slate-400 font-medium">Primary guardian and emergency details</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">EMERGENCY CONTACT NAME</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.medical?.emergencyContact || (child as any).guardianDetails?.fullName || '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">RELATIONSHIP</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{(child as any).guardianDetails?.relationship || '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">CONTACT NUMBER</p>
-                        <p className="text-[16px] text-indigo-700 font-semibold font-mono">{child.medical?.emergencyPhone || (child as any).guardianDetails?.contactNumber || '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">EMAIL ADDRESS</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{(child as any).guardianDetails?.email || '--'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Physical Details Card */}
-                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
-                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500">
-                        <HeartPulse className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Physical Details</h3>
-                        <p className="text-xs text-slate-400 font-medium">Height, weight, and blood type</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-6 gap-x-8">
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">HEIGHT</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.medical.height ? `${child.medical.height} cm` : '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">WEIGHT</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.medical.weight ? `${child.medical.weight} kg` : '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">BLOOD TYPE</p>
-                        <p className="text-sm font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100 inline-block">{child.medical.bloodType || '--'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Health Conditions Card */}
-                  <div className="glass-effect rounded-2xl p-8 animate-fade-up bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-6">
-                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                      <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500">
-                        <AlertCircle className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">Health Conditions</h3>
-                        <p className="text-xs text-slate-400 font-medium">Allergies and diagnoses</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">ALLERGIES</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.medical.allergies || 'None reported'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">MEDICAL CONDITIONS</p>
-                        <p className="text-[16px] text-slate-900 font-semibold">{child.medical.diagnoses?.join(', ') || 'None reported'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="attendance" className="mt-0 outline-none space-y-6">
-                  {(child.status === 'Pending' || child.status === 'Rejected') ? (
-                    <Card className="bg-white border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-3xl overflow-hidden">
-                      <div className="p-16 text-center">
-                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                          <CalendarCheck className="w-10 h-10 text-slate-300" />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">Not Enrolled Yet</h3>
-                        <p className="text-slate-500 max-w-sm mx-auto text-sm">
-                          Attendance records will be available once the student is officially enrolled in a class.
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Performance Advisory Notes</h4>
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                          {getPerformanceSummaryMessage(rawAvg)}
                         </p>
                       </div>
-                    </Card>
-                  ) : (
-                    <StudentAttendanceCalendar records={child.attendance || []} />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="academic" className="mt-0 outline-none space-y-6">
-                  {(child.status === 'Pending' || child.status === 'Rejected') ? (
-                    <div className="p-16 text-center bg-white border border-slate-200/60 shadow-sm rounded-3xl mt-4">
-                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Lock className="w-10 h-10 text-slate-300" />
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-2">Academic Record Locked</h3>
-                      <p className="text-slate-500 max-w-sm mx-auto text-sm">
-                        Academic records, term grades, and subject performance breakdowns will be visible here once the student's enrollment is officially approved.
-                      </p>
                     </div>
-                  ) : (
-                    <>
-                      {/* Academic Status Card */}
-                      <Card className="p-6 sm:p-8 bg-white border border-slate-100 shadow-sm rounded-3xl space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                          <div>
-                            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                              <BarChart3 className="w-5 h-5 text-[#D8232A]" />
-                              Academic Status Overview
-                            </h3>
-                            <p className="text-xs text-slate-500 font-medium mt-1">Real-time synchronized student academic evaluation</p>
-                          </div>
+                  </>
+                )}
+              </TabsContent>
 
-                          {standingInfo && (
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2.5 h-2.5 rounded-full ${standingInfo.statusColor} animate-pulse`} />
-                              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">{standingInfo.status}</span>
-                            </div>
-                          )}
-                        </div>
+              {/* ── TAB 3: LEARNER'S OBSERVED VALUES ── */}
+              <TabsContent value="values" className="mt-0 outline-none space-y-6">
+                {(child.status === 'Pending' || child.status === 'Rejected') ? (
+                  <div className="p-14 text-center bg-white rounded-3xl border border-slate-200/80 shadow-2xs space-y-3">
+                    <Sparkles className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h3 className="text-base font-bold text-slate-800">Observed Values Locked</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Core behavioral and values evaluations (Maka-Diyos, Makatao, Makakalikasan, Makabansa) will synchronize once official enrollment is verified.
+                    </p>
+                  </div>
+                ) : (
+                  <ObservedValuesCard observedValues={(child as any).observedValues} gradeLevel={child.gradeLevel} />
+                )}
+              </TabsContent>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="p-5 bg-red-50/50 rounded-2xl border border-red-100 space-y-1">
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Current General Average</p>
-                            <p className="text-3xl font-black text-slate-900">{avgDisplay}</p>
-                          </div>
+            </Tabs>
+          </div>
 
-                          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Academic Standing</p>
-                            <div className="pt-1">
-                              {standingInfo ? (
-                                <span className={`inline-block px-3 py-1 rounded-lg text-sm font-extrabold border ${standingInfo.color}`}>
-                                  {standingInfo.label}
-                                </span>
-                              ) : (
-                                <span className="text-sm font-bold text-slate-400">No Evaluation Yet</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-
-                      {/* Subject Performance Card */}
-                      <Card className="p-6 sm:p-8 bg-white border border-slate-100 shadow-sm rounded-3xl space-y-6">
-                        <div className="pb-3 border-b border-slate-100">
-                          <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                            <GraduationCap className="w-5 h-5 text-[#D8232A]" />
-                            Subject Performance Breakdown
-                          </h3>
-                          <p className="text-xs text-slate-500 font-medium mt-1">Detailed term grade breakdown and component analysis</p>
-                        </div>
-
-                        {!child.grades || Object.keys(child.grades).length === 0 ? (
-                          <div className="p-12 text-center">
-                            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                              <BarChart3 className="w-8 h-8 text-slate-300" />
-                            </div>
-                            <h4 className="text-base font-bold text-slate-800 mb-1">No Grades Encoded Yet</h4>
-                            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                              Subject teachers have not submitted grades for this student yet. Check back once term grades are encoded.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {(() => {
-                              const gLvl = child.gradeLevel || 'Grade 6';
-                              const matchedKey = Object.keys(child.grades || {}).find(k => k.toLowerCase().replace(/\s+/g, '') === `grade${gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '')}`);
-                              const studentGrades = matchedKey ? child.grades[matchedKey] : {};
-                              const subjectsEntries = Object.entries(studentGrades || {}).filter(([k, v]) => v && typeof v === 'object');
-                              const isThreeTerm = ['4', '5', '6', 'grade 4', 'grade 5', 'grade 6'].includes(gLvl.toString().toLowerCase().replace(/grade/i, '').trim());
-
-                              if (subjectsEntries.length === 0) {
-                                return (
-                                  <div className="p-12 text-center">
-                                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                      <BarChart3 className="w-8 h-8 text-slate-300" />
-                                    </div>
-                                    <h4 className="text-base font-bold text-slate-800 mb-1">No Grades Encoded Yet</h4>
-                                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                                      Subject teachers have not submitted grades for this student yet. Check back once term grades are encoded.
-                                    </p>
-                                  </div>
-                                );
-                              }
-
-                              return subjectsEntries.map(([subjName, subjVal]: [string, any]) => {
-                                const getTermVal = (termName: string) => {
-                                  const directKeys = termName === 'Term 1' || termName === 'Quarter 1' ? ['t1', 'q1'] :
-                                                     termName === 'Term 2' || termName === 'Quarter 2' ? ['t2', 'q2'] :
-                                                     termName === 'Term 3' || termName === 'Quarter 3' ? ['t3', 'q3'] : ['q4'];
-                                  for (const key of directKeys) {
-                                    if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
-                                      const parsed = parseFloat(subjVal[key]);
-                                      if (!isNaN(parsed)) return parsed;
-                                    }
-                                  }
-                                  
-                                  // Use configurations if available
-                                  const cols = gradeConfigs.filter(cfg => 
-                                    cfg.subjectCode?.toLowerCase() === subjName.toLowerCase() && 
-                                    cfg.term === termName && 
-                                    cfg.type !== 'submission'
-                                  );
-
-                                  const termData = subjVal[termName];
-                                  if (cols.length > 0 && termData && typeof termData === 'object') {
-                                    let termTotal = 0;
-                                    let hasGrade = false;
-                                    cols.forEach(col => {
-                                      const val = termData[col.id];
-                                      if (val !== undefined && val !== null && val !== '') {
-                                        const num = parseFloat(val);
-                                        if (!isNaN(num)) {
-                                          termTotal += (num * (col.weight / 100));
-                                          hasGrade = true;
-                                        }
-                                      }
-                                    });
-                                    if (hasGrade) {
-                                      return Math.round(termTotal * 10) / 10;
-                                    }
-                                  }
-
-                                  if (termData && typeof termData === 'object') {
-                                    const values: number[] = [];
-                                    Object.values(termData).forEach((v: any) => {
-                                      const num = parseFloat(v);
-                                      if (!isNaN(num)) values.push(num);
-                                    });
-                                    if (values.length > 0) {
-                                      return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-                                    }
-                                  }
-                                  return null;
-                                };
-
-                                let t1 = isThreeTerm ? getTermVal('Term 1') : getTermVal('Quarter 1');
-                                let t2 = isThreeTerm ? getTermVal('Term 2') : getTermVal('Quarter 2');
-                                let t3 = isThreeTerm ? getTermVal('Finals') || getTermVal('Term 3') : getTermVal('Quarter 3');
-                                let t4 = isThreeTerm ? null : getTermVal('Quarter 4');
-
-                                const q1 = t1 !== null ? t1.toString() : '--';
-                                const q2 = t2 !== null ? t2.toString() : '--';
-                                const q3 = t3 !== null ? t3.toString() : '--';
-                                const q4 = t4 !== null ? t4.toString() : '--';
-
-                                let finalVal: number | null = null;
-                                if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
-                                  const parsed = parseFloat(subjVal.finalGradeOverride);
-                                  if (!isNaN(parsed)) finalVal = parsed;
-                                }
-                                if (finalVal === null) {
-                                  const active = [t1, t2, t3, t4].filter(v => v !== null) as number[];
-                                  if (active.length > 0) {
-                                    finalVal = Math.round(active.reduce((a, b) => a + b, 0) / active.length);
-                                  }
-                                }
-
-                                const displayGrade = finalVal !== null ? finalVal : '--';
-                                const subjBadge = finalVal !== null ? getSubjectStatus(finalVal) : null;
-
-                                return (
-                                  <details key={subjName} className="group bg-slate-50/50 rounded-2xl border border-slate-200 overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-                                    <summary className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors list-none select-none">
-                                      <div className="flex-1 flex items-center justify-between sm:justify-start gap-4">
-                                        <h4 className="font-bold text-slate-900">{subjName}</h4>
-                                        {subjBadge ? (
-                                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${subjBadge.color}`}>
-                                            {subjBadge.label}
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] font-bold text-slate-400">Pending</span>
-                                        )}
-                                      </div>
-                                      
-                                      {/* Quick View */}
-                                      <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-                                        <div className="text-center min-w-[2.5rem]">
-                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isThreeTerm ? 'T1' : 'Q1'}</p>
-                                          <p className="text-sm font-semibold text-slate-700">{q1}</p>
-                                        </div>
-                                        <div className="text-center min-w-[2.5rem]">
-                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isThreeTerm ? 'T2' : 'Q2'}</p>
-                                          <p className="text-sm font-semibold text-slate-700">{q2}</p>
-                                        </div>
-                                        <div className="text-center min-w-[2.5rem]">
-                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isThreeTerm ? 'T3' : 'Q3'}</p>
-                                          <p className="text-sm font-semibold text-slate-700">{q3}</p>
-                                        </div>
-                                        {!isThreeTerm && (
-                                          <div className="text-center min-w-[2.5rem]">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Q4</p>
-                                            <p className="text-sm font-semibold text-slate-700">{q4}</p>
-                                          </div>
-                                        )}
-                                        <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-5">
-                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p>
-                                          <p className="text-base font-black text-[#D8232A]">{displayGrade}</p>
-                                        </div>
-                                        <div className="text-slate-400 group-open:rotate-180 transition-transform duration-200 ml-1">
-                                          <ChevronDown className="w-5 h-5" />
-                                        </div>
-                                      </div>
-                                    </summary>
-                                    
-                                    {/* Expanded Content (Drill-Down) */}
-                                    <div className="px-5 py-5 border-t border-slate-100 bg-white space-y-4">
-                                      <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Grade Breakdown Components</h5>
-                                      
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex justify-between items-center">
-                                          <div>
-                                            <p className="text-xs font-bold text-slate-700">Written Work</p>
-                                            <p className="text-[10px] font-medium text-slate-400">Weight: 30%</p>
-                                          </div>
-                                          <p className="text-sm font-semibold text-indigo-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 5)) : '--'}/100</p>
-                                        </div>
-                                        <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/50 flex justify-between items-center">
-                                          <div>
-                                            <p className="text-xs font-bold text-slate-700">Performance Task</p>
-                                            <p className="text-[10px] font-medium text-slate-400">Weight: 50%</p>
-                                          </div>
-                                          <p className="text-sm font-semibold text-emerald-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : '--'}/100</p>
-                                        </div>
-                                        <div className="p-3 bg-rose-50/50 rounded-xl border border-rose-100/50 flex justify-between items-center">
-                                          <div>
-                                            <p className="text-xs font-bold text-slate-700">Term Exams</p>
-                                            <p className="text-[10px] font-medium text-slate-400">Weight: 20%</p>
-                                          </div>
-                                          <p className="text-sm font-semibold text-rose-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 4)) : '--'}/100</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </details>
-                                );
-                              });
-                            })()}
-                          </div>
-                        )}
-                      </Card>
-
-                      {/* Performance Summary Card */}
-                      <Card className="p-6 bg-gradient-to-r from-red-50/80 to-indigo-50/40 border border-red-100 shadow-sm rounded-3xl">
-                        <div className="flex items-start gap-3.5">
-                          <div className="w-9 h-9 rounded-xl bg-white text-[#D8232A] border border-red-200 flex items-center justify-center shrink-0 shadow-xs">
-                            <BarChart3 className="w-5 h-5" />
-                          </div>
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-extrabold text-slate-900">Performance Summary</h4>
-                            <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                              {getPerformanceSummaryMessage(rawAvg)}
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-
-                      {/* Observed Values Card */}
-                      <ObservedValuesCard observedValues={(child as any).observedValues} gradeLevel={child.gradeLevel} />
-                    </>
-                  )}
-                </TabsContent>
-              </div>
-            </div>
-          </Tabs>
         </div>
-      </div>
 
-      {/* Edit Student Dialog */}
+      </main>
+
+      {/* ── 3. EDIT STUDENT DIALOG ── */}
       <Dialog open={isEditOpen} onOpenChange={(open) => !open && setIsEditOpen(false)}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Student Information</DialogTitle>
+        <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto rounded-3xl p-6 sm:p-8">
+          <DialogHeader className="pb-4 border-b border-slate-100">
+            <DialogTitle className="text-lg font-black text-slate-900">
+              {child.status === 'Enrolled' || child.status === 'Approved' ? 'Update Contact & Emergency Details' : 'Edit Student Registration'}
+            </DialogTitle>
           </DialogHeader>
 
           {editData && (
-            <div className="space-y-8 pt-4">
-              {/* Basic Info */}
+            <div className="space-y-6 pt-4">
+              
+              {/* Basic Info (Enabled for Pending/Non-Enrolled only) */}
               {(child.status === 'Pending' || child.status === 'Rejected') && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-800 border-b pb-2">Basic Information</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>First Name</Label>
-                      <Input value={editData.firstName} onChange={e => setEditData({ ...editData, firstName: e.target.value })} />
+                <div className="space-y-3.5">
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Basic Identity</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">First Name</Label>
+                      <Input value={editData.firstName} onChange={e => setEditData({ ...editData, firstName: e.target.value })} className="rounded-xl" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Last Name</Label>
-                      <Input value={editData.lastName} onChange={e => setEditData({ ...editData, lastName: e.target.value })} />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Last Name</Label>
+                      <Input value={editData.lastName} onChange={e => setEditData({ ...editData, lastName: e.target.value })} className="rounded-xl" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Middle Name</Label>
-                      <Input value={editData.middleName} onChange={e => setEditData({ ...editData, middleName: e.target.value })} />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Middle Name</Label>
+                      <Input value={editData.middleName || ''} onChange={e => setEditData({ ...editData, middleName: e.target.value })} className="rounded-xl" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Birth Date</Label>
-                      <Input type="date" value={editData.birthDate} onChange={e => setEditData({ ...editData, birthDate: e.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Gender</Label>
-                      <Select value={editData.gender} onValueChange={v => setEditData({ ...editData, gender: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>LRN</Label>
-                      <Input value={editData.lrn} onChange={e => setEditData({ ...editData, lrn: e.target.value })} />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">Birth Date</Label>
+                      <Input type="date" value={editData.birthDate || ''} onChange={e => setEditData({ ...editData, birthDate: e.target.value })} className="rounded-xl" />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Address */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-slate-800 border-b pb-2">Address</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2 space-y-2">
-                    <Label>Street</Label>
-                    <Input value={editData.address.street} onChange={e => setEditData({ ...editData, address: { ...editData.address, street: e.target.value } })} />
+              {/* Address Details */}
+              <div className="space-y-3.5">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Residence & Location</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Street / House No.</Label>
+                    <Input value={editData.address?.street || ''} onChange={e => setEditData({ ...editData, address: { ...editData.address, street: e.target.value } })} className="rounded-xl" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Barangay</Label>
-                    <Input value={editData.address.barangay} onChange={e => setEditData({ ...editData, address: { ...editData.address, barangay: e.target.value } })} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Barangay</Label>
+                    <Input value={editData.address?.barangay || ''} onChange={e => setEditData({ ...editData, address: { ...editData.address, barangay: e.target.value } })} className="rounded-xl" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>City/Municipality</Label>
-                    <Input value={editData.address.city} onChange={e => setEditData({ ...editData, address: { ...editData.address, city: e.target.value } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Province</Label>
-                    <Input value={editData.address.province} onChange={e => setEditData({ ...editData, address: { ...editData.address, province: e.target.value } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Zip Code</Label>
-                    <Input value={editData.address.zipCode} onChange={e => setEditData({ ...editData, address: { ...editData.address, zipCode: e.target.value } })} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">City / Municipality</Label>
+                    <Input value={editData.address?.city || ''} onChange={e => setEditData({ ...editData, address: { ...editData.address, city: e.target.value } })} className="rounded-xl" />
                   </div>
                 </div>
               </div>
 
-              {/* Medical */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-slate-800 border-b pb-2">Medical Information</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Height (cm)</Label>
-                    <Input value={editData.medical.height} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, height: e.target.value } })} />
+              {/* Medical & Emergency Details */}
+              <div className="space-y-3.5">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Guardian & Medical Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Emergency Contact Person</Label>
+                    <Input value={editData.medical?.emergencyContact || ''} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, emergencyContact: e.target.value } })} className="rounded-xl" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Weight (kg)</Label>
-                    <Input value={editData.medical.weight} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, weight: e.target.value } })} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Emergency Phone Number</Label>
+                    <Input value={editData.medical?.emergencyPhone || ''} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, emergencyPhone: e.target.value } })} className="rounded-xl" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Blood Type</Label>
-                    <Select value={editData.medical.bloodType} onValueChange={v => setEditData({ ...editData, medical: { ...editData.medical, bloodType: v } })}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="A+">A+</SelectItem><SelectItem value="A-">A-</SelectItem>
-                        <SelectItem value="B+">B+</SelectItem><SelectItem value="B-">B-</SelectItem>
-                        <SelectItem value="AB+">AB+</SelectItem><SelectItem value="AB-">AB-</SelectItem>
-                        <SelectItem value="O+">O+</SelectItem><SelectItem value="O-">O-</SelectItem>
-                        <SelectItem value="Unknown">Unknown</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Height (cm)</Label>
+                    <Input value={editData.medical?.height || ''} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, height: e.target.value } })} className="rounded-xl" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Allergies</Label>
-                    <Input value={editData.medical.allergies} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, allergies: e.target.value } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Emergency Contact</Label>
-                    <Input value={editData.medical.emergencyContact} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, emergencyContact: e.target.value } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Emergency Phone</Label>
-                    <Input value={editData.medical.emergencyPhone} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, emergencyPhone: e.target.value } })} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Weight (kg)</Label>
+                    <Input value={editData.medical?.weight || ''} onChange={e => setEditData({ ...editData, medical: { ...editData.medical, weight: e.target.value } })} className="rounded-xl" />
                   </div>
                 </div>
               </div>
 
-              <DialogFooter className="pt-6 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                <Button onClick={handleSaveEdit} disabled={isSaving}>
+              <DialogFooter className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)} className="rounded-xl text-xs font-bold">
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveEdit} disabled={isSaving} className="bg-[#D8232A] hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-2xs">
                   {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>

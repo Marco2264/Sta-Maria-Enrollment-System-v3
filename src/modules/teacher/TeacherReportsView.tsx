@@ -133,13 +133,17 @@ export function TeacherReportsView() {
           adviserName: teacherName
         });
       } else if (id === 'sf10') {
-        const sectionStudents = students.filter(s => ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR'].includes(s.status || '') && (s.sectionId === sectId || !s.sectionId));
+        if (!isAdvisorForCurrentSection) {
+          alert('Only the assigned section adviser can access and print SF10 permanent records.');
+          return;
+        }
+        const sectionStudents = students.filter(s => ['Enrolled', 'enrolled', 'PROMOTED', 'RETAINED', 'IRREGULAR'].includes(s.status || '') && s.sectionId === sectId);
         const teacherName = userData ? `${userData.firstName || ''} ${userData.lastName || ''}`.trim() : 'Assigned Adviser';
         setViewingSF10({
           schoolYear: academicYear,
           gradeLevel: gradeLvl,
           section: sectionDisplayName,
-          students: sectionStudents.length > 0 ? sectionStudents : students,
+          students: sectionStudents,
           adviserName: teacherName
         });
       }
@@ -278,15 +282,24 @@ export function TeacherReportsView() {
                       </Button>
                     )}
                     {(() => {
-                      const isRestricted = report.id === 'sf2' && !isAdvisorForCurrentSection;
+                      const isRestricted = (report.id === 'sf2' || report.id === 'sf10') && !isAdvisorForCurrentSection;
                       if (report.id === 'sf10') {
                         return (
                           <Button
-                            className="flex-1 rounded-xl h-11 font-semibold transition-all bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                            className={`flex-1 rounded-xl h-11 font-semibold transition-all ${
+                              isRestricted
+                                ? 'bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-100 cursor-not-allowed'
+                                : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                            }`}
                             onClick={() => handleViewPrint('sf10')}
-                            disabled={isGenerating || viewingReportId === 'sf10'}
+                            disabled={isGenerating || viewingReportId === 'sf10' || isRestricted}
+                            title={isRestricted ? "Restricted: Only the Section Adviser can access SF10 permanent records" : undefined}
                           >
-                            <Printer className="w-4 h-4 mr-1.5" />Print SF10
+                            {isRestricted ? (
+                              <span>Advisory Only</span>
+                            ) : (
+                              <><Printer className="w-4 h-4 mr-1.5" />Print SF10</>
+                            )}
                           </Button>
                         );
                       }

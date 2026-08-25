@@ -4,11 +4,15 @@ import { EnrollmentTrendData } from '../../../lib/services/analyticsService';
 
 interface EnrollmentTrendChartProps {
   data: EnrollmentTrendData[];
+  selectedYear?: string;
 }
 
-export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = React.memo(({ data }) => {
-  // Use a stable ID for the gradient to prevent re-renders breaking the SVG
-  const gradientId = useMemo(() => "colorEnrolled_" + Math.random().toString(36).substr(2, 9), []);
+export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = React.memo(({ data, selectedYear = '2026-2027' }) => {
+  const currentStartYear = parseInt(selectedYear.split('-')[0], 10) || 2026;
+  const previousStartYear = currentStartYear - 1;
+
+  const currentLabel = `AY ${currentStartYear}-${currentStartYear + 1}`;
+  const previousLabel = `AY ${previousStartYear}-${currentStartYear}`;
 
   if (!data || data.length === 0) {
     return (
@@ -29,14 +33,14 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = React.m
             left: -20,
             bottom: 0,
           }}
-          barGap={4}
+          barGap={6}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
           <XAxis 
             dataKey="month" 
             axisLine={false} 
             tickLine={false} 
-            tick={{ fill: '#64748b', fontSize: 12 }} 
+            tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} 
             dy={10} 
           />
           <YAxis 
@@ -45,29 +49,38 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = React.m
             tick={{ fill: '#64748b', fontSize: 12 }} 
           />
           <Tooltip 
-            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-            itemStyle={{ fontWeight: 'bold' }}
-            cursor={{ fill: '#f1f5f9' }}
+            contentStyle={{ 
+              borderRadius: '12px', 
+              border: '1px solid #e2e8f0', 
+              boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+              backgroundColor: '#ffffff',
+              fontSize: '12px'
+            }}
+            formatter={(value: any, name: any) => [
+              `${Number(value).toLocaleString()} Enrollees`, 
+              name === 'currentYear' || name === currentLabel ? currentLabel : previousLabel
+            ]}
+            cursor={{ fill: '#f8fafc' }}
           />
           <Legend 
             verticalAlign="top" 
             height={36} 
             iconType="circle"
-            wrapperStyle={{ fontSize: '12px', color: '#64748b' }}
+            wrapperStyle={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}
           />
           <Bar 
             dataKey="previousYear" 
-            name="Previous Year" 
+            name={previousLabel} 
             fill="#94a3b8" 
-            radius={[4, 4, 0, 0]}
-            maxBarSize={40}
+            radius={[6, 6, 0, 0]}
+            maxBarSize={36}
           />
           <Bar 
             dataKey="currentYear" 
-            name="Current Year" 
+            name={currentLabel} 
             fill="#D8232A" 
-            radius={[4, 4, 0, 0]}
-            maxBarSize={40}
+            radius={[6, 6, 0, 0]}
+            maxBarSize={36}
           />
         </BarChart>
       </ResponsiveContainer>

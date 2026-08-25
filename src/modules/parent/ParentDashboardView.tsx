@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { cn } from '../../components/ui/utils';
 import {
   Users,
   AlertCircle,
@@ -26,6 +27,9 @@ import {
   AlertTriangle,
   Lock,
   UserCheck,
+  Award,
+  CalendarCheck,
+  CircleDashed,
   Bell,
   Info,
   Pin
@@ -38,6 +42,7 @@ import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
 import { documentTypeToRequirementKey } from '../../lib/services/enrollmentDocumentsService';
 import { subscribeParentActivityLogs, ActivityLog } from '../../lib/services/activityLogService';
 import { AttachmentViewerModal, AttachmentViewerData } from '../../components/shared/AttachmentViewerModal';
+import { NotificationBell } from '../../components/shared/NotificationBell';
 
 interface AnnouncementItem {
   id: string;
@@ -195,77 +200,230 @@ export function ParentDashboardView({
     return typeof value === 'object' ? 'N/A' : String(value);
   };
 
-  // Helper for Student Subject Average
-  const getStudentAverage = (c: any): string => {
-    if (!c.grades) return 'N/A';
-    const gLvl = c.gradeLevel || 'Grade 6';
-    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '') === `grade${gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '')}`);
-    if (!matchedKey) return 'N/A';
-    const studentGrades = c.grades[matchedKey];
-    if (!studentGrades || typeof studentGrades !== 'object') return 'N/A';
-
-    const subjectFinalGrades: number[] = [];
-    Object.entries(studentGrades).forEach(([subjCode, subjVal]: [string, any]) => {
-      if (!subjVal || typeof subjVal !== 'object') return;
-      
-      // 1. Direct override
-      if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
-        const parsed = parseFloat(subjVal.finalGradeOverride);
-        if (!isNaN(parsed)) {
-          subjectFinalGrades.push(parsed);
-          return;
-        }
-      }
-
-      // 2. Resolve term grades
-      const termAverages: number[] = [];
-      const isThreeTerm = ['4', '5', '6', 'grade 4', 'grade 5', 'grade 6'].includes(gLvl.toString().toLowerCase().replace(/grade/i, '').trim());
-      const terms = isThreeTerm ? ['Term 1', 'Term 2', 'Finals'] : ['Quarter 1', 'Quarter 2', 'Quarter 3', 'Quarter 4'];
-
-      terms.forEach(term => {
-        const directKeys = term === 'Term 1' || term === 'Quarter 1' ? ['t1', 'q1'] :
-                           term === 'Term 2' || term === 'Quarter 2' ? ['t2', 'q2'] :
-                           term === 'Term 3' || term === 'Quarter 3' ? ['t3', 'q3'] : ['q4'];
-        for (const key of directKeys) {
-          if (subjVal[key] !== undefined && subjVal[key] !== null && subjVal[key] !== '' && typeof subjVal[key] !== 'object') {
-            const parsed = parseFloat(subjVal[key]);
-            if (!isNaN(parsed)) {
-              termAverages.push(parsed);
-              return;
-            }
-          }
-        }
-
-        const termData = subjVal[term];
-        if (termData && typeof termData === 'object') {
-          const values: number[] = [];
-          Object.values(termData).forEach((v: any) => {
-            const num = parseFloat(v);
-            if (!isNaN(num)) values.push(num);
-          });
-          if (values.length > 0) {
-            termAverages.push(values.reduce((a, b) => a + b, 0) / values.length);
-          }
-        }
-      });
-
-      if (termAverages.length > 0) {
-        subjectFinalGrades.push(termAverages.reduce((a, b) => a + b, 0) / termAverages.length);
-      }
-    });
-
-    if (subjectFinalGrades.length === 0) return 'N/A';
-    return (subjectFinalGrades.reduce((a, b) => a + b, 0) / subjectFinalGrades.length).toFixed(1);
-  };
-
   // Helper for Academic Standing Badge
   const getAcademicStandingBadge = (avgStr: string) => {
     const num = parseFloat(avgStr);
     if (isNaN(num)) return null;
-    if (num >= 90) return { label: 'Excellent', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (num >= 85) return { label: 'Very Good', color: 'bg-red-50 text-red-700 border-red-200' };
-    if (num >= 75) return { label: 'Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200' };
-    return { label: 'Needs Improvement', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+    if (num >= 90) return { label: 'Outstanding', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    if (num >= 85) return { label: 'Very Satisfactory', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    if (num >= 80) return { label: 'Satisfactory', color: 'bg-teal-50 text-teal-700 border-teal-200' };
+    if (num >= 75) return { label: 'Fairly Satisfactory', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+    return { label: 'Did Not Meet Expectations', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+  };
+
+  // Helper for Today's Real-time Attendance Status
+  const getTodayAttendanceStatus = (child: any) => {
+    const today = new Date();
+    const isoToday = today.toISOString().split('T')[0];
+    const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    const todayEntry = child.attendance?.find((a: any) => {
+      if (!a.date) return false;
+      const dStr = typeof a.date === 'string' ? a.date.split('T')[0] : '';
+      return dStr === isoToday || dStr === localToday;
+    });
+
+    if (!todayEntry || !todayEntry.status || todayEntry.status === 'Unmarked') {
+      return {
+        status: 'Unmarked',
+        badgeTitle: 'Attendance Not Yet Taken',
+        description: 'Adviser has not logged today’s roll call yet',
+        badgeColor: 'bg-slate-100 text-slate-600 border-slate-200',
+        dotColor: 'bg-slate-400',
+        isTaken: false
+      };
+    }
+
+    if (todayEntry.status === 'Present') {
+      return {
+        status: 'Present',
+        badgeTitle: 'Marked Present Today',
+        description: 'Confirmed present in classroom roll call by Adviser',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        dotColor: 'bg-emerald-500',
+        isTaken: true
+      };
+    }
+
+    if (todayEntry.status === 'Late') {
+      return {
+        status: 'Late',
+        badgeTitle: 'Marked Tardy / Late Today',
+        description: 'Adviser recorded late arrival in today’s session',
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+        dotColor: 'bg-amber-500',
+        isTaken: true
+      };
+    }
+
+    if (todayEntry.status === 'Absent') {
+      return {
+        status: 'Absent',
+        badgeTitle: 'Marked Absent Today',
+        description: 'Adviser recorded student absent for today’s session',
+        badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotColor: 'bg-rose-500',
+        isTaken: true
+      };
+    }
+
+    return {
+      status: 'Unmarked',
+      badgeTitle: 'Attendance Not Yet Taken',
+      description: 'Awaiting daily roll call from class adviser',
+      badgeColor: 'bg-slate-100 text-slate-600 border-slate-200',
+      dotColor: 'bg-slate-400',
+      isTaken: false
+    };
+  };
+
+  // Helper for Child Attendance Monthly Rates
+  const getAttendanceStats = (child: any) => {
+    const records = child.attendance || [];
+    if (records.length === 0) {
+      return { present: 0, late: 0, absent: 0, rate: '100%' };
+    }
+    const present = records.filter((r: any) => r.status === 'Present').length;
+    const late = records.filter((r: any) => r.status === 'Late').length;
+    const absent = records.filter((r: any) => r.status === 'Absent').length;
+    const total = present + late + absent;
+    const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
+    return { present, late, absent, rate: `${rate}%` };
+  };
+
+  // Helper for Child Grades Summary & Analytics across T1, T2, T3
+  const getChildGradesSummary = (c: any) => {
+    if (!c || !c.grades) {
+      return {
+        average: 'N/A',
+        standing: null,
+        quarters: [
+          { name: 'T1', grade: '--' },
+          { name: 'T2', grade: '--' },
+          { name: 'T3', grade: '--' }
+        ],
+        subjectCount: 0
+      };
+    }
+
+    const gLvl = c.gradeLevel || 'Grade 6';
+    const normalizedGLvl = gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '');
+    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '').replace(/grade/i, '') === normalizedGLvl) || Object.keys(c.grades)[0];
+    const studentGrades = matchedKey ? c.grades[matchedKey] : null;
+
+    if (!studentGrades || typeof studentGrades !== 'object') {
+      return {
+        average: 'N/A',
+        standing: null,
+        quarters: [
+          { name: 'T1', grade: '--' },
+          { name: 'T2', grade: '--' },
+          { name: 'T3', grade: '--' }
+        ],
+        subjectCount: 0
+      };
+    }
+
+    const t1Scores: number[] = [];
+    const t2Scores: number[] = [];
+    const t3Scores: number[] = [];
+    const finalGrades: number[] = [];
+    let subjectCount = 0;
+
+    const extractTermVal = (subjVal: any, termNames: string[], directKeys: string[]) => {
+      if (!subjVal || typeof subjVal !== 'object') return null;
+
+      // Direct property keys
+      for (const k of directKeys) {
+        if (subjVal[k] !== undefined && subjVal[k] !== null && subjVal[k] !== '' && typeof subjVal[k] !== 'object') {
+          const num = parseFloat(subjVal[k]);
+          if (!isNaN(num)) return num;
+        }
+      }
+
+      // Term object keys
+      for (const tName of termNames) {
+        const termData = subjVal[tName];
+        if (termData !== undefined && termData !== null) {
+          if (typeof termData === 'number') return termData;
+          if (typeof termData === 'string') {
+            const num = parseFloat(termData);
+            if (!isNaN(num)) return num;
+          }
+          if (typeof termData === 'object') {
+            const vals: number[] = [];
+            Object.values(termData).forEach((v: any) => {
+              if (v !== undefined && v !== null && v !== '' && typeof v !== 'object') {
+                const num = parseFloat(v);
+                if (!isNaN(num)) vals.push(num);
+              }
+            });
+            if (vals.length > 0) {
+              return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+            }
+          }
+        }
+      }
+      return null;
+    };
+
+    Object.entries(studentGrades).forEach(([subjCode, subjVal]: [string, any]) => {
+      if (!subjVal || typeof subjVal !== 'object') return;
+      subjectCount++;
+
+      const t1 = extractTermVal(subjVal, ['Term 1', 'Quarter 1', 'T1', 'Q1'], ['t1', 'q1']);
+      const t2 = extractTermVal(subjVal, ['Term 2', 'Quarter 2', 'T2', 'Q2'], ['t2', 'q2']);
+      const t3 = extractTermVal(subjVal, ['Term 3', 'Finals', 'Quarter 3', 'T3', 'Q3'], ['t3', 'q3']);
+
+      if (t1 !== null) t1Scores.push(t1);
+      if (t2 !== null) t2Scores.push(t2);
+      if (t3 !== null) t3Scores.push(t3);
+
+      let subjectFinal: number | null = null;
+      if (subjVal.finalGradeOverride !== undefined && subjVal.finalGradeOverride !== null && subjVal.finalGradeOverride !== '') {
+        const num = parseFloat(subjVal.finalGradeOverride);
+        if (!isNaN(num)) subjectFinal = num;
+      }
+      if (subjectFinal === null) {
+        const activeTerms = [t1, t2, t3].filter((v): v is number => v !== null);
+        if (activeTerms.length > 0) {
+          subjectFinal = activeTerms.reduce((a, b) => a + b, 0) / activeTerms.length;
+        }
+      }
+      if (subjectFinal !== null) {
+        finalGrades.push(subjectFinal);
+      }
+    });
+
+    const t1Avg = t1Scores.length > 0 ? (t1Scores.reduce((a, b) => a + b, 0) / t1Scores.length).toFixed(1) : '--';
+    const t2Avg = t2Scores.length > 0 ? (t2Scores.reduce((a, b) => a + b, 0) / t2Scores.length).toFixed(1) : '--';
+    const t3Avg = t3Scores.length > 0 ? (t3Scores.reduce((a, b) => a + b, 0) / t3Scores.length).toFixed(1) : '--';
+
+    let generalAvg = 'N/A';
+    if (finalGrades.length > 0) {
+      generalAvg = (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(1);
+    } else {
+      const activeAverages = [t1Avg, t2Avg, t3Avg].filter(v => v !== '--').map(v => parseFloat(v));
+      if (activeAverages.length > 0) {
+        generalAvg = (activeAverages.reduce((a, b) => a + b, 0) / activeAverages.length).toFixed(1);
+      }
+    }
+
+    return {
+      average: generalAvg,
+      standing: generalAvg !== 'N/A' ? getAcademicStandingBadge(generalAvg) : null,
+      quarters: [
+        { name: 'T1', grade: t1Avg },
+        { name: 'T2', grade: t2Avg },
+        { name: 'T3', grade: t3Avg }
+      ],
+      subjectCount
+    };
+  };
+
+  // Helper for Student Subject Average (legacy compat)
+  const getStudentAverage = (c: any): string => {
+    return getChildGradesSummary(c).average;
   };
 
   // Helper to get requirements list for a child
@@ -532,9 +690,21 @@ export function ParentDashboardView({
     return records;
   }, [children, documents]);
 
+  const parentFirstName = userData?.firstName || (typeof userData?.displayName === 'string' ? userData.displayName.split(' ')[0] : 'Parent');
+  const parentFullName = userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Parent User';
+
+  // Digital clock
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[450px]">
+      <div className="flex-1 flex items-center justify-center p-12 min-h-[500px]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-[#D8232A]/30 border-t-[#D8232A] rounded-full animate-spin"></div>
           <p className="text-xs font-bold text-slate-500">Synchronizing Dashboard Data...</p>
@@ -543,436 +713,368 @@ export function ParentDashboardView({
     );
   }
 
+  // Calculate overall average
+  const avgs = children.map(c => parseFloat(getStudentAverage(c))).filter(n => !isNaN(n));
+  const hasGrade = avgs.length > 0;
+  const overallAvg = hasGrade ? (avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(1) : 'N/A';
+
   return (
-    <div className="flex flex-col h-full bg-[#F4F7F9] relative overflow-x-hidden text-slate-900 font-sans">
+    <div className="flex flex-col h-full bg-[#f8fafc] relative overflow-x-hidden text-slate-900 font-sans">
       {/* ── 1. HEADER SECTION ── */}
-      <header className="relative px-5 sm:px-8 py-6 lg:py-0 lg:h-28 flex items-center bg-white border-b border-slate-100 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-          <div className="space-y-1 text-left">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-red-50 text-[#D8232A] text-[10px] font-bold uppercase tracking-wider border border-red-100">
-                Academic Year <span className="ml-1 text-slate-700 font-extrabold">2026–2027</span>
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Parent Dashboard
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-relaxed">
-              Monitor your children's registrations, attendance, academic progress, and school updates in one place.
-            </p>
-          </div>
-
-          <div className="shrink-0">
-            <Button
-              className="w-full sm:w-auto rounded-xl h-11 px-5 shadow-lg shadow-red-500/20 font-bold bg-[#D8232A] hover:bg-red-700 text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-98 cursor-pointer"
-              onClick={() => onNavigate('enrollment')}
-            >
-              <PlusCircle className="w-4.5 h-4.5" />
-              <span>Register a Student</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* ── MAIN DASHBOARD CONTAINER ── */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 w-full">
-        
-        {/* ── ROW 1. SUMMARY STAT CARDS ── */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          {/* Card A: Registered Students */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
-            <div className="flex justify-between items-start">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Registered Students</p>
-              <div className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0 border border-red-100">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <div>
-                <h3 className="text-3xl font-black text-slate-900 mb-0.5">{registeredStudentsCount}</h3>
-                <p className="text-xs text-slate-400 font-medium">Linked to your account</p>
-              </div>
-              <span className="px-2 py-0.5 bg-red-50 text-[#D8232A] text-[10px] font-extrabold rounded-full border border-red-100">
-                Active
-              </span>
-            </div>
-          </div>
-
-          {/* Card B: Pending Actions */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
-            <div className="flex justify-between items-start">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Actions</p>
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
-                pendingRequirementsCount === 0 
-                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                  : 'bg-rose-50 text-rose-600 border-rose-100'
-              }`}>
-                {pendingRequirementsCount === 0 ? (
-                  <CheckCircle2 className="w-4 h-4" />
-                ) : (
-                  <AlertCircle className="w-4 h-4" />
-                )}
-              </div>
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200/80 bg-white sticky top-0 z-30 shadow-2xs flex items-center justify-between shrink-0">
+        <div className="flex items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D8232A] to-[#9E171D] text-white flex items-center justify-center shadow-md shadow-red-500/15 shrink-0">
+              <Users className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-3xl font-black text-slate-900 mb-0.5">{pendingRequirementsCount}</h3>
-              <p className={`text-xs font-medium truncate ${
-                pendingRequirementsCount === 0 ? 'text-emerald-600 font-semibold' : 'text-slate-400'
-              }`}>
-                {pendingRequirementsCount === 0 ? 'All clear' : 'Missing / Unverified docs'}
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">
+                  Parent Homepage
+                </h1>
+                <Badge variant="outline" className="hidden sm:inline-flex bg-red-50 text-[#D8232A] border-red-200 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full">
+                  S.Y. 2026–2027
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 font-medium leading-none mt-1 hidden md:block">
+                Quick access to your children's records, academic progress, and school updates.
               </p>
             </div>
           </div>
 
-          {/* Card C: Average Grade */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
-            <div className="flex justify-between items-start">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Average Grade</p>
-              <div className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0 border border-red-100">
-                <BarChart3 className="w-4 h-4" />
-              </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Live Clock / Date */}
+            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span>{currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-500">{currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
             </div>
-            <div>
-              {(() => {
-                const avgs = children.map(c => parseFloat(getStudentAverage(c))).filter(n => !isNaN(n));
-                const hasGrade = avgs.length > 0;
-                const overallAvg = hasGrade ? (avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(1) : 'N/A';
 
-                return (
-                  <>
-                    <h3 className="text-3xl font-black text-slate-900 mb-0.5">{overallAvg}</h3>
-                    {hasGrade ? (
-                      <p className="text-xs text-slate-400 font-medium">Across all children</p>
-                    ) : (
-                      <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5" title="Grades pending evaluation - available at end of Quarter 1">
-                        <Info className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                        Available at end of Quarter 1
-                      </p>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </div>
+            {/* Notification Bell */}
+            <NotificationBell onNavigate={onNavigate} />
 
-          {/* Card D: Attendance Rate */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all space-y-3">
-            <div className="flex justify-between items-start">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Attendance Rate</p>
-              <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100">
-                <Calendar className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-3xl font-black text-slate-900 mb-0.5">{attendanceRate}%</h3>
-                <p className="text-xs text-slate-400 font-medium">Across all children</p>
-              </div>
-              <div className="relative w-11 h-11 shrink-0" title={`${attendanceRate}% Total Attendance`}>
-                <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-                  <path className="text-slate-100 stroke-current" strokeWidth="3.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  <path className="text-emerald-500 stroke-current transition-all duration-700" strokeDasharray={`${attendanceRate}, 100`} strokeWidth="3.5" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold text-emerald-600">
-                  {attendanceRate}%
+            {/* Register a Student Button */}
+            <Button
+              className="h-9 px-4 rounded-xl shadow-md shadow-red-500/20 font-bold bg-[#D8232A] hover:bg-red-700 text-white flex items-center justify-center gap-2 text-xs transition-all active:scale-95 cursor-pointer"
+              onClick={() => onNavigate('enrollment')}
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Register Student</span>
+            </Button>
+
+            {/* Quick Profile Summary Badge */}
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+              {typeof userData?.photoURL === 'string' && userData.photoURL.length > 0 ? (
+                <img src={userData.photoURL} alt="Avatar" className="w-8 h-8 rounded-full object-cover shadow-inner border border-slate-200" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shadow-inner">
+                  {parentFullName.charAt(0).toUpperCase()}
                 </div>
+              )}
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]">
+                  {parentFullName}
+                </span>
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-tight">
+                  Parent / Guardian
+                </span>
               </div>
             </div>
           </div>
         </div>
+      </header>
 
-        {/* ── ROW 2. RECENT ACTIVITY + SCHOOL ANNOUNCEMENTS ── */}
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
-          
-          {/* 1. RECENT ACTIVITY CARD */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
-            <div className="space-y-4">
-              {/* Uniform Header Structure */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-tight">Recent Activity</h3>
-                    <p className="text-[11px] text-slate-400 font-medium">Current Month History</p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold border border-slate-200/60 flex items-center gap-1">
-                  <CalendarDays className="w-3 h-3 text-slate-400" />
-                  {currentMonthLabel}
-                </span>
-              </div>
-
-              {/* Scrollable Clean Timeline List (Max 5 items displayed by default) */}
-              <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 divide-y divide-slate-100 custom-scrollbar">
-                {recentUpdates.slice(0, 5).map((upd, idx) => (
-                  <div key={upd.id} className={`pt-3 first:pt-0 flex items-start justify-between gap-3 group`}>
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="relative flex flex-col items-center mt-1">
-                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${upd.dotColor} ring-4 ring-white`} />
-                        {idx < 4 && <div className="w-0.5 h-full bg-slate-100 absolute top-3 bottom-0" />}
-                      </div>
-                      <div className="min-w-0 space-y-0.5">
-                        <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#D8232A] transition-colors truncate">
-                          {upd.title}
-                        </p>
-                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed truncate">
-                          {upd.subtitle}
-                        </p>
-                        <span className="text-[10px] text-slate-400 font-medium block">
-                          {upd.date}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={`px-2.5 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider shrink-0 border ${upd.badgeColor}`}>
-                      {upd.badgeText}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* ── MAIN HOMEPAGE CONTAINER ── */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-[1600px] mx-auto w-full">
+        
+        {/* ── 2. CLEAN & PROFESSIONAL WELCOME CARD ── */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1 max-w-2xl">
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">
+              Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening'}, {String(parentFirstName)}! 👋
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+              Quickly access your child's records, grades, attendance, and announcements.
+            </p>
           </div>
 
-          {/* 2. SCHOOL ANNOUNCEMENTS CARD */}
-          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
-            <div className="space-y-4">
-              {/* Uniform Header Structure with Action Button on Top Right */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
-                    <Megaphone className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-tight">School Announcements</h3>
-                    <p className="text-[11px] text-slate-400 font-medium">Campus Updates</p>
-                  </div>
-                </div>
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+            <Button
+              onClick={() => onNavigate('children')}
+              className="h-9 sm:h-10 px-4 rounded-xl bg-[#D8232A] hover:bg-[#b91c22] text-white text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              <Users className="w-4 h-4" />
+              <span>My Children</span>
+            </Button>
+            <Button
+              onClick={() => onNavigate('requirements')}
+              variant="outline"
+              className="h-9 sm:h-10 px-4 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              <FolderOpen className="w-4 h-4 text-slate-500" />
+              <span>Document Center</span>
+            </Button>
+          </div>
+        </div>
 
-                <button
-                  type="button"
-                  onClick={() => onNavigate('announcements')}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-[#D8232A]/10 hover:text-[#D8232A] text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
-                >
-                  <span>View All</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+        {/* ── 3. UNIFIED STUDENT OVERVIEW & PERFORMANCE (ATTENDANCE + GRADES IN 1 CARD) ── */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-5 rounded-full bg-[#D8232A]" />
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">Student Overview & Performance</h3>
               </div>
+              <p className="text-xs text-slate-500 font-medium pl-4">
+                Today's attendance status and academic standing for {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
 
-              {/* Scrollable Announcements List (Only 3 displayed by default) */}
-              <div className="max-h-[280px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                {announcements.slice(0, 3).map((ann) => (
-                  <div key={ann.id} className={`p-3.5 ${ann.isPinned ? 'bg-amber-50/40 border-amber-200/70 hover:bg-amber-50/60' : 'bg-slate-50/70 hover:bg-slate-50 border-slate-100'} rounded-2xl border space-y-1 transition-colors relative`}>
-                    <div className="flex items-center justify-between text-[10px] font-bold">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#D8232A] uppercase tracking-wider">{ann.category}</span>
-                        {ann.isPinned && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-900 border border-amber-200/80">
-                            <Pin className="w-2.5 h-2.5 fill-amber-600 text-amber-700" /> Pinned
+            <Button
+              onClick={() => onNavigate('children')}
+              variant="ghost"
+              className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-8 px-3 rounded-xl cursor-pointer self-start sm:self-auto"
+            >
+              View Detailed Records <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+            </Button>
+          </div>
+
+          {children.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80 shadow-2xs space-y-2">
+              <GraduationCap className="w-9 h-9 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-700">No Enrolled Children Found</p>
+              <p className="text-xs text-slate-400">Enroll your student to view real-time attendance and quarterly grades.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {children.map((child) => {
+                const todayStatus = getTodayAttendanceStatus(child);
+                const stats = getAttendanceStats(child);
+                const gradesSummary = getChildGradesSummary(child);
+                const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
+                  ? child.gradeLevel
+                  : `Grade ${child.gradeLevel || 'Level'}`;
+
+                return (
+                  <div
+                    key={child.id}
+                    className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between gap-5 group"
+                  >
+                    {/* 1. Card Top: Student Profile Info & Enrollment Badge */}
+                    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-2xl bg-red-100 text-[#D8232A] font-extrabold flex items-center justify-center text-sm border border-red-200 shrink-0 overflow-hidden shadow-inner group-hover:scale-105 transition-transform">
+                          {(() => {
+                            const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
+                            const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+                            return photo ? (
+                              <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
+                            ) : (
+                              <>{child.firstName?.[0]}{child.lastName?.[0]}</>
+                            );
+                          })()}
+                        </div>
+
+                        <div className="min-w-0">
+                          <h4 className="font-black text-slate-900 text-sm sm:text-base leading-tight uppercase truncate group-hover:text-[#D8232A] transition-colors">
+                            {child.firstName} {child.middleName ? `${child.middleName.charAt(0)}. ` : ''}{child.lastName}
+                          </h4>
+                          <p className="text-xs font-bold text-slate-600 truncate mt-0.5">
+                            {displayGrade} {(child as any).sectionName || (child as any).section ? `• Section ${(child as any).sectionName || (child as any).section}` : ''}
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                            LRN: <span className="font-bold text-slate-600">{(child as any).lrn || (child as any).studentId || '123456789123'}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        {child.status === 'Enrolled' || child.status === 'Approved' ? (
+                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold rounded-full border border-emerald-200/80 inline-flex items-center gap-1.5 shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Officially Enrolled
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-extrabold rounded-full border border-amber-200/80 inline-flex items-center gap-1.5 shadow-2xs">
+                            <CircleDashed className="w-3 h-3 text-amber-500 animate-spin-slow" /> Pending Evaluation
                           </span>
                         )}
                       </div>
-                      <span className="text-slate-400">{ann.date}</span>
                     </div>
-                    <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{ann.title}</h4>
-                    <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-relaxed">{ann.content}</p>
-                    
-                    {/* Attachment Chip in Dashboard mini feed */}
-                    {ann.attachmentUrl && (
-                      <div className="pt-1">
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewerAttachment({
-                              url: ann.attachmentUrl!,
-                              name: ann.attachmentName || 'Attached Document',
-                              type: ann.attachmentType || (/\.(jpg|jpeg|png|webp)$/i.test(ann.attachmentUrl!) ? 'image' : 'pdf'),
-                              size: ann.attachmentSize
-                            });
-                          }}
-                          className="p-1.5 bg-white rounded-lg border border-slate-200/80 flex items-center justify-between gap-2 hover:border-[#D8232A] transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <FileText className="w-3 h-3 text-[#D8232A] shrink-0" />
-                            <span className="text-[10px] font-bold text-slate-700 truncate">
-                              {ann.attachmentName || 'Attached Waiver / Circular'}
-                            </span>
+
+                    {/* 2. Card Middle: Clean & Minimalist Attendance (Today) + Grades Block */}
+                    <div className="space-y-4">
+                      {/* Attendance Section */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-extrabold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                            <CalendarCheck className="w-3.5 h-3.5 text-[#D8232A]" />
+                            Today's Attendance
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            {stats.rate} Presence
+                          </span>
+                        </div>
+
+                        {/* Real-time Status Badge */}
+                        <div className={cn("p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition-colors", todayStatus.badgeColor)}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={cn("w-2 h-2 rounded-full shrink-0", todayStatus.dotColor, todayStatus.isTaken && "animate-pulse")} />
+                            <p className="text-xs font-extrabold truncate">
+                              {todayStatus.badgeTitle}
+                            </p>
                           </div>
-                          <span className="text-[9px] font-bold text-[#D8232A] shrink-0 bg-red-50 px-1.5 py-0.2 rounded border border-red-100">
-                            View
+                          <span className="text-[10px] opacity-75 font-medium shrink-0">
+                            {todayStatus.isTaken ? 'Recorded by Adviser' : 'Pending'}
                           </span>
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* ── ROW 3. DOCUMENT STATUS + MY STUDENTS OVERVIEW ── */}
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
-          
-          {/* 3. DOCUMENT STATUS CARD */}
-          <div className="lg:col-span-3 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
-            <div className="space-y-4">
-              {/* Uniform Header Structure with Action Button on Top Right */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-tight">Document Status</h3>
-                    <p className="text-[11px] text-slate-400 font-medium">Requirements Tracker</p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => onNavigate('requirements')}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
-                >
-                  <FolderOpen className="w-3.5 h-3.5 text-[#D8232A]" />
-                  <span>Document Center</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                </button>
-              </div>
-
-              {/* Scrollable Document List (Only 3 displayed by default) */}
-              {documentTypesSummary.length === 0 ? (
-                <p className="text-xs font-medium text-slate-400 py-6 text-center">No documents submitted yet.</p>
-              ) : (
-                <div className="max-h-[280px] overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
-                  {documentTypesSummary.slice(0, 3).map((item) => (
-                    <div key={item.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-colors">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center border border-slate-200 text-slate-400 shrink-0 shadow-2xs">
-                          <FileText className="w-3.5 h-3.5" />
+                      {/* Academic Performance & General Average */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-extrabold text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                            <BarChart3 className="w-3.5 h-3.5 text-[#D8232A]" />
+                            Academic Grades
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-slate-900">
+                              {gradesSummary.average !== 'N/A' ? `Avg: ${gradesSummary.average}%` : 'Avg: --'}
+                            </span>
+                            {gradesSummary.standing && (
+                              <span className={cn("px-2 py-0.5 rounded-lg text-[9px] font-extrabold border uppercase tracking-wider", gradesSummary.standing.color)}>
+                                {gradesSummary.standing.label}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="min-w-0 space-y-0.5">
-                          <span className="text-[10px] font-extrabold text-[#D8232A] block tracking-wide truncate">{item.studentName}</span>
-                          <span className="text-xs font-bold text-slate-900 block truncate">{item.docName}</span>
+
+                        {/* 3 Term Progression Strip */}
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {gradesSummary.quarters.map((q) => (
+                            <div key={q.name} className="p-1.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                              <p className="text-[9px] font-extrabold text-slate-400 uppercase">{q.name}</p>
+                              <p className="text-xs font-black text-slate-800 mt-0.5">{q.grade}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border shrink-0 ${item.statusColor}`}>
-                        {item.statusText}
-                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* 4. MY STUDENTS OVERVIEW CARD */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-5 sm:p-6 flex flex-col justify-between hover:shadow-[0_6px_24px_-4px_rgba(0,0,0,0.08)] transition-all">
+                    {/* 3. Card Bottom / Clean Action Footer */}
+                    <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <Button
+                        onClick={() => onNavigate('children')}
+                        className="w-full h-9 bg-[#D8232A] hover:bg-[#b91c22] text-white rounded-xl text-xs font-bold shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>View Full Profile</span>
+                        <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── 4. SECONDARY SUPPORTING SECTIONS (My Children & Requirements Tracker) ── */}
+        <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
+          
+          {/* MY CHILDREN QUICK CARDS (7 cols) */}
+          <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between">
             <div className="space-y-4">
-              {/* Uniform Header Structure with Action Button on Top Right */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100">
-                    <GraduationCap className="w-4 h-4" />
+                  <div className="w-9 h-9 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100 shadow-2xs">
+                    <GraduationCap className="w-4.5 h-4.5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-tight">My Students Overview</h3>
-                    <p className="text-[11px] text-slate-400 font-medium">{children.length} Enrolled Learners</p>
+                    <h3 className="text-base font-bold text-slate-900 leading-tight">My Linked Learners</h3>
+                    <p className="text-xs text-slate-500 font-medium">{children.length} Enrolled in Sta. Maria</p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onNavigate('my-students')}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 transition-colors cursor-pointer"
+                <Button
+                  onClick={() => onNavigate('children')}
+                  variant="ghost"
+                  className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-7 px-2 rounded-lg cursor-pointer"
                 >
-                  <span>View Student Profiles</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                </button>
+                  View Details <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                </Button>
               </div>
 
-              {/* Scrollable Compact Student Rows (Only 3 displayed by default) */}
               {children.length === 0 ? (
-                <div className="p-6 text-center text-slate-400 text-xs font-medium space-y-2">
-                  <Users className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p>No registered students linked to your account.</p>
+                <div className="py-12 text-center text-slate-400 space-y-3">
+                  <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">No Learners Registered Yet</p>
+                    <p className="text-xs text-slate-400">Click the button below to enroll your child for S.Y. 2026–2027.</p>
+                  </div>
+                  <Button
+                    onClick={() => onNavigate('enrollment')}
+                    className="h-9 px-4 rounded-xl bg-[#D8232A] hover:bg-red-700 text-white text-xs font-bold"
+                  >
+                    Register a Student Now
+                  </Button>
                 </div>
               ) : (
-                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                  {children.slice(0, 3).map((child) => {
+                <div className="space-y-3 max-h-[340px] overflow-y-auto custom-scrollbar">
+                  {children.map((child) => {
                     const isApproved = child.status === 'Enrolled' || child.status === 'Approved';
                     const isPending = child.status === 'Pending';
-                    const regBadge = isApproved
-                      ? { label: 'Approved', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
-                      : isPending
-                      ? { label: 'Under Review', bg: 'bg-amber-50 text-amber-700 border-amber-200' }
-                      : { label: 'Action Required', bg: 'bg-rose-50 text-rose-700 border-rose-200' };
-
-                    const reqStatus = getStudentRequirementStatus(child);
-                    const rawAvg = getStudentAverage(child);
-                    const avgDisplay = rawAvg === 'N/A' ? 'No Grades Yet' : `${rawAvg}%`;
-
-                    let childAtt = 'N/A';
-                    if (child.attendance && child.attendance.length > 0) {
-                      const pres = child.attendance.filter((a) => a.status === 'Present' || a.status === 'Late').length;
-                      childAtt = `${Math.round((pres / child.attendance.length) * 100)}%`;
-                    }
-
                     const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
                       ? child.gradeLevel
                       : `Grade ${child.gradeLevel || 'Level'}`;
 
                     return (
-                      <div key={child.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5 transition-colors">
-                        {/* Top row: Avatar, Name, Grade & Badges with refined spacing */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-red-100 text-[#D8232A] font-extrabold flex items-center justify-center text-xs border border-red-200 shrink-0 overflow-hidden">
-                              {(() => {
-                                const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
-                                const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
-                                return photo ? (
-                                  <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
-                                ) : (
-                                  <>{child.firstName?.[0]}{child.lastName?.[0]}</>
-                                );
-                              })()}
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight uppercase truncate">
-                                {child.firstName} {child.lastName}
-                              </h4>
-                              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                                {displayGrade}
-                              </p>
-                            </div>
+                      <div
+                        key={child.id}
+                        onClick={() => onNavigate('children')}
+                        className="p-4 bg-slate-50/70 hover:bg-red-50/30 hover:border-red-200/80 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-11 h-11 rounded-2xl bg-red-100 text-[#D8232A] font-extrabold flex items-center justify-center text-sm border border-red-200 shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
+                            {(() => {
+                              const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
+                              const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+                              return photo ? (
+                                <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
+                              ) : (
+                                <>{child.firstName?.[0]}{child.lastName?.[0]}</>
+                              );
+                            })()}
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0 sm:ml-auto">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${regBadge.bg}`}>
-                              {regBadge.label}
-                            </span>
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${reqStatus.color}`}>
-                              Docs: {reqStatus.label}
-                            </span>
+                          <div className="min-w-0 space-y-0.5">
+                            <h4 className="font-extrabold text-slate-900 text-sm leading-tight uppercase truncate group-hover:text-[#D8232A] transition-colors">
+                              {child.firstName} {child.lastName}
+                            </h4>
+                            <p className="text-xs font-semibold text-slate-500">
+                              {displayGrade} {(child as any).sectionName || (child as any).section ? `• Section ${(child as any).sectionName || (child as any).section}` : ''}
+                            </p>
+                            <p className="text-[11px] text-slate-400 font-medium">
+                              LRN: {child.lrn || 'Pending Assignment'}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Bottom Info row: Attendance & General Average with enhanced contrast labels */}
-                        <div className="grid grid-cols-2 gap-2.5 pt-1.5 border-t border-slate-200/40 text-xs">
-                          <div className="flex items-center justify-between bg-white px-3.5 py-2 rounded-xl border border-slate-200/60 shadow-2xs">
-                            <span className="text-slate-600 font-bold text-[10px] uppercase tracking-wider">Attendance</span>
-                            <span className="font-extrabold text-slate-900 text-xs">{childAtt}</span>
-                          </div>
-                          <div
-                            className="flex items-center justify-between bg-white px-3.5 py-2 rounded-xl border border-slate-200/60 shadow-2xs"
-                            title={rawAvg === 'N/A' ? 'Grades will be available at the end of Term 1' : `General Average: ${avgDisplay}`}
-                          >
-                            <span className="text-slate-600 font-bold text-[10px] uppercase tracking-wider">General Avg</span>
-                            <span className={`font-extrabold text-xs ${rawAvg === 'N/A' ? 'text-slate-500' : 'text-slate-900'}`}>
-                              {avgDisplay}
-                            </span>
-                          </div>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-lg text-[10px] font-extrabold border uppercase tracking-wider",
+                            isApproved
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : isPending
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200"
+                          )}>
+                            {isApproved ? 'Enrolled' : isPending ? 'Under Review' : 'Action Required'}
+                          </span>
+
+                          <span className="text-[11px] font-bold text-[#D8232A] flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                            View Records <ChevronRight className="w-3 h-3" />
+                          </span>
                         </div>
                       </div>
                     );
@@ -980,7 +1082,70 @@ export function ParentDashboardView({
                 </div>
               )}
             </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 mt-3">
+              <span>Family Roster</span>
+              <span className="font-bold text-slate-700">{children.length} Enrolled</span>
+            </div>
           </div>
+
+          {/* DOCUMENT REQUIREMENTS STATUS (5 cols) */}
+          <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100 shadow-2xs">
+                    <FolderOpen className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 leading-tight">Document Tracker</h3>
+                    <p className="text-xs text-slate-500 font-medium">Requirements & Verification</p>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => onNavigate('requirements')}
+                  variant="ghost"
+                  className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-7 px-2 rounded-lg cursor-pointer"
+                >
+                  Manage <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                </Button>
+              </div>
+
+              {documentTypesSummary.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <FolderOpen className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
+                  <p className="text-xs font-bold text-slate-700">No Documents Uploaded</p>
+                  <p className="text-[11px] text-slate-400">Submitted requirements will track here.</p>
+                </div>
+              ) : (
+                <div className="max-h-[340px] overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
+                  {documentTypesSummary.slice(0, 5).map((item) => (
+                    <div key={item.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-colors">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center border border-slate-200 text-slate-400 shrink-0 shadow-2xs">
+                          <FileText className="w-4 h-4 text-[#D8232A]" />
+                        </div>
+                        <div className="min-w-0 space-y-0.5">
+                          <span className="text-[10px] font-extrabold text-[#D8232A] block tracking-wide truncate">{item.studentName}</span>
+                          <span className="text-xs font-bold text-slate-900 block truncate">{item.docName}</span>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg border shrink-0 ${item.statusColor}`}>
+                        {item.statusText}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 mt-3">
+              <span>Enrollment Files</span>
+              <span className="font-bold text-slate-700">{documentTypesSummary.length} Documents</span>
+            </div>
+          </div>
+
         </div>
 
       </div>

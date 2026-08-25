@@ -13,7 +13,8 @@ describe('AnalyticsService', () => {
       expect(Array.isArray(trends)).toBe(true);
       expect(trends).toHaveLength(6);
       expect(trends[0]).toHaveProperty('month');
-      expect(trends[0]).toHaveProperty('enrolled');
+      expect(trends[0]).toHaveProperty('currentYear');
+      expect(trends[0]).toHaveProperty('previousYear');
     });
   });
 

@@ -145,24 +145,22 @@ export function ObservedValuesCard({ observedValues, gradeLevel }: ObservedValue
               
               <div className="divide-y divide-slate-100 bg-white">
                 <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <div className="col-span-8">Behavioral Statements</div>
-                  <div className="col-span-1 text-center">Q1</div>
-                  <div className="col-span-1 text-center">Q2</div>
-                  <div className="col-span-1 text-center">Q3</div>
-                  <div className="col-span-1 text-center">Q4</div>
+                  <div className="col-span-9">Behavioral Statements</div>
+                  <div className="col-span-1 text-center">T1</div>
+                  <div className="col-span-1 text-center">T2</div>
+                  <div className="col-span-1 text-center">T3</div>
                 </div>
                 
                 {core.items.map((item) => {
                   const itemMarks = (currentValues as any)[item.key] || {};
                   return (
                     <div key={item.key} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-slate-50/50 transition-colors">
-                      <div className="col-span-8 text-xs text-slate-600 font-medium pr-4">
+                      <div className="col-span-9 text-xs text-slate-600 font-medium pr-4">
                         {item.statement}
                       </div>
-                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['q1'])}</div>
-                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['q2'])}</div>
-                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['q3'])}</div>
-                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['q4'])}</div>
+                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['t1'] || itemMarks['q1'])}</div>
+                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['t2'] || itemMarks['q2'])}</div>
+                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['t3'] || itemMarks['q3'])}</div>
                     </div>
                   );
                 })}
