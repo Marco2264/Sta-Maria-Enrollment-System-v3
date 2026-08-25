@@ -52,7 +52,7 @@ import {
 import { useAuth } from '../../lib/AuthContext';
 import { useTeacherData } from '../../lib/teacherData';
 import { db } from '../../lib/firebase';
-import { doc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
 import { logActivity } from '../../lib/services/activityLogService';
 
@@ -65,7 +65,25 @@ export function TeacherStudentDetailView({
 }) {
   const { user } = useAuth();
   const { students, updateStudentStatus, currentSection } = useTeacherData();
-  const child = students.find((s) => s.id === studentId)!;
+  const contextChild = students.find((s) => s.id === studentId);
+  const [directChild, setDirectChild] = useState<any>(null);
+  const [loadingDirectChild, setLoadingDirectChild] = useState(false);
+
+  useEffect(() => {
+    if (!contextChild && studentId) {
+      setLoadingDirectChild(true);
+      getDoc(doc(db, 'enrollments', studentId))
+        .then((snap) => {
+          if (snap.exists()) {
+            setDirectChild({ id: snap.id, ...snap.data() });
+          }
+        })
+        .catch((err) => console.error("Failed to load student directly:", err))
+        .finally(() => setLoadingDirectChild(false));
+    }
+  }, [contextChild, studentId]);
+
+  const child = contextChild || directChild;
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -471,6 +489,32 @@ export function TeacherStudentDetailView({
     const presentDays = presentCount || 98;
     return { percentage: `${pct}%`, detail: `${presentDays} / ${totalDays} Days Present` };
   };
+
+  if (!child) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[500px] p-8 text-center space-y-4 bg-[#F4F7F9]">
+        {loadingDirectChild ? (
+          <div className="space-y-3">
+            <Loader2 className="w-10 h-10 text-[#D8232A] animate-spin mx-auto" />
+            <p className="text-sm font-bold text-slate-600">Loading student details...</p>
+          </div>
+        ) : (
+          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm max-w-md mx-auto space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600">
+              <AlertCircle className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-bold text-slate-800">Student Record Not Found</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              The requested learner details could not be found or may have been moved to another section.
+            </p>
+            <Button onClick={onBack} variant="outline" className="rounded-xl font-bold text-xs">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const perfDetails = getPerformanceDetails(child);
   const attDetails = getAttendanceDetails(child);

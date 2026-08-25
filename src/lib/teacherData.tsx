@@ -397,17 +397,13 @@ export function TeacherDataProvider({ children }: { children: ReactNode }) {
             .map(d => ({ id: d.id, ...d.data() } as Student))
             .filter((s: any) => s.isManualHistory !== true);
           
-          // Auto-heal missing section names for Parent Portal sync
+          // Safe non-looping section name sync
           if (sName) {
-            const adviserName = (userData?.firstName && userData?.lastName) 
-              ? `${userData.firstName} ${userData.lastName}` 
-              : (userData?.fullName || 'Teacher');
             enrolledStudents.forEach(student => {
-              if (student.status === 'Enrolled' && (!student.section || student.adviser !== adviserName)) {
+              if (student.status === 'Enrolled' && !student.section) {
                 updateDoc(doc(db, 'enrollments', student.id), { 
-                  section: sName,
-                  adviser: adviserName
-                }).catch(err => console.error("Auto-heal failed:", err));
+                  section: sName
+                }).catch(() => {});
               }
             });
           }

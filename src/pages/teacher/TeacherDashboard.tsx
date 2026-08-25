@@ -19,7 +19,8 @@ import {
   LogOut,
   Home,
   CalendarDays,
-  Heart
+  Heart,
+  AlertTriangle
 } from 'lucide-react';
 import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
@@ -40,6 +41,70 @@ import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationBell } from '../../components/shared/NotificationBell';
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallbackView?: () => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class DashboardErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Teacher Dashboard Error Caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl max-w-md mx-auto space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto text-[#D8232A]">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900">Module Temporarily Unavailable</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              We encountered an unexpected issue while loading this section. Click below to reload or return to the overview.
+            </p>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <Button
+                onClick={() => this.setState({ hasError: false, error: null })}
+                className="bg-[#D8232A] hover:bg-[#b01c22] text-white rounded-xl text-xs font-bold px-4 cursor-pointer"
+              >
+                Reload Module
+              </Button>
+              {this.props.fallbackView && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    this.setState({ hasError: false, error: null });
+                    this.props.fallbackView?.();
+                  }}
+                  className="rounded-xl text-xs font-bold border-slate-200 cursor-pointer"
+                >
+                  Go to Overview
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface NavItem {
   id: string;
@@ -568,7 +633,9 @@ function TeacherDashboardContent() {
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               className="h-full w-full overflow-hidden"
             >
-              {renderActiveView()}
+              <DashboardErrorBoundary fallbackView={() => setActiveView('dashboard')}>
+                {renderActiveView()}
+              </DashboardErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </div>
