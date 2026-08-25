@@ -579,6 +579,10 @@ export function AnnouncementsView() {
             <p className="text-xs text-red-100 font-medium leading-relaxed">
               Stay connected with Sta. Maria Elementary School events, academic calendars, and school-wide advisories.
             </p>
+            <div className="pt-2 border-t border-red-500/40 text-[11px] font-bold text-red-100 flex items-center justify-between">
+              <span>DepEd Region IX</span>
+              <span>Zamboanga City</span>
+            </div>
           </div>
 
         </div>

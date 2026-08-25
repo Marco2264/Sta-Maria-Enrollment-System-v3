@@ -989,8 +989,8 @@ export function ManageAnnouncementsView({
               Official school announcements are reviewed by authorized faculty and administration.
             </p>
             <div className="pt-2 border-t border-red-500/40 text-[11px] font-bold text-red-100 flex items-center justify-between">
-              <span>DepEd Region III</span>
-              <span>San Carlos City</span>
+              <span>DepEd Region IX</span>
+              <span>Zamboanga City</span>
             </div>
           </div>
 

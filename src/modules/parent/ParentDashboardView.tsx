@@ -979,173 +979,61 @@ export function ParentDashboardView({
           )}
         </div>
 
-        {/* ── 4. SECONDARY SUPPORTING SECTIONS (My Children & Requirements Tracker) ── */}
-        <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
-          
-          {/* MY CHILDREN QUICK CARDS (7 cols) */}
-          <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100 shadow-2xs">
-                    <GraduationCap className="w-4.5 h-4.5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-tight">My Linked Learners</h3>
-                    <p className="text-xs text-slate-500 font-medium">{children.length} Enrolled in Sta. Maria</p>
-                  </div>
+        {/* ── 4. SECONDARY SUPPORTING SECTIONS (Requirements Tracker) ── */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100 shadow-2xs">
+                  <FolderOpen className="w-4.5 h-4.5" />
                 </div>
-
-                <Button
-                  onClick={() => onNavigate('children')}
-                  variant="ghost"
-                  className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-7 px-2 rounded-lg cursor-pointer"
-                >
-                  View Details <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-                </Button>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 leading-tight">Document Tracker</h3>
+                  <p className="text-xs text-slate-500 font-medium">Requirements & Verification Status</p>
+                </div>
               </div>
 
-              {children.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 space-y-3">
-                  <Users className="w-10 h-10 text-slate-300 mx-auto" />
-                  <div>
-                    <p className="text-sm font-bold text-slate-700">No Learners Registered Yet</p>
-                    <p className="text-xs text-slate-400">Click the button below to enroll your child for S.Y. 2026–2027.</p>
-                  </div>
-                  <Button
-                    onClick={() => onNavigate('enrollment')}
-                    className="h-9 px-4 rounded-xl bg-[#D8232A] hover:bg-red-700 text-white text-xs font-bold"
-                  >
-                    Register a Student Now
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[340px] overflow-y-auto custom-scrollbar">
-                  {children.map((child) => {
-                    const isApproved = child.status === 'Enrolled' || child.status === 'Approved';
-                    const isPending = child.status === 'Pending';
-                    const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
-                      ? child.gradeLevel
-                      : `Grade ${child.gradeLevel || 'Level'}`;
-
-                    return (
-                      <div
-                        key={child.id}
-                        onClick={() => onNavigate('children')}
-                        className="p-4 bg-slate-50/70 hover:bg-red-50/30 hover:border-red-200/80 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-all cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div className="w-11 h-11 rounded-2xl bg-red-100 text-[#D8232A] font-extrabold flex items-center justify-center text-sm border border-red-200 shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
-                            {(() => {
-                              const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
-                              const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
-                              return photo ? (
-                                <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
-                              ) : (
-                                <>{child.firstName?.[0]}{child.lastName?.[0]}</>
-                              );
-                            })()}
-                          </div>
-
-                          <div className="min-w-0 space-y-0.5">
-                            <h4 className="font-extrabold text-slate-900 text-sm leading-tight uppercase truncate group-hover:text-[#D8232A] transition-colors">
-                              {child.firstName} {child.lastName}
-                            </h4>
-                            <p className="text-xs font-semibold text-slate-500">
-                              {displayGrade} {(child as any).sectionName || (child as any).section ? `• Section ${(child as any).sectionName || (child as any).section}` : ''}
-                            </p>
-                            <p className="text-[11px] text-slate-400 font-medium">
-                              LRN: {child.lrn || 'Pending Assignment'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <span className={cn(
-                            "px-2.5 py-1 rounded-lg text-[10px] font-extrabold border uppercase tracking-wider",
-                            isApproved
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : isPending
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-rose-50 text-rose-700 border-rose-200"
-                          )}>
-                            {isApproved ? 'Enrolled' : isPending ? 'Under Review' : 'Action Required'}
-                          </span>
-
-                          <span className="text-[11px] font-bold text-[#D8232A] flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                            View Records <ChevronRight className="w-3 h-3" />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <Button
+                onClick={() => onNavigate('requirements')}
+                variant="ghost"
+                className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-7 px-2 rounded-lg cursor-pointer"
+              >
+                Manage All Requirements <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+              </Button>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 mt-3">
-              <span>Family Roster</span>
-              <span className="font-bold text-slate-700">{children.length} Enrolled</span>
-            </div>
-          </div>
-
-          {/* DOCUMENT REQUIREMENTS STATUS (5 cols) */}
-          <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center shrink-0 border border-red-100 shadow-2xs">
-                    <FolderOpen className="w-4.5 h-4.5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-tight">Document Tracker</h3>
-                    <p className="text-xs text-slate-500 font-medium">Requirements & Verification</p>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => onNavigate('requirements')}
-                  variant="ghost"
-                  className="text-xs font-bold text-[#D8232A] hover:bg-red-50 h-7 px-2 rounded-lg cursor-pointer"
-                >
-                  Manage <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-                </Button>
+            {documentTypesSummary.length === 0 ? (
+              <div className="py-10 text-center text-slate-400">
+                <FolderOpen className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
+                <p className="text-xs font-bold text-slate-700">No Documents Uploaded</p>
+                <p className="text-[11px] text-slate-400">Submitted requirements will track here.</p>
               </div>
-
-              {documentTypesSummary.length === 0 ? (
-                <div className="py-12 text-center text-slate-400">
-                  <FolderOpen className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
-                  <p className="text-xs font-bold text-slate-700">No Documents Uploaded</p>
-                  <p className="text-[11px] text-slate-400">Submitted requirements will track here.</p>
-                </div>
-              ) : (
-                <div className="max-h-[340px] overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
-                  {documentTypesSummary.slice(0, 5).map((item) => (
-                    <div key={item.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-colors">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center border border-slate-200 text-slate-400 shrink-0 shadow-2xs">
-                          <FileText className="w-4 h-4 text-[#D8232A]" />
-                        </div>
-                        <div className="min-w-0 space-y-0.5">
-                          <span className="text-[10px] font-extrabold text-[#D8232A] block tracking-wide truncate">{item.studentName}</span>
-                          <span className="text-xs font-bold text-slate-900 block truncate">{item.docName}</span>
-                        </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {documentTypesSummary.slice(0, 6).map((item) => (
+                  <div key={item.id} className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center border border-slate-200 text-slate-400 shrink-0 shadow-2xs">
+                        <FileText className="w-4 h-4 text-[#D8232A]" />
                       </div>
-                      <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg border shrink-0 ${item.statusColor}`}>
-                        {item.statusText}
-                      </span>
+                      <div className="min-w-0 space-y-0.5">
+                        <span className="text-[10px] font-extrabold text-[#D8232A] block tracking-wide truncate">{item.studentName}</span>
+                        <span className="text-xs font-bold text-slate-900 block truncate">{item.docName}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 mt-3">
-              <span>Enrollment Files</span>
-              <span className="font-bold text-slate-700">{documentTypesSummary.length} Documents</span>
-            </div>
+                    <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg border shrink-0 ${item.statusColor}`}>
+                      {item.statusText}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 mt-4">
+            <span>Official Enrollment Files</span>
+            <span className="font-bold text-slate-700">{documentTypesSummary.length} Documents Logged</span>
+          </div>
         </div>
 
       </div>

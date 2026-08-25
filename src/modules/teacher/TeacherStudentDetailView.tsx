@@ -717,7 +717,7 @@ export function TeacherStudentDetailView({
           </div>
 
           {/* RIGHT COL */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-8 space-y-6">
             <Tabs defaultValue="personal" className="w-full">
               <div className="flex items-center gap-2 border-b border-slate-200 pb-0">
                 <TabsList className="bg-transparent border-none p-0 h-auto gap-6">
