@@ -268,7 +268,14 @@ export function RequirementsView() {
 
   const getCleanName = (child: any) => {
     if (!child) return 'Learner';
-    return `${child.firstName || ''} ${child.lastName || ''}`.trim() || 'Learner';
+    const name = `${child.firstName || ''} ${child.lastName || ''}`.trim()
+      || child.studentName
+      || child.fullName
+      || child.learnerName
+      || child.name
+      || (child.lrn ? `LRN: ${child.lrn}` : '')
+      || 'Learner';
+    return name;
   };
 
   // ─── Upload Handler ─────────────────────────────────────────────────────────
@@ -375,30 +382,61 @@ export function RequirementsView() {
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9] font-sans relative">
 
-      {/* PAGE HEADER */}
-      <header className="px-6 py-6 lg:py-0 lg:h-28 border-b border-slate-100 bg-white flex items-center shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0">
-              <FolderOpen className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">Document Center</h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Manage and sync required documents for your learner's registration.
-              </p>
-            </div>
+      {/* ── 1. HEADER (Hidden on mobile since portal header exists) ── */}
+      <header className="hidden lg:flex px-6 sm:px-10 py-5 bg-white border-b border-slate-200/80 items-center justify-between gap-6 shrink-0 shadow-2xs">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D8232A] to-[#9E171D] text-white flex items-center justify-center shadow-md shadow-red-500/15 shrink-0">
+            <FolderOpen className="w-5 h-5" />
           </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">
+              Document Center
+            </h1>
+            <p className="text-xs text-slate-500 font-medium">
+              Upload and manage official enrollment documents & credentials.
+            </p>
+          </div>
+        </div>
 
-          {/* Learner Selector */}
+        {/* Learner Selector */}
+        {children.length > 0 && (
+          <div className="space-y-1 shrink-0 text-right">
+            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
+              LEARNER
+            </label>
+            <Select value={selectedEnrollmentId} onValueChange={setSelectedEnrollmentId}>
+              <SelectTrigger className="h-9 px-4 bg-white border-slate-200 rounded-xl text-xs font-bold text-slate-900 shadow-2xs hover:bg-slate-50 transition-colors min-w-[200px] text-left">
+                <SelectValue placeholder="Choose a learner...">
+                  {selectedChild ? `${getCleanName(selectedChild)} — Grade ${selectedChild.gradeLevel || 'Level'}` : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-slate-200 shadow-lg">
+                {children.map((c) => (
+                  <SelectItem key={c.id} value={c.id} className="font-semibold text-xs">
+                    {getCleanName(c)} — Grade {c.gradeLevel || 'Level'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </header>
+
+      {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="w-full px-3.5 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-5 max-w-7xl mx-auto">
+
+          {/* Mobile Learner Selector */}
           {children.length > 0 && (
-            <div className="space-y-1 shrink-0 w-full md:w-auto text-left md:text-right">
-              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
-                LEARNER
+            <div className="lg:hidden bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1.5">
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">
+                SELECT LEARNER
               </label>
               <Select value={selectedEnrollmentId} onValueChange={setSelectedEnrollmentId}>
-                <SelectTrigger className="h-9 px-4 bg-white border-slate-200 rounded-xl text-xs font-bold text-slate-900 shadow-2xs hover:bg-slate-50 transition-colors min-w-[200px] text-left">
-                  <SelectValue placeholder="Choose a learner..." />
+                <SelectTrigger className="h-10 px-3.5 bg-slate-50 border-slate-200 rounded-xl text-xs font-bold text-slate-900 w-full text-left">
+                  <SelectValue placeholder="Choose a learner...">
+                    {selectedChild ? `${getCleanName(selectedChild)} — Grade ${selectedChild.gradeLevel || 'Level'}` : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-slate-200 shadow-lg">
                   {children.map((c) => (
@@ -410,12 +448,6 @@ export function RequirementsView() {
               </Select>
             </div>
           )}
-        </div>
-      </header>
-
-      {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="w-full px-6 sm:px-10 py-6 space-y-5 max-w-7xl mx-auto">
 
           {/* Toast Alerts */}
           <AnimatePresence>
@@ -448,17 +480,17 @@ export function RequirementsView() {
             <>
               {/* Student Summary Card */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xs">
+                <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 shadow-2xs">
                   {/* Left Side: Avatar + Name + Grade */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center shrink-0">
-                      <User className="w-5 h-5 text-slate-300" />
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center shrink-0 text-[#D8232A]">
+                      <User className="w-5 h-5" />
                     </div>
-                    <div>
-                      <h2 className="text-base font-extrabold text-slate-900 leading-tight uppercase tracking-tight">
+                    <div className="min-w-0">
+                      <h2 className="text-sm sm:text-base font-black text-slate-900 leading-tight uppercase tracking-tight truncate">
                         {getCleanName(selectedChild)}
                       </h2>
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-1">
+                      <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 truncate">
                         {selectedChild.status || 'PENDING'} • {
                           (selectedChild.gradeLevel || '').toString().toLowerCase().startsWith('grade')
                             ? selectedChild.gradeLevel.toUpperCase()
@@ -469,10 +501,10 @@ export function RequirementsView() {
                   </div>
 
                   {/* Middle / Right: Classification and Progress Bar */}
-                  <div className="flex items-center gap-12 flex-wrap">
+                  <div className="flex items-center justify-between md:justify-end gap-6 sm:gap-12 flex-wrap pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                     {/* Classification */}
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">
                         CLASSIFICATION
                       </span>
                       <span className="text-xs font-bold text-slate-800">
@@ -481,10 +513,10 @@ export function RequirementsView() {
                     </div>
 
                     {/* Upload Progress */}
-                    <div className="w-48">
-                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                        <span>UPLOAD PROGRESS</span>
-                        <span className="text-[#D8232A] font-extrabold">
+                    <div className="w-36 sm:w-48">
+                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                        <span>PROGRESS</span>
+                        <span className="text-[#D8232A] font-black">
                           {Math.round((uploadedCount / requiredDocList.length) * 100)}%
                         </span>
                       </div>

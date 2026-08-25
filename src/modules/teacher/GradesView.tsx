@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { db } from '../../lib/firebase';
-import { doc, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -30,16 +29,26 @@ import {
   ChevronRight,
   Send,
   Printer,
-  Settings,
   LockOpen,
-  Activity,
-  UserCheck,
+  Scale,
   Search,
-  Scale
+  Users,
+  GraduationCap,
+  Sparkles,
+  Check,
+  RotateCcw,
+  BarChart3,
+  CalendarDays,
+  FileSpreadsheet,
+  Award
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTeacherData } from '../../lib/teacherData';
+import { cn } from '../../components/ui/utils';
 
+// =========================================================================
+// SECTION DASHBOARD CARD (LANDING VIEW)
+// =========================================================================
 function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () => void }) {
   const [stats, setStats] = useState({ studentCount: 0, progress: 0, subjectProgress: {} as Record<string, number> });
   const [loadingCard, setLoadingCard] = useState(true);
@@ -125,42 +134,63 @@ function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () =>
   const allSubjects = Array.from(new Set([...(section.taughtSubjectCodes || []), ...(section.advisedSubjectCodes || [])]));
 
   return (
-    <Card className="border border-slate-200/60 shadow-2xs hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col bg-white rounded-2xl group">
-      <div className="p-6 flex-1 flex flex-col">
-        <div className="flex items-center justify-between mb-4 pb-3.5 border-b border-slate-100">
-          <h3 className="text-base font-bold text-slate-800 group-hover:text-red-700 transition-colors">{section.gradeLevel} — {section.name}</h3>
-          {section.isAdvisor && (
-            <Badge className="bg-red-50 text-[#D8232A] hover:bg-red-100 flex items-center gap-1.5 shadow-none border border-red-200/40 text-[10px] font-bold uppercase tracking-wider rounded-lg px-2.5 py-1">
-              <Star className="w-3 h-3 fill-current" /> Advisor
+    <div className="bg-white border border-slate-200/80 hover:border-[#D8232A]/30 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
+      {/* Top Section Header */}
+      <div>
+        <div className="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D8232A]">Section</span>
+            <h3 className="text-base font-extrabold text-slate-900 group-hover:text-[#D8232A] transition-colors leading-tight">
+              {section.gradeLevel} — {section.name}
+            </h3>
+          </div>
+          {section.isAdvisor ? (
+            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[10px] font-bold uppercase tracking-wider rounded-lg px-2.5 py-0.5 shrink-0">
+              <Star className="w-3 h-3 mr-1 fill-current" /> Adviser
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-lg px-2.5 py-0.5 shrink-0">
+              Subject Section
             </Badge>
           )}
         </div>
 
-        <div className="mb-6 flex-1">
-          <div className="flex items-center gap-2 text-slate-400 mb-3 text-[10px] font-extrabold uppercase tracking-widest">
+        {/* Subjects List */}
+        <div className="mb-5">
+          <div className="flex items-center gap-1.5 text-slate-400 mb-2.5 text-[10px] font-bold uppercase tracking-wider">
             <BookOpen className="w-3.5 h-3.5" /> Assigned Subjects
           </div>
+
           {loadingCard ? (
             <div className="flex gap-2">
-              <div className="h-7 w-24 bg-slate-100 rounded-lg animate-pulse" />
-              <div className="h-7 w-24 bg-slate-100 rounded-lg animate-pulse" />
+              <div className="h-6 w-20 bg-slate-100 rounded-lg animate-pulse" />
+              <div className="h-6 w-20 bg-slate-100 rounded-lg animate-pulse" />
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+            <div className="flex flex-wrap gap-1.5 max-h-[110px] overflow-y-auto pr-1">
               {allSubjects.map((code: any) => {
                 const progress = stats.subjectProgress[code] || 0;
-                let progressColor = 'bg-slate-400';
-                if (progress === 100) progressColor = 'bg-emerald-500';
-                else if (progress >= 80) progressColor = 'bg-teal-500';
-                else if (progress >= 40) progressColor = 'bg-amber-500';
-                else progressColor = 'bg-rose-450';
-
+                const isTaught = (section.taughtSubjectCodes || []).includes(code);
+                
                 return (
-                  <div key={code} className="bg-slate-50 border border-slate-200/60 rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100/50">
-                    <div className={`w-1.5 h-1.5 rounded-full ${progressColor}`}></div>
-                    {code} <span className="text-[10px] text-slate-400 font-normal">({progress}%)</span>
+                  <div
+                    key={code}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-xs font-semibold border transition-all",
+                      isTaught
+                        ? "bg-slate-50 border-slate-200/70 text-slate-700"
+                        : "bg-slate-50/50 border-slate-200/40 text-slate-400"
+                    )}
+                  >
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      progress === 100 ? "bg-emerald-500" :
+                      progress > 0 ? "bg-amber-500" : "bg-slate-300"
+                    )} />
+                    <span>{code}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">({progress}%)</span>
                   </div>
-                )
+                );
               })}
               {allSubjects.length === 0 && (
                 <span className="text-slate-400 text-xs italic">No specific subjects assigned</span>
@@ -168,38 +198,70 @@ function SectionDashboardCard({ section, onOpen }: { section: any; onOpen: () =>
             </div>
           )}
         </div>
+      </div>
 
-        <div className="mt-auto pt-4 border-t border-slate-50">
-          <div className="flex items-center justify-between text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">
-            <span>Overall Progress</span>
-            <span className="text-[#D8232A]">{loadingCard ? '-' : stats.progress}%</span>
+      {/* Progress & Bottom Button */}
+      <div className="pt-3 border-t border-slate-100 space-y-3">
+        <div>
+          <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500 mb-1.5">
+            <span className="uppercase tracking-wider text-[10px]">Encoding Progress</span>
+            <span className="text-slate-900 font-mono font-extrabold">{loadingCard ? '...' : `${stats.progress}%`}</span>
           </div>
-          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-4">
+          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-red-500 to-[#D8232A] rounded-full transition-all duration-1000"
+              className={cn(
+                "h-full rounded-full transition-all duration-700",
+                stats.progress === 100 ? "bg-emerald-500" : "bg-[#D8232A]"
+              )}
               style={{ width: loadingCard ? '0%' : `${stats.progress}%` }}
             />
           </div>
+        </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs font-bold text-slate-500">
-              {loadingCard ? '-' : stats.studentCount} Enrolled Students
-            </span>
-            <button
-              onClick={onOpen}
-              className="text-xs font-bold text-[#D8232A] hover:text-[#b91c22] flex items-center gap-1 transition-colors group/btn cursor-pointer bg-transparent border-none outline-none"
-            >
-              Open Gradebook <ArrowLeft className="w-3.5 h-3.5 rotate-180 group-hover/btn:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs font-medium text-slate-500">
+            <span className="font-bold text-slate-800">{loadingCard ? '-' : stats.studentCount}</span> Learners
+          </span>
+          <Button
+            onClick={onOpen}
+            size="sm"
+            className="h-8 px-3.5 bg-[#D8232A] hover:bg-[#b91c22] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer border-none"
+          >
+            <span>Open Gradebook</span>
+            <ArrowLeft className="w-3 h-3 rotate-180" />
+          </Button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
+// =========================================================================
+// MAIN GRADES VIEW COMPONENT
+// =========================================================================
 export function GradesView() {
-  const { students, attendance, updateDynamicStudentGrade, addGradeColumn, editGradeColumn, deleteGradeColumn, submitGradesToAdviser, requestUnlockGrades, grantUnlockGrades, gradeConfigurations, loading, currentGradeLevel, currentSectionName, isAdvisorForCurrentSection, assignedSections, setCurrentSection, currentSection, allTeachers, subjects, advisorSectionSchedules } = useTeacherData();
+  const { 
+    students, 
+    attendance, 
+    updateDynamicStudentGrade, 
+    addGradeColumn, 
+    editGradeColumn, 
+    deleteGradeColumn, 
+    submitGradesToAdviser, 
+    requestUnlockGrades, 
+    grantUnlockGrades, 
+    gradeConfigurations, 
+    loading, 
+    currentGradeLevel, 
+    currentSectionName, 
+    isAdvisorForCurrentSection, 
+    assignedSections, 
+    setCurrentSection, 
+    currentSection, 
+    allTeachers, 
+    subjects 
+  } = useTeacherData();
+
   const enrolled = useMemo(() => students.filter((s) => s.status !== 'Pending' && s.status !== 'Rejected'), [students]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -209,6 +271,7 @@ export function GradesView() {
   const [isGradebookOpen, setIsGradebookOpen] = useState(false);
   const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>('');
   const [selectedTerm, setSelectedTerm] = useState<'Term 1' | 'Term 2' | 'Finals'>('Term 1');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [localGrades, setLocalGrades] = useState<Record<string, Record<string, string>>>({});
   const [isAttendance, setIsAttendance] = useState(false);
@@ -221,7 +284,7 @@ export function GradesView() {
   const [saved, setSaved] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Column Add Dialog
+  // Column Add & Edit Dialogs
   const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
   const [newColName, setNewColName] = useState('');
   const [newColWeight, setNewColWeight] = useState('');
@@ -231,9 +294,10 @@ export function GradesView() {
   const [editColWeight, setEditColWeight] = useState('');
 
   // Lists of taught/advised codes
-  const currentSectionData = assignedSections.find(s => s.sectionId === currentSection);
+  const currentSectionData = (assignedSections || []).find(s => s.sectionId === currentSection);
   const taughtSubjects = currentSectionData?.taughtSubjectCodes || [];
   const advisedSubjects = currentSectionData?.advisedSubjectCodes || [];
+  const isAdvisor = Boolean(isAdvisorForCurrentSection || currentSectionData?.isAdvisor);
 
   // Active configurations for the selected subject and term
   const activeColumns = useMemo(() => {
@@ -262,7 +326,7 @@ export function GradesView() {
     return taughtSubjects.includes(selectedSubjectCode) && submissionStatus !== 'locked';
   }, [taughtSubjects, selectedSubjectCode, submissionStatus]);
 
-  // Load Firestore grade values into local state and compute attendance values in one shot
+  // Load Firestore grade values into local state and compute attendance values
   useEffect(() => {
     if (loading || !selectedSubjectCode || selectedSubjectCode === 'MASTER_SHEET') return;
     const gradesMap: Record<string, Record<string, string>> = {};
@@ -274,7 +338,6 @@ export function GradesView() {
       gradesMap[s.id] = {};
       gradeConfigs.forEach(col => {
         if (col.isAttendance && col.startDate && col.endDate) {
-          // Calculate present count
           const rangeDates = Array.from(new Set(
             attendance
               .filter(a => a.sectionId === currentSection && a.date >= col.startDate && a.date <= col.endDate)
@@ -290,7 +353,6 @@ export function GradesView() {
           const formattedScore = parseFloat(score.toFixed(1));
           gradesMap[s.id][col.id] = formattedScore.toString();
 
-          // If db value differs, queue an update
           const dbVal = studentGrades[col.id];
           if (dbVal === undefined || dbVal === null || parseFloat(dbVal.toString()) !== formattedScore) {
             updatesToMake.push({ studentId: s.id, columnId: col.id, val: formattedScore });
@@ -311,17 +373,23 @@ export function GradesView() {
     }
   }, [loading, enrolled, selectedSubjectCode, selectedTerm, gradeConfigs, currentGradeLevel, attendance, currentSection]);
 
-  // Sync scroll selections to prevent empty pages
+  // Filter and pagination
+  const filteredEnrolled = useMemo(() => {
+    if (!searchQuery.trim()) return enrolled;
+    const q = searchQuery.toLowerCase();
+    return enrolled.filter(s =>
+      `${s.firstName} ${s.lastName} ${s.lrn}`.toLowerCase().includes(q)
+    );
+  }, [enrolled, searchQuery]);
+
   useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+    setCurrentPage(1);
+  }, [searchQuery, selectedSubjectCode, selectedTerm]);
 
   const paginatedEnrolled = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
-    return enrolled.slice(start, start + rowsPerPage);
-  }, [enrolled, currentPage]);
+    return filteredEnrolled.slice(start, start + rowsPerPage);
+  }, [filteredEnrolled, currentPage]);
 
   const handleCellChange = (studentId: string, columnId: string, val: string) => {
     const rawVal = val.trim();
@@ -380,7 +448,7 @@ export function GradesView() {
 
   const handleSaveGrades = async () => {
     setIsSaving(true);
-    const loadingToast = toast.loading("Saving grades changes...");
+    const loadingToast = toast.loading("Saving grades...");
     try {
       const promises: Promise<void>[] = [];
       enrolled.forEach(s => {
@@ -395,11 +463,11 @@ export function GradesView() {
       });
 
       await Promise.all(promises);
-      toast.success("All grades successfully updated!", { id: loadingToast });
+      toast.success("All grades saved successfully!", { id: loadingToast });
       setSaved(true);
     } catch (err) {
       console.error("Failed to save changes", err);
-      toast.error("Failed to save grades. Please try again.", { id: loadingToast });
+      toast.error("Failed to save grades.", { id: loadingToast });
     } finally {
       setIsSaving(false);
     }
@@ -409,11 +477,11 @@ export function GradesView() {
     const weight = parseFloat(newColWeight);
     if (!newColName.trim() || !newColWeight || isNaN(weight)) return;
     if (weight > remainingWeight) {
-      alert(`The maximum allowed weight for this column is ${remainingWeight}%.`);
+      toast.error(`Maximum allowed weight for this column is ${remainingWeight}%.`);
       return;
     }
     if (isAttendance && (!attStartDate || !attEndDate)) {
-      alert("Please select both start and end dates for the attendance range.");
+      toast.error("Please select start and end dates for attendance tracking.");
       return;
     }
     await addGradeColumn(
@@ -431,6 +499,7 @@ export function GradesView() {
     setIsAttendance(false);
     setAttStartDate('');
     setAttEndDate('');
+    toast.success("Grading criteria created!");
   };
 
   const handleEditColumn = async () => {
@@ -443,12 +512,12 @@ export function GradesView() {
     const maxWeight = remainingWeight + oldWeight;
 
     if (weight > maxWeight) {
-      alert(`The maximum allowed weight for this column is ${maxWeight}%.`);
+      toast.error(`Maximum allowed weight is ${maxWeight}%.`);
       return;
     }
 
     if (editColIsAttendance && (!editColStartDate || !editColEndDate)) {
-      alert("Please select both start and end dates for the attendance range.");
+      toast.error("Please select start and end dates.");
       return;
     }
 
@@ -463,6 +532,7 @@ export function GradesView() {
     setEditColIsAttendance(false);
     setEditColStartDate('');
     setEditColEndDate('');
+    toast.success("Grading criteria updated!");
   };
 
   const openEditModal = (col: any) => {
@@ -482,40 +552,88 @@ export function GradesView() {
     return `${last}, ${first}`;
   };
 
+  // =========================================================================
+  // VIEW 1: LANDING SCREEN - ASSIGNED SECTIONS OVERVIEW
+  // =========================================================================
   if (!isGradebookOpen) {
-    return (
-      <div className="flex flex-col h-full bg-[#f8fafc] relative overflow-hidden">
-        {/* Soft Ambient Background Glows */}
-        <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-red-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[450px] h-[450px] bg-red-500/5 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
+    const totalTaughtSubjectsCount = assignedSections.reduce((acc, s) => acc + (s.taughtSubjectCodes?.length || 0), 0);
 
-        {/* Dashboard Header (Exactly aligned with h-[72px] Sidebar Header) */}
-        <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white shrink-0 flex items-center shadow-2xs relative z-10">
-          <div className="flex flex-row items-center justify-between gap-6 w-full max-w-7xl mx-auto">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-red-50 rounded-xl text-[#D8232A] border border-red-100/50 shadow-2xs">
+    return (
+      <div className="flex flex-col h-full bg-[#f8fafc]">
+        {/* Top Header */}
+        <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs sticky top-0 z-30">
+          <div className="flex flex-row items-center justify-between gap-4 w-full max-w-[1600px] mx-auto">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-[#D8232A] shadow-2xs">
                 <BookOpen className="w-5 h-5" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#D8232A] leading-none mb-1">Classroom Management</span>
-                <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">Assigned Grades & Sections</h1>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-black tracking-tight text-slate-900">
+                    Gradebook & Grading Sheets
+                  </h1>
+                  <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5">
+                    {assignedSections.length} {assignedSections.length === 1 ? 'Section' : 'Sections'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-500 font-medium hidden sm:block">
+                  Select an assigned section below to manage quarterly scores, term criteria, and master averages
+                </p>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Dashboard Sections Grid */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full relative z-10">
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+          
+          {/* Quick KPI Overview Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center font-bold shrink-0 border border-red-100/50">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Assigned Sections</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">{assignedSections.length}</p>
+                <p className="text-[10.5px] font-semibold text-slate-400">Active class loads</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 border border-blue-100/50">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Teaching Subjects</p>
+                <p className="text-xl sm:text-2xl font-black text-blue-700">{totalTaughtSubjectsCount}</p>
+                <p className="text-[10.5px] font-semibold text-blue-600">Assigned course subjects</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5 col-span-2 sm:col-span-1">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0 border border-emerald-100/50">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Active Section</p>
+                <p className="text-base sm:text-lg font-black text-slate-900 truncate max-w-[180px]">{currentSectionName || currentGradeLevel || 'Select Section'}</p>
+                <p className="text-[10.5px] font-semibold text-emerald-600 truncate">{currentGradeLevel}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Cards Grid */}
           {assignedSections.length === 0 ? (
-            <Card className="border border-dashed border-slate-200 shadow-none flex flex-col items-center justify-center p-16 text-center bg-white rounded-2xl w-full mt-4">
-              <BookOpen className="w-16 h-16 text-slate-350 mb-4" />
-              <h3 className="text-base font-bold text-slate-700">No Assigned Sections</h3>
-              <p className="text-xs text-slate-500 mt-2 max-w-md">
-                You currently do not have any subjects or sections assigned to you for this academic year. Please contact the administrator to assign your teaching loads.
+            <div className="border border-dashed border-slate-200 rounded-2xl p-16 text-center bg-white">
+              <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-700">No Assigned Sections Found</h3>
+              <p className="text-xs text-slate-500 mt-1.5 max-w-md mx-auto">
+                You currently do not have any teaching sections assigned for this academic term. Please contact the administrator.
               </p>
-            </Card>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {assignedSections.map(section => (
                 <SectionDashboardCard
                   key={section.sectionId}
@@ -539,301 +657,461 @@ export function GradesView() {
     );
   }
 
+  // =========================================================================
+  // VIEW 2: ACTIVE GRADEBOOK WORKSPACE
+  // =========================================================================
   const terms = ['Term 1', 'Term 2', 'Finals'] as const;
+  const allAvailableSubjects = Array.from(new Set([...taughtSubjects, ...advisedSubjects]));
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex w-full relative">
-      {/* Left Sidebar */}
-      <div className="w-66 bg-white border-r border-slate-200 shrink-0 flex flex-col hidden md:flex shadow-3xs relative z-10">
-        <div className="p-6 border-b border-slate-100">
-          <button
-            onClick={() => {
-              setIsGradebookOpen(false);
-              setSelectedSubjectCode('');
-            }}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors group mb-5 cursor-pointer bg-transparent border-none outline-none"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" /> BACK TO LIST
-          </button>
+    <div className="flex flex-col h-full bg-[#f8fafc]">
+      
+      {/* 1. Header Bar with Section Breadcrumbs, Save Status & Mode Switcher */}
+      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-xs sticky top-0 z-30">
+        <div className="flex flex-row items-center justify-between gap-4 w-full max-w-[1600px] mx-auto">
+          
+          {/* Back Button & Section Info */}
+          <div className="flex items-center gap-3.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setIsGradebookOpen(false);
+                setSelectedSubjectCode('');
+              }}
+              className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
+              title="Back to Assigned Sections"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
 
-          <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Selected Section</div>
-          <h2 className="text-base font-extrabold text-slate-800 leading-tight">{currentGradeLevel} — {currentSectionName}</h2>
-          {isAdvisorForCurrentSection && (
-            <Badge className="bg-red-50 text-[#D8232A] border-red-200/50 mt-2.5 shadow-2xs rounded-lg text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 w-fit">
-              <Star className="w-3 h-3 mr-1 fill-current" /> Advisor
-            </Badge>
-          )}
-        </div>
-
-        <div className="p-4 flex-1 overflow-y-auto space-y-6">
-          <div>
-            <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 px-2">Assigned to you</div>
-            <div className="space-y-1">
-              {taughtSubjects.map(code => (
-                <button
-                  key={code}
-                  onClick={() => setSelectedSubjectCode(code)}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer border-none outline-none ${selectedSubjectCode === code
-                      ? 'bg-red-50 text-[#D8232A] shadow-3xs ring-1 ring-red-500/10'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                >
-                  <div className={`w-1.5 h-1.5 rounded-full ${selectedSubjectCode === code ? 'bg-[#D8232A]' : 'bg-transparent'}`}></div>
-                  {code}
-                </button>
-              ))}
-              {taughtSubjects.length === 0 && (
-                <div className="px-3 text-xs text-slate-400 italic">None</div>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 px-2">Classroom view only</div>
-            <div className="space-y-1">
-              {advisedSubjects.map(code => (
-                <button
-                  key={code}
-                  onClick={() => setSelectedSubjectCode(code)}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex flex-col gap-1 cursor-pointer border-none outline-none ${selectedSubjectCode === code
-                      ? 'bg-slate-100 text-slate-900 shadow-3xs ring-1 ring-slate-200'
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                    }`}
-                >
-                  <div className="flex items-center justify-between w-full min-w-0 gap-2">
-                    <span className="truncate">{code}</span>
-                    <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-                  </div>
-                </button>
-              ))}
-              {advisedSubjects.length === 0 && (
-                <div className="px-3 text-xs text-slate-400 italic">None</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
-        <div className="p-6 lg:p-8 flex-1 overflow-y-auto">
-
-          {/* Segmented Advisor Banner */}
-          {isAdvisorForCurrentSection && (
-            <div className="mb-6 bg-red-50/50 border border-red-100 rounded-xl p-4 flex items-start gap-3 shadow-2xs">
-              <AlertCircle className="w-5 h-5 text-[#D8232A] shrink-0 mt-0.5" />
-              <div className="text-xs text-slate-600 leading-relaxed font-semibold">
-                <span className="font-extrabold text-[#D8232A]">Advisor view active</span> — You can see all subjects in {currentGradeLevel} — {currentSectionName}. You can only edit grades for subjects assigned to you: {taughtSubjects.join(', ') || 'None'}.
-              </div>
-            </div>
-          )}
-
-          {/* Segmented view controls */}
-          {isAdvisorForCurrentSection && (
-            <div className="flex justify-center mb-6">
-              <div className="bg-slate-100/80 p-1.5 rounded-2xl inline-flex shadow-inner border border-slate-200/50">
-                <button
-                  onClick={() => {
-                    if (selectedSubjectCode === 'MASTER_SHEET') {
-                      setSelectedSubjectCode(advisedSubjects[0] || taughtSubjects[0] || '');
-                    }
-                  }}
-                  className={`px-8 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-none outline-none ${selectedSubjectCode !== 'MASTER_SHEET'
-                      ? 'bg-white text-slate-800 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                    }`}
-                >
-                  <BookOpen className={`w-4 h-4 ${selectedSubjectCode !== 'MASTER_SHEET' ? 'text-[#D8232A]' : 'text-slate-400'}`} />
-                  Subject Gradebook
-                </button>
-                <button
-                  onClick={() => setSelectedSubjectCode('MASTER_SHEET')}
-                  className={`px-8 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-none outline-none ${selectedSubjectCode === 'MASTER_SHEET'
-                      ? 'bg-white text-[#D8232A] shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                    }`}
-                >
-                  <Star className={`w-4 h-4 ${selectedSubjectCode === 'MASTER_SHEET' ? 'text-[#D8232A]' : 'text-slate-400'}`} />
-                  Master Overview
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Table Header Section */}
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
             <div>
-              <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">{currentGradeLevel} — {currentSectionName}</span>
-              <h1 className="text-xl font-bold tracking-tight text-slate-800 mt-1">
-                {selectedSubjectCode === 'MASTER_SHEET' ? 'Master Gradebook Report' : selectedSubjectCode || 'No Subject Selected'}
-              </h1>
-            </div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-black tracking-tight text-slate-900">
+                  {currentGradeLevel} — {currentSectionName}
+                </h1>
+                {isAdvisor ? (
+                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                    <Star className="w-3 h-3 mr-1 fill-current" /> Adviser
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                    Subject View
+                  </Badge>
+                )}
 
-            <div className="flex items-center gap-3">
-              {selectedSubjectCode === 'MASTER_SHEET' && (
-                <Button variant="outline" onClick={() => window.print()} className="gap-2 bg-white border-slate-200 shadow-sm hidden sm:flex font-semibold rounded-xl text-xs h-9">
-                  <Printer className="w-4 h-4 text-slate-500" />
-                  Print Report
-                </Button>
-              )}
-              {selectedSubjectCode !== 'MASTER_SHEET' && (
-                <div className="text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-1.5">
-                  <Scale className="w-3.5 h-3.5 text-slate-400" />
-                  Term Weight: <span className={`font-mono font-extrabold ${currentTotalWeight === 100 ? "text-emerald-600" : currentTotalWeight > 100 ? "text-rose-600" : "text-amber-600"}`}>{currentTotalWeight}%</span> / 100%
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tab Control navigation */}
-          {selectedSubjectCode !== 'MASTER_SHEET' && (
-            <div className="flex items-center gap-1 border-b border-slate-200 mb-6">
-              {terms.map(term => (
-                <button
-                  key={term}
-                  onClick={() => setSelectedTerm(term)}
-                  className={`px-6 py-3 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer ${selectedTerm === term
-                      ? 'bg-white border-[#D8232A] text-[#D8232A] shadow-3xs'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
-                    }`}
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Main Work Grid View */}
-          {selectedSubjectCode === 'MASTER_SHEET' ? (
-            <Card className="bg-white border border-slate-200/50 shadow-2xs rounded-2xl overflow-hidden flex flex-col">
-              <div className="px-5 py-4 border-b bg-red-50/20 border-red-100/50 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                  <Star className="w-4 h-4 text-[#D8232A]" />
-                  <span>General Weighted Averages (GWA)</span>
-                </div>
-                <div className="text-xs text-[#D8232A] font-bold">
-                  {paginatedEnrolled.length} Enrolled Students
-                </div>
-              </div>
-              <Table>
-                <TableHeader className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider">
-                  <TableRow>
-                    <TableHead className="font-bold py-3 pl-6 min-w-[200px] sticky left-0 bg-slate-50 z-20 shadow-[1px_0_0_0_#e2e8f0]">Student Name</TableHead>
-                    {Array.from(new Set([...taughtSubjects, ...advisedSubjects])).map(code => (
-                      <TableHead key={code} className="font-bold py-3 text-center min-w-[80px]" title={code}>
-                        <div className="truncate px-1">{code}</div>
-                      </TableHead>
-                    ))}
-                    <TableHead className="font-bold text-[#D8232A] py-3 text-center pr-6 min-w-[90px] border-l border-slate-200 sticky right-0 bg-slate-50 z-20 shadow-[-1px_0_0_0_#e2e8f0]">GWA</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedEnrolled.map(s => {
-                    const gradeKey = currentGradeLevel ? currentGradeLevel.replace(/Grade /i, 'Grade ') : 'Grade 6';
-                    let validSubjects = 0;
-                    let totalGWA = 0;
-
-                    const subjGrades = Array.from(new Set([...taughtSubjects, ...advisedSubjects])).map(code => {
-                      const subjectData = (s.grades as Record<string, any>)?.[gradeKey]?.[code] || {};
-                      const finalOverride = subjectData.finalGradeOverride;
-
-                      let subjectFinal: number | null = null;
-
-                      if (finalOverride !== undefined && finalOverride !== null) {
-                        subjectFinal = Number(finalOverride);
-                      } else {
-                        const termGrades = terms.map(term => {
-                          const cols = gradeConfigurations.filter(c => c.subjectCode === code && c.term === term && c.type !== 'submission');
-                          if (cols.length === 0) return null;
-                          let termTotal = 0;
-                          let hasGrade = false;
-                          const termData = subjectData[term] || {};
-                          cols.forEach(col => {
-                            const val = termData[col.id];
-                            if (val !== undefined && val !== '') {
-                              termTotal += (parseFloat(val) * (col.weight / 100));
-                              hasGrade = true;
-                            }
-                          });
-                          return hasGrade ? termTotal : null;
-                        }).filter(v => v !== null) as number[];
-
-                        if (termGrades.length > 0) {
-                          subjectFinal = termGrades.reduce((a, b) => a + b, 0) / termGrades.length;
-                        }
-                      }
-
-                      if (subjectFinal !== null) {
-                        totalGWA += subjectFinal;
-                        validSubjects++;
-                      }
-
-                      return { code, value: subjectFinal, isOverride: finalOverride !== undefined && finalOverride !== null };
-                    });
-
-                    const gwa = validSubjects > 0 ? (totalGWA / validSubjects).toFixed(2) : '—';
-                    const isFailing = validSubjects > 0 && (totalGWA / validSubjects) < 75;
-
-                    return (
-                      <TableRow key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-100 ${isFailing ? 'bg-red-50/20' : 'bg-white'}`}>
-                        <TableCell className={`pl-6 py-3.5 sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] ${isFailing ? 'bg-red-50/80' : 'bg-white'}`}>
-                          <span className={`font-bold text-[13px] ${isFailing ? 'text-red-700' : 'text-slate-800'} whitespace-nowrap`}>
-                            {formatStudentName(s.firstName, s.lastName)}
-                          </span>
-                        </TableCell>
-                        {subjGrades.map(sg => (
-                          <TableCell key={sg.code} className={`text-center py-3.5 px-1 font-mono text-xs font-semibold ${sg.isOverride ? 'text-amber-700 bg-amber-50/30 font-bold' : (sg.value !== null && Number(sg.value) < 75 ? 'text-rose-600 font-bold bg-rose-50/30' : 'text-slate-650')}`}>
-                            {sg.value !== null ? Number(sg.value).toFixed(1) : '—'}
-                          </TableCell>
-                        ))}
-                        <TableCell className={`text-center pr-6 py-3.5 font-mono font-bold text-[13px] border-l border-slate-100 sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] ${isFailing ? 'text-rose-700 bg-rose-50/80' : 'text-[#D8232A] bg-red-50/40'}`}>
-                          {gwa}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {enrolled.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={Array.from(new Set([...taughtSubjects, ...advisedSubjects])).length + 2} className="text-center py-12 text-slate-400 font-medium">
-                        No students enrolled.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </Card>
-          ) : (
-            <Card className="bg-white border border-slate-200/50 shadow-2xs rounded-2xl overflow-hidden flex flex-col">
-              {/* Table Toolbar */}
-              <div className={`px-5 py-4 border-b flex items-center justify-between flex-wrap gap-4 ${isAuthorized ? 'bg-blue-50/20 border-blue-100/50' : 'bg-slate-50 border-slate-200'}`}>
-                <div className="flex items-center gap-2">
-                  {isAuthorized ? (
+                {/* Auto-save Status Indicator */}
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100/80 border border-slate-200/50 text-[10px] font-bold select-none">
+                  {isSaving ? (
                     <>
-                      <Edit3 className="w-4 h-4 text-blue-600" />
-                      <span className="text-xs font-bold text-blue-800">Editing Mode Enabled</span>
+                      <div className="w-2 h-2 border border-[#D8232A] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-red-700">Saving...</span>
+                    </>
+                  ) : saved ? (
+                    <>
+                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                      <span className="text-emerald-700">Saved</span>
                     </>
                   ) : (
                     <>
-                      <Lock className="w-4 h-4 text-slate-400" />
-                      <span className="text-xs font-bold text-slate-500">Read-Only Mode</span>
+                      <AlertCircle className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
+                      <span className="text-amber-700">Unsaved Changes</span>
                     </>
                   )}
-                  <Badge variant="outline" className={`ml-2 text-[9px] font-bold uppercase tracking-wider rounded-lg border-opacity-40 px-2 py-0.5 ${submissionStatus === 'locked' ? 'bg-red-50 text-[#D8232A] border-red-200' :
-                      submissionStatus === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-slate-100 text-slate-600 border-slate-200'
-                    }`}>
-                    {submissionStatus === 'locked' ? 'Locked' : submissionStatus === 'pending' ? 'Approval Pending' : 'Draft'}
-                  </Badge>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 font-medium hidden sm:block">
+                {selectedSubjectCode === 'MASTER_SHEET' 
+                  ? 'Master General Weighted Average (GWA) summary matrix across all subjects' 
+                  : `Grading Sheet for ${selectedSubjectCode || 'Subject'} • ${selectedTerm}`}
+              </p>
+            </div>
+          </div>
+
+          {/* Right Header Actions (View Mode Switcher + Print) */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {isAdvisor && (
+              <div className="flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50">
+                <button
+                  onClick={() => {
+                    if (selectedSubjectCode === 'MASTER_SHEET') {
+                      setSelectedSubjectCode(taughtSubjects[0] || advisedSubjects[0] || '');
+                    }
+                  }}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none",
+                    selectedSubjectCode !== 'MASTER_SHEET'
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-800 bg-transparent"
+                  )}
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-[#D8232A]" />
+                  <span>Subject Matrix</span>
+                </button>
+                <button
+                  onClick={() => setSelectedSubjectCode('MASTER_SHEET')}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none",
+                    selectedSubjectCode === 'MASTER_SHEET'
+                      ? "bg-white text-[#D8232A] shadow-2xs"
+                      : "text-slate-500 hover:text-slate-800 bg-transparent"
+                  )}
+                >
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span>Master GWA</span>
+                </button>
+              </div>
+            )}
+
+            {selectedSubjectCode === 'MASTER_SHEET' && (
+              <Button
+                variant="outline"
+                onClick={() => window.print()}
+                className="h-10 px-3.5 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-2xs flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-500" />
+                <span>Print Report</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* 2. Workspace Body */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-5 max-w-[1600px] mx-auto w-full">
+        
+        {/* Subject & Term Navigation Bar (Visible in Subject Mode) */}
+        {selectedSubjectCode !== 'MASTER_SHEET' && (
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            
+            {/* Top Row: Terms & Weight summary */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              {/* Term Pills */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl w-fit">
+                {terms.map(term => (
+                  <button
+                    key={term}
+                    onClick={() => setSelectedTerm(term)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer border-none",
+                      selectedTerm === term
+                        ? "bg-white text-slate-900 shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 bg-transparent"
+                    )}
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+
+              {/* Term Weight Status Pill */}
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <div className={cn(
+                  "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5",
+                  currentTotalWeight === 100 
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                    : currentTotalWeight > 100 
+                    ? "bg-rose-50 text-rose-700 border-rose-200" 
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                )}>
+                  <Scale className="w-3.5 h-3.5" />
+                  <span>Term Criteria Weight:</span>
+                  <span className="font-mono font-extrabold">{currentTotalWeight}% / 100%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Row: Horizontal Subject Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Subjects:</span>
+              
+              {allAvailableSubjects.map(code => {
+                const isTaught = taughtSubjects.includes(code);
+                const isSelected = selectedSubjectCode === code;
+
+                return (
+                  <button
+                    key={code}
+                    onClick={() => setSelectedSubjectCode(code)}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer border",
+                      isSelected
+                        ? "bg-[#D8232A] text-white border-[#D8232A] shadow-xs"
+                        : isTaught
+                        ? "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80"
+                        : "bg-slate-50/50 hover:bg-slate-100/60 text-slate-400 border-slate-200/50"
+                    )}
+                  >
+                    {!isTaught && <Lock className={cn("w-3 h-3", isSelected ? "text-white/80" : "text-slate-400")} />}
+                    <span>{code}</span>
+                  </button>
+                );
+              })}
+
+              {allAvailableSubjects.length === 0 && (
+                <span className="text-xs text-slate-400 italic">No subjects configured for this section</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Main View Render: Master Sheet vs Subject Gradebook */}
+        {selectedSubjectCode === 'MASTER_SHEET' ? (
+          
+          /* ========================================================================= */
+          /* MASTER SHEET / GWA MATRIX OVERVIEW                                       */
+          /* ========================================================================= */
+          <div className="space-y-4">
+            
+            {/* Quick KPI Overview Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center font-bold shrink-0 border border-red-100/50">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Report Type</p>
+                  <p className="text-lg sm:text-xl font-black text-slate-900">Master GWA</p>
+                  <p className="text-[10.5px] font-semibold text-slate-400">DepEd Summary Matrix</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 border border-blue-100/50">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Learners Ranked</p>
+                  <p className="text-xl sm:text-2xl font-black text-blue-700">{filteredEnrolled.length}</p>
+                  <p className="text-[10.5px] font-semibold text-blue-600">Active classroom roster</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0 border border-emerald-100/50">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Class Section</p>
+                  <p className="text-base sm:text-lg font-black text-slate-900 truncate max-w-[150px]">{currentSectionName || currentGradeLevel || 'N/A'}</p>
+                  <p className="text-[10.5px] font-semibold text-emerald-600 truncate">{currentGradeLevel}</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200/70 p-4.5 shadow-xs flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 border border-indigo-100/50">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Grading Terms</p>
+                  <p className="text-xl sm:text-2xl font-black text-indigo-700">3 Terms</p>
+                  <p className="text-[10.5px] font-semibold text-slate-400">Term 1 • Term 2 • Finals</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Master Sheet Table Container */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+              
+              {/* Search Header */}
+              <div className="p-4 bg-slate-50/50 border-b border-slate-200/70 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 sm:max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search student by name or LRN..."
+                    className="pl-9 h-10 rounded-xl bg-white border-slate-200/80 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <span className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-[#D8232A]/10 text-[#D8232A] uppercase tracking-wider border border-[#D8232A]/20 select-none">
+                    Total: {enrolled.length} Learners
+                  </span>
+                </div>
+              </div>
+
+              {/* Matrix Table */}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-slate-50/90 border-b border-slate-200/70 select-none">
+                    <TableRow className="hover:bg-transparent border-none h-11">
+                      <TableHead className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pl-4">#</TableHead>
+                      <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500 min-w-[220px] sticky left-0 bg-slate-50/90 z-20 shadow-[1px_0_0_0_#e2e8f0]">
+                        Learner Name
+                      </TableHead>
+                      {allAvailableSubjects.map(code => (
+                        <TableHead key={code} className="text-center font-bold text-[10px] uppercase tracking-wider text-slate-600 min-w-[90px]" title={code}>
+                          <div className="truncate px-1">{code}</div>
+                        </TableHead>
+                      ))}
+                      <TableHead className="font-extrabold text-[10px] uppercase tracking-wider text-[#D8232A] text-center pr-6 min-w-[100px] border-l border-slate-200 sticky right-0 bg-slate-50/90 z-20 shadow-[-1px_0_0_0_#e2e8f0]">
+                        General Avg (GWA)
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedEnrolled.map((s, idx) => {
+                      const gradeKey = currentGradeLevel ? currentGradeLevel.replace(/Grade /i, 'Grade ') : 'Grade 6';
+                      let validSubjects = 0;
+                      let totalGWA = 0;
+
+                      const subjGrades = allAvailableSubjects.map(code => {
+                        const subjectData = (s.grades as Record<string, any>)?.[gradeKey]?.[code] || {};
+                        const finalOverride = subjectData.finalGradeOverride;
+
+                        let subjectFinal: number | null = null;
+
+                        if (finalOverride !== undefined && finalOverride !== null) {
+                          subjectFinal = Number(finalOverride);
+                        } else {
+                          const termGrades = terms.map(term => {
+                            const cols = gradeConfigurations.filter(c => c.subjectCode === code && c.term === term && c.type !== 'submission');
+                            if (cols.length === 0) return null;
+                            let termTotal = 0;
+                            let hasGrade = false;
+                            const termData = subjectData[term] || {};
+                            cols.forEach(col => {
+                              const val = termData[col.id];
+                              if (val !== undefined && val !== '') {
+                                termTotal += (parseFloat(val) * (col.weight / 100));
+                                hasGrade = true;
+                              }
+                            });
+                            return hasGrade ? termTotal : null;
+                          }).filter(v => v !== null) as number[];
+
+                          if (termGrades.length > 0) {
+                            subjectFinal = termGrades.reduce((a, b) => a + b, 0) / termGrades.length;
+                          }
+                        }
+
+                        if (subjectFinal !== null) {
+                          totalGWA += subjectFinal;
+                          validSubjects++;
+                        }
+
+                        return { code, value: subjectFinal, isOverride: finalOverride !== undefined && finalOverride !== null };
+                      });
+
+                      const gwa = validSubjects > 0 ? (totalGWA / validSubjects).toFixed(2) : '—';
+                      const isFailing = validSubjects > 0 && (totalGWA / validSubjects) < 75;
+
+                      return (
+                        <TableRow key={s.id} className={cn("border-b border-slate-100 hover:bg-slate-50/60 transition-colors h-14", isFailing && "bg-rose-50/20")}>
+                          <TableCell className="text-center font-bold text-slate-400 text-xs pl-4">
+                            {(currentPage - 1) * rowsPerPage + idx + 1}
+                          </TableCell>
+                          <TableCell className="sticky left-0 bg-white z-20 shadow-[1px_0_0_0_#e2e8f0] py-3">
+                            <p className={cn("font-bold text-xs sm:text-sm", isFailing ? "text-rose-700" : "text-slate-900")}>
+                              {formatStudentName(s.firstName, s.lastName)}
+                            </p>
+                            <p className="text-[10.5px] font-mono text-slate-400">{s.lrn || 'No LRN'}</p>
+                          </TableCell>
+                          {subjGrades.map(sg => (
+                            <TableCell key={sg.code} className="text-center font-mono text-xs font-semibold py-3">
+                              {sg.value !== null ? (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-md font-bold",
+                                  sg.value < 75 ? "bg-rose-50 text-rose-700" : "text-slate-800"
+                                )}>
+                                  {Number(sg.value).toFixed(1)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-center pr-6 py-3 font-mono font-black text-sm border-l border-slate-200 sticky right-0 bg-slate-50/80 z-20 shadow-[-1px_0_0_0_#e2e8f0]">
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-lg",
+                              gwa !== '—' && Number(gwa) >= 75 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                              gwa !== '—' ? "bg-rose-50 text-rose-700 border border-rose-200" : "text-slate-400"
+                            )}>
+                              {gwa}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                  <span className="text-xs text-slate-400 font-bold">Page {currentPage} of {totalPages}</span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="border-slate-200 text-slate-600 bg-white font-bold rounded-xl text-xs h-8 px-3"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="border-slate-200 text-slate-600 bg-white font-bold rounded-xl text-xs h-8 px-3"
+                    >
+                      Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+
+          /* ========================================================================= */
+          /* SUBJECT GRADEBOOK MATRIX                                                  */
+          /* ========================================================================= */
+          <div className="space-y-4">
+            
+            {/* Table Container */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+              
+              {/* Action Toolbar */}
+              <div className="p-4 bg-slate-50/50 border-b border-slate-200/70 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+                  <div className="relative flex-1 sm:max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search student by name or LRN..."
+                      className="pl-9 h-10 rounded-xl bg-white border-slate-200/80 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-red-500/20 focus:border-[#D8232A] transition-all"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={cn(
+                      "text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full",
+                      submissionStatus === 'locked' ? 'bg-red-50 text-[#D8232A] border-red-200' :
+                      submissionStatus === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      'bg-slate-100 text-slate-600 border-slate-200'
+                    )}>
+                      {submissionStatus === 'locked' ? 'Locked (Approved)' : submissionStatus === 'pending' ? 'Pending Approval' : 'Draft Mode'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Right Action Buttons */}
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   {isAuthorized && (
                     <Button
                       size="sm"
                       onClick={() => setIsAddColumnOpen(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-8 border-none"
+                      className="h-10 px-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all border-none"
                     >
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Create Column
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Criteria</span>
                     </Button>
                   )}
 
@@ -842,27 +1120,27 @@ export function GradesView() {
                       size="sm"
                       onClick={async () => {
                         if (!saved) {
-                          alert("Please save your changes first.");
+                          toast.error("Please save your changes before submitting.");
                           return;
                         }
                         if (currentTotalWeight !== 100) {
-                          alert("Submission is only allowed when overall column weight sum equals exactly 100%.");
+                          toast.error("Overall criteria weight must equal exactly 100% before submission.");
                           return;
                         }
-                        if (window.confirm("Submit grades for lock and advisor approval? You will lose editing access unless unlocked.")) {
+                        if (window.confirm("Submit grades for lock and advisor approval? You will lose editing access until unlocked.")) {
                           const loadingToast = toast.loading("Submitting grades...");
                           try {
                             await submitGradesToAdviser(selectedSubjectCode, selectedTerm);
-                            toast.success("Grades successfully submitted to adviser!", { id: loadingToast });
+                            toast.success("Grades submitted to adviser!", { id: loadingToast });
                           } catch (error) {
-                            console.error(error);
-                            toast.error("Failed to submit grades. Try again.", { id: loadingToast });
+                            toast.error("Failed to submit grades.", { id: loadingToast });
                           }
                         }
                       }}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs h-8 border-none"
+                      className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all border-none"
                     >
-                      <Send className="w-3.5 h-3.5 mr-1" /> Submit Grades
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Submit Grades</span>
                     </Button>
                   )}
 
@@ -870,27 +1148,28 @@ export function GradesView() {
                     <Button
                       size="sm"
                       onClick={async () => {
-                        if (window.confirm("Recall submission to edit grades again?")) {
+                        if (window.confirm("Recall draft submission to edit scores again?")) {
                           try {
                             await requestUnlockGrades(selectedSubjectCode, selectedTerm);
-                            toast.success("Submission recalled. Editing mode is active.");
+                            toast.success("Draft recalled. You may now edit.");
                           } catch (error) {
-                            toast.error("Failed to recall submission.");
+                            toast.error("Failed to recall draft.");
                           }
                         }
                       }}
-                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs h-8 border-none"
+                      className="h-10 px-3.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all border-none"
                     >
-                      <LockOpen className="w-3.5 h-3.5 mr-1" /> Recall Draft
+                      <LockOpen className="w-3.5 h-3.5" />
+                      <span>Recall Draft</span>
                     </Button>
                   )}
 
-                  {isAdvisorForCurrentSection && submissionStatus === 'pending' && (
+                  {isAdvisor && submissionStatus === 'pending' && (
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         onClick={async () => {
-                          if (window.confirm("Approve and Lock these grades? Subject teacher will lose editing access permanently.")) {
+                          if (window.confirm("Approve and Lock these grades? Subject teacher will lose editing access.")) {
                             const loadingToast = toast.loading("Locking grades...");
                             try {
                               const submissionCol = activeColumns.find(c => c.type === 'submission');
@@ -903,20 +1182,21 @@ export function GradesView() {
                             }
                           }
                         }}
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs h-8 border-none"
+                        className="h-10 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all border-none"
                       >
-                        <Lock className="w-3.5 h-3.5 mr-1" /> Approve & Lock
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Approve & Lock</span>
                       </Button>
                       <Button
                         size="sm"
                         onClick={async () => {
-                          if (window.confirm("Unlock and reject these grades to send back to subject teacher?")) {
+                          if (window.confirm("Unlock/reject grades back to subject teacher for revisions?")) {
                             const loadingToast = toast.loading("Unlocking grades...");
                             try {
                               const submissionCol = activeColumns.find(c => c.type === 'submission');
                               if (submissionCol) {
                                 await updateDoc(doc(db, 'gradeConfigurations', submissionCol.id), { status: 'draft' });
-                                toast.success("Grades unlocked!", { id: loadingToast });
+                                toast.success("Grades unlocked for teacher revisions.", { id: loadingToast });
                               }
                             } catch (e) {
                               toast.error("Failed to unlock.", { id: loadingToast });
@@ -924,18 +1204,18 @@ export function GradesView() {
                           }
                         }}
                         variant="outline"
-                        className="border-slate-200 text-slate-600 bg-white font-bold rounded-xl text-xs h-8"
+                        className="h-10 px-3.5 border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-bold rounded-xl text-xs"
                       >
-                        Unlock/Reject
+                        <span>Reject/Unlock</span>
                       </Button>
                     </div>
                   )}
 
-                  {isAdvisorForCurrentSection && submissionStatus === 'locked' && (
+                  {isAdvisor && submissionStatus === 'locked' && (
                     <Button
                       size="sm"
                       onClick={async () => {
-                        if (window.confirm("Unlock locked grades for edits? Subject teacher will gain edit permissions.")) {
+                        if (window.confirm("Unlock locked grades? Subject teacher will regain edit permissions.")) {
                           const loadingToast = toast.loading("Unlocking grades...");
                           try {
                             const submissionCol = activeColumns.find(c => c.type === 'submission');
@@ -948,9 +1228,10 @@ export function GradesView() {
                           }
                         }
                       }}
-                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs h-8 border-none"
+                      className="h-10 px-3.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all border-none"
                     >
-                      <LockOpen className="w-3.5 h-3.5 mr-1" /> Unlock Grades
+                      <LockOpen className="w-3.5 h-3.5" />
+                      <span>Unlock Grades</span>
                     </Button>
                   )}
                 </div>
@@ -959,17 +1240,20 @@ export function GradesView() {
               {/* Data Table */}
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="bg-slate-50 text-slate-500 font-bold text-xs uppercase tracking-wider">
-                    <TableRow>
-                      <TableHead className="font-bold py-3 pl-6 min-w-[200px] sticky left-0 bg-slate-50 z-20 shadow-[1px_0_0_0_#e2e8f0]">Student Name</TableHead>
+                  <TableHeader className="bg-slate-50/90 border-b border-slate-200/70 select-none">
+                    <TableRow className="hover:bg-transparent border-none h-12">
+                      <TableHead className="w-12 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pl-4">#</TableHead>
+                      <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500 min-w-[220px] sticky left-0 bg-slate-50/90 z-20 shadow-[1px_0_0_0_#e2e8f0]">
+                        Learner Name
+                      </TableHead>
                       {gradeConfigs.map(col => (
-                        <TableHead key={col.id} className="py-3 text-center min-w-[120px] font-bold relative group/th">
+                        <TableHead key={col.id} className="py-3 text-center min-w-[130px] font-bold relative group/th">
                           <div className="flex flex-col items-center">
-                            <span className="truncate max-w-[120px] block" title={col.name}>{col.name}</span>
-                            <span className="text-[10px] text-slate-400 font-semibold mt-0.5">({col.weight}%)</span>
+                            <span className="truncate max-w-[120px] font-bold text-slate-800 text-xs block" title={col.name}>{col.name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono font-semibold">({col.weight}%)</span>
                           </div>
                           {isAuthorized && (
-                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden group-hover/th:flex items-center gap-1 bg-slate-50 px-1 py-0.5 rounded border border-slate-200 shadow-2xs">
+                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden group-hover/th:flex items-center gap-1 bg-white px-1.5 py-1 rounded-lg border border-slate-200 shadow-xs">
                               <button onClick={() => openEditModal(col)} className="text-slate-500 hover:text-blue-600 p-0.5 border-none bg-transparent cursor-pointer">
                                 <Edit3 className="w-3 h-3" />
                               </button>
@@ -988,33 +1272,39 @@ export function GradesView() {
                           )}
                         </TableHead>
                       ))}
-                      <TableHead className="font-bold text-[#D8232A] py-3 text-center pr-6 min-w-[90px] border-l border-slate-100 sticky right-0 bg-slate-50 z-20 shadow-[-1px_0_0_0_#e2e8f0]">Term Grade</TableHead>
+                      <TableHead className="font-extrabold text-[10px] uppercase tracking-wider text-[#D8232A] text-center pr-6 min-w-[110px] border-l border-slate-200 sticky right-0 bg-slate-50/90 z-20 shadow-[-1px_0_0_0_#e2e8f0]">
+                        Term Grade
+                      </TableHead>
                     </TableRow>
+
+                    {/* Auto-fill Row */}
                     {isAuthorized && gradeConfigs.length > 0 && (
-                      <TableRow className="bg-slate-50/40 border-b border-slate-150">
-                        <TableCell className="pl-6 py-2.5 font-bold text-xs text-slate-400 uppercase tracking-wider sticky left-0 bg-[#fafafa] z-20 shadow-[1px_0_0_0_#e2e8f0]">Auto Fill Column</TableCell>
+                      <TableRow className="bg-slate-50/60 border-b border-slate-200/80">
+                        <TableCell className="text-center font-bold text-[10px] text-slate-400 pl-4">⚡</TableCell>
+                        <TableCell className="pl-6 py-2 font-bold text-[11px] text-slate-500 uppercase tracking-wider sticky left-0 bg-slate-50/60 z-20 shadow-[1px_0_0_0_#e2e8f0]">
+                          Auto-Fill Column
+                        </TableCell>
                         {gradeConfigs.map(col => (
-                          <TableCell key={col.id} className="py-2.5 px-3">
+                          <TableCell key={col.id} className="py-2 px-2.5">
                             <Input
                               type="number"
-                              placeholder="Fill All"
+                              placeholder="Fill all"
                               disabled={col.isAttendance}
                               onChange={(e) => handleAutoFill(col.id, e.target.value)}
-                              className="h-8 text-xs font-mono font-semibold text-center border-slate-200 rounded-lg bg-white"
+                              className="h-7.5 text-xs font-mono font-semibold text-center border-slate-200 rounded-lg bg-white shadow-2xs focus:ring-1 focus:ring-blue-500"
                               max="100"
                               min="0"
                             />
                           </TableCell>
                         ))}
-                        <TableCell className="py-2.5 border-l border-slate-150 bg-[#fafafa] sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0]" />
+                        <TableCell className="border-l border-slate-200 bg-slate-50/60 sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0]" />
                       </TableRow>
                     )}
                   </TableHeader>
                   <TableBody>
-                    {paginatedEnrolled.map(s => {
+                    {paginatedEnrolled.map((s, idx) => {
                       const studentGrades = localGrades[s.id] || {};
 
-                      // Calculate dynamic live term total average
                       let termTotal = 0;
                       let hasGrade = false;
                       gradeConfigs.forEach(col => {
@@ -1027,56 +1317,64 @@ export function GradesView() {
 
                       const computedTermGrade = hasGrade ? termTotal : null;
                       const isFailing = computedTermGrade !== null && computedTermGrade < 75;
-
-                      const isTransferredIn = s.status === 'Transferred In';
-                      const isInactiveStudent = s.status === 'Transferred Out' || s.status === 'Dropped' || s.status === 'Transferred';
+                      const isInactive = s.status === 'Transferred Out' || s.status === 'Dropped' || s.status === 'Transferred';
 
                       return (
-                        <TableRow key={s.id} className={`hover:bg-slate-50/80 transition-colors border-b border-slate-100 ${isFailing ? 'bg-red-50/10' : 'bg-white'}`}>
-                          <TableCell className={`pl-6 py-3 sticky left-0 z-20 shadow-[1px_0_0_0_#e2e8f0] ${isFailing ? 'bg-red-50/80' : 'bg-white'}`}>
+                        <TableRow key={s.id} className={cn("border-b border-slate-100 hover:bg-slate-50/60 transition-colors h-14", isFailing && "bg-rose-50/15")}>
+                          <TableCell className="text-center font-bold text-slate-400 text-xs pl-4">
+                            {(currentPage - 1) * rowsPerPage + idx + 1}
+                          </TableCell>
+                          <TableCell className="sticky left-0 bg-white z-20 shadow-[1px_0_0_0_#e2e8f0] py-3">
                             <div className="flex items-center gap-2">
-                              <span className={`font-bold text-[13px] ${isFailing ? 'text-rose-700' : 'text-slate-800'} whitespace-nowrap`}>
+                              <p className={cn("font-bold text-xs sm:text-sm", isFailing ? "text-rose-700" : "text-slate-900")}>
                                 {formatStudentName(s.firstName, s.lastName)}
-                              </span>
-                              {isTransferredIn && (
-                                <Badge variant="outline" className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border-blue-200 uppercase tracking-wider shrink-0">
-                                  T/I
-                                </Badge>
-                              )}
-                              {isInactiveStudent && (
-                                <Badge variant="outline" className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border-slate-200 uppercase tracking-wider shrink-0">
-                                  {s.status === 'Dropped' ? 'DRP (Locked)' : 'T/O (Locked)'}
+                              </p>
+                              {isInactive && (
+                                <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-500 border-slate-200 uppercase">
+                                  {s.status === 'Dropped' ? 'DRP' : 'T/O'}
                                 </Badge>
                               )}
                             </div>
+                            <p className="text-[10.5px] font-mono text-slate-400">{s.lrn || 'No LRN'}</p>
                           </TableCell>
                           {gradeConfigs.map(col => (
-                            <TableCell key={col.id} className="py-2.5 px-3">
+                            <TableCell key={col.id} className="py-2 px-2.5 text-center">
                               <Input
                                 type="number"
                                 value={studentGrades[col.id] || ''}
-                                disabled={!isAuthorized || col.isAttendance || isInactiveStudent}
+                                disabled={!isAuthorized || col.isAttendance || isInactive}
                                 onChange={(e) => handleCellChange(s.id, col.id, e.target.value)}
                                 onBlur={() => {
                                   if (isAuthorized) handleBlur(s.id, col.id, studentGrades[col.id] || '');
                                 }}
-                                className={`h-8 font-mono text-xs font-semibold text-center rounded-lg border bg-white ${!isAuthorized ? 'border-slate-100 bg-slate-50 text-slate-500' : 'border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500'
-                                  }`}
+                                className={cn(
+                                  "h-8 font-mono text-xs font-bold text-center rounded-lg border shadow-2xs transition-all",
+                                  !isAuthorized 
+                                    ? "bg-slate-50 text-slate-400 border-slate-200/60 cursor-not-allowed" 
+                                    : "bg-white border-slate-200 focus:border-[#D8232A] focus:ring-2 focus:ring-[#D8232A]/15"
+                                )}
                                 max="100"
                                 min="0"
                               />
                             </TableCell>
                           ))}
-                          <TableCell className={`text-center pr-6 py-3 font-mono font-bold text-[13px] border-l border-slate-100 sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0] ${isFailing ? 'text-rose-750 bg-rose-50/80' : 'text-slate-700 bg-slate-50/40'}`}>
-                            {computedTermGrade !== null ? computedTermGrade.toFixed(1) : '—'}
+                          <TableCell className="text-center pr-6 py-3 font-mono font-black text-sm border-l border-slate-200 sticky right-0 bg-slate-50/80 z-20 shadow-[-1px_0_0_0_#e2e8f0]">
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-lg",
+                              computedTermGrade !== null && computedTermGrade >= 75 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                              computedTermGrade !== null ? "bg-rose-50 text-rose-700 border border-rose-200" : "text-slate-400"
+                            )}>
+                              {computedTermGrade !== null ? computedTermGrade.toFixed(1) : '—'}
+                            </span>
                           </TableCell>
                         </TableRow>
                       );
                     })}
-                    {enrolled.length === 0 && (
+
+                    {paginatedEnrolled.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={gradeConfigs.length + 2} className="text-center py-12 text-slate-400 font-medium">
-                          No students enrolled.
+                        <TableCell colSpan={gradeConfigs.length + 3} className="text-center py-16 text-slate-400 font-medium">
+                          No students found matching current filters.
                         </TableCell>
                       </TableRow>
                     )}
@@ -1084,9 +1382,9 @@ export function GradesView() {
                 </Table>
               </div>
 
-              {/* Roster Pages Pagination Footer */}
+              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
                   <span className="text-xs text-slate-400 font-bold">Page {currentPage} of {totalPages}</span>
                   <div className="flex gap-2">
                     <Button
@@ -1094,93 +1392,102 @@ export function GradesView() {
                       size="sm"
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="border-slate-200 text-slate-600 bg-white font-semibold rounded-xl text-xs h-8 px-2.5"
+                      className="border-slate-200 text-slate-600 bg-white font-bold rounded-xl text-xs h-8 px-3"
                     >
-                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                      <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Previous
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="border-slate-200 text-slate-600 bg-white font-semibold rounded-xl text-xs h-8 px-2.5"
+                      className="border-slate-200 text-slate-600 bg-white font-bold rounded-xl text-xs h-8 px-3"
                     >
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
+                      Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
                     </Button>
                   </div>
                 </div>
               )}
-            </Card>
-          )}
-
-          {/* Floated Auto-save confirmation indicator */}
-          {!saved && selectedSubjectCode !== 'MASTER_SHEET' && isAuthorized && (
-            <div className="mt-6 flex justify-end gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (window.confirm("Discard unsaved changes?")) {
-                    const gradeKey = currentGradeLevel ? currentGradeLevel.replace(/Grade /i, 'Grade ') : 'Grade 6';
-                    const gradesMap: Record<string, Record<string, string>> = {};
-                    enrolled.forEach(s => {
-                      const studentGrades = (s.grades as Record<string, any>)?.[gradeKey]?.[selectedSubjectCode]?.[selectedTerm] || {};
-                      gradesMap[s.id] = {};
-                      gradeConfigs.forEach(col => {
-                        gradesMap[s.id][col.id] = (studentGrades[col.id] !== undefined && studentGrades[col.id] !== null) ? studentGrades[col.id].toString() : '';
-                      });
-                    });
-                    setLocalGrades(gradesMap);
-                    setSaved(true);
-                  }
-                }}
-                disabled={isSaving}
-                className="border-slate-200 text-slate-600 bg-white font-bold rounded-xl text-xs h-9 px-4"
-              >
-                Discard Changes
-              </Button>
-              <Button
-                onClick={handleSaveGrades}
-                disabled={isSaving}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs h-9 px-5 border-none shadow-sm"
-              >
-                {isSaving ? "Saving Grades..." : "Save Grade Changes"}
-              </Button>
             </div>
-          )}
-        </div>
+
+            {/* Bottom Save Bar (When Unsaved Changes Exist) */}
+            {!saved && isAuthorized && (
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-700">
+                  <AlertCircle className="w-4 h-4 text-amber-500 animate-pulse" />
+                  <span>You have unsaved grade entries. Save to persist changes across sessions.</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (window.confirm("Discard unsaved changes?")) {
+                        const gradeKey = currentGradeLevel ? currentGradeLevel.replace(/Grade /i, 'Grade ') : 'Grade 6';
+                        const gradesMap: Record<string, Record<string, string>> = {};
+                        enrolled.forEach(s => {
+                          const studentGrades = (s.grades as Record<string, any>)?.[gradeKey]?.[selectedSubjectCode]?.[selectedTerm] || {};
+                          gradesMap[s.id] = {};
+                          gradeConfigs.forEach(col => {
+                            gradesMap[s.id][col.id] = (studentGrades[col.id] !== undefined && studentGrades[col.id] !== null) ? studentGrades[col.id].toString() : '';
+                          });
+                        });
+                        setLocalGrades(gradesMap);
+                        setSaved(true);
+                      }
+                    }}
+                    disabled={isSaving}
+                    className="border-slate-200 text-slate-600 bg-white font-bold rounded-xl text-xs h-9 px-3.5"
+                  >
+                    Discard
+                  </Button>
+                  <Button
+                    onClick={handleSaveGrades}
+                    disabled={isSaving}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs h-9 px-4.5 border-none shadow-xs active:scale-95 transition-all"
+                  >
+                    {isSaving ? "Saving..." : "Save Grades"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* dialog modals */}
+      {/* ========================================================================= */}
+      {/* DIALOG: CREATE GRADING COLUMN                                             */}
+      {/* ========================================================================= */}
       <Dialog open={isAddColumnOpen} onOpenChange={setIsAddColumnOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6">
+        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-white shadow-2xl border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-800">Create Grading Column</DialogTitle>
+            <DialogTitle className="text-base font-extrabold text-slate-900">Create Grading Criteria</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-600">Column Name (e.g., Written Work, Quiz 1)</Label>
+          <div className="space-y-4 py-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Criteria Name (e.g. Written Work, Performance Task)</Label>
               <Input
-                placeholder="Column Name"
+                placeholder="e.g. Written Work 1"
                 value={newColName}
                 onChange={e => setNewColName(e.target.value)}
-                className="h-9 text-xs rounded-xl border-slate-200"
+                className="h-10 text-xs rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-[#D8232A]/15 focus:border-[#D8232A]"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-600">Weight Percentage (%)</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Weight Percentage (%)</Label>
               <Input
                 type="number"
-                placeholder="40"
+                placeholder="e.g. 40"
                 value={newColWeight}
                 onChange={e => setNewColWeight(e.target.value)}
                 max={remainingWeight}
                 min="1"
-                className="h-9 text-xs rounded-xl border-slate-200"
+                className="h-10 text-xs rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-[#D8232A]/15 focus:border-[#D8232A]"
               />
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">Remaining weight for this term: {remainingWeight}%</p>
+              <p className="text-[10px] text-slate-400 font-semibold">Remaining weight available for this term: <span className="text-slate-700 font-bold">{remainingWeight}%</span></p>
             </div>
 
-            <div className="flex items-center gap-2 pt-2">
+            <div className="flex items-center gap-2.5 pt-2">
               <input
                 type="checkbox"
                 id="isAttendance"
@@ -1192,16 +1499,16 @@ export function GradesView() {
                     setAttEndDate('');
                   }
                 }}
-                className="w-4 h-4 text-[#D8232A] border-slate-350 rounded focus:ring-[#D8232A]/20"
+                className="w-4 h-4 text-[#D8232A] rounded border-slate-300 focus:ring-[#D8232A]/20 cursor-pointer"
               />
               <Label htmlFor="isAttendance" className="cursor-pointer select-none font-bold text-slate-700 text-xs">
-                This is an Attendance-based column
+                Auto-calculate from Attendance Records
               </Label>
             </div>
 
             {isAttendance && (
-              <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-200/80 rounded-xl animate-in fade-in-50 duration-200">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-xl animate-in fade-in-50 duration-200">
+                <div className="space-y-1">
                   <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Start Date</Label>
                   <Input
                     type="date"
@@ -1210,7 +1517,7 @@ export function GradesView() {
                     className="h-8 text-xs font-medium bg-white rounded-lg border-slate-200"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">End Date</Label>
                   <Input
                     type="date"
@@ -1222,36 +1529,43 @@ export function GradesView() {
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsAddColumnOpen(false)} className="rounded-xl text-xs h-9 border-slate-250 text-slate-500">Cancel</Button>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={() => setIsAddColumnOpen(false)} className="rounded-xl text-xs h-9 border-slate-200 text-slate-600">
+              Cancel
+            </Button>
             <Button
               onClick={handleAddColumn}
               disabled={!newColName.trim() || !newColWeight || isNaN(parseFloat(newColWeight)) || parseFloat(newColWeight) > remainingWeight}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-9 border-none"
+              className="bg-[#D8232A] hover:bg-[#b91c22] text-white font-bold rounded-xl text-xs h-9 border-none shadow-xs"
             >
-              Create Column
+              Create Criteria
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* ========================================================================= */}
+      {/* DIALOG: EDIT GRADING COLUMN                                               */}
+      {/* ========================================================================= */}
       <Dialog open={!!editingColumnId} onOpenChange={(open) => !open && setEditingColumnId(null)}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6">
+        <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-white shadow-2xl border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-800">Edit Grading Column</DialogTitle>
+            <DialogTitle className="text-base font-extrabold text-slate-900">Edit Grading Criteria</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-600">Column Name (e.g., Written Work, Quiz 1)</Label>
+          <div className="space-y-4 py-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Criteria Name</Label>
               <Input
                 placeholder="Name"
                 value={editColName}
                 onChange={e => setEditColName(e.target.value)}
-                className="h-9 text-xs rounded-xl border-slate-200"
+                className="h-10 text-xs rounded-xl border-slate-200 bg-white"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-600">Weight Percentage (%)</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Weight Percentage (%)</Label>
               <Input
                 type="number"
                 placeholder="40"
@@ -1259,14 +1573,13 @@ export function GradesView() {
                 onChange={e => setEditColWeight(e.target.value)}
                 max={remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}
                 min="1"
-                className="h-9 text-xs rounded-xl border-slate-200"
+                className="h-10 text-xs rounded-xl border-slate-200 bg-white"
               />
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">Remaining weight for this term: {remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}%</p>
             </div>
 
             {editColIsAttendance && (
-              <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-200/80 rounded-xl animate-in fade-in-50 duration-200">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-xl animate-in fade-in-50 duration-200">
+                <div className="space-y-1">
                   <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Start Date</Label>
                   <Input
                     type="date"
@@ -1275,7 +1588,7 @@ export function GradesView() {
                     className="h-8 text-xs font-medium bg-white rounded-lg border-slate-200"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">End Date</Label>
                   <Input
                     type="date"
@@ -1287,12 +1600,15 @@ export function GradesView() {
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingColumnId(null)} className="rounded-xl text-xs h-9 border-slate-250 text-slate-500">Cancel</Button>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={() => setEditingColumnId(null)} className="rounded-xl text-xs h-9 border-slate-200 text-slate-600">
+              Cancel
+            </Button>
             <Button
               onClick={handleEditColumn}
-              disabled={!editColName.trim() || !editColWeight || isNaN(parseFloat(editColWeight)) || parseFloat(editColWeight) > remainingWeight + (gradeConfigurations.find(c => c.id === editingColumnId)?.weight || 0)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs h-9 border-none"
+              disabled={!editColName.trim() || !editColWeight || isNaN(parseFloat(editColWeight))}
+              className="bg-[#D8232A] hover:bg-[#b91c22] text-white font-bold rounded-xl text-xs h-9 border-none shadow-xs"
             >
               Save Changes
             </Button>

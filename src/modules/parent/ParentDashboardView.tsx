@@ -720,8 +720,8 @@ export function ParentDashboardView({
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] relative overflow-x-hidden text-slate-900 font-sans">
-      {/* ── 1. HEADER SECTION ── */}
-      <header className="h-[72px] px-6 sm:px-8 border-b border-slate-200/80 bg-white sticky top-0 z-30 shadow-2xs flex items-center justify-between shrink-0">
+      {/* ── 1. DESKTOP HEADER SECTION (Hidden on mobile since ParentPortal provides mobile header) ── */}
+      <header className="hidden lg:flex h-[72px] px-6 sm:px-8 border-b border-slate-200/80 bg-white sticky top-0 z-30 shadow-2xs items-center justify-between shrink-0">
         <div className="flex items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D8232A] to-[#9E171D] text-white flex items-center justify-center shadow-md shadow-red-500/15 shrink-0">
@@ -732,11 +732,11 @@ export function ParentDashboardView({
                 <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">
                   Parent Homepage
                 </h1>
-                <Badge variant="outline" className="hidden sm:inline-flex bg-red-50 text-[#D8232A] border-red-200 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full">
+                <Badge variant="outline" className="bg-red-50 text-[#D8232A] border-red-200 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full">
                   S.Y. 2026–2027
                 </Badge>
               </div>
-              <p className="text-xs text-slate-500 font-medium leading-none mt-1 hidden md:block">
+              <p className="text-xs text-slate-500 font-medium leading-none mt-1">
                 Quick access to your children's records, academic progress, and school updates.
               </p>
             </div>
@@ -744,7 +744,7 @@ export function ParentDashboardView({
 
           <div className="flex items-center gap-3 shrink-0">
             {/* Live Clock / Date */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>{currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
               <span className="text-slate-300">|</span>
@@ -762,58 +762,44 @@ export function ParentDashboardView({
               <PlusCircle className="w-4 h-4" />
               <span>Register Student</span>
             </Button>
-
-            {/* Quick Profile Summary Badge */}
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              {typeof userData?.photoURL === 'string' && userData.photoURL.length > 0 ? (
-                <img src={userData.photoURL} alt="Avatar" className="w-8 h-8 rounded-full object-cover shadow-inner border border-slate-200" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shadow-inner">
-                  {parentFullName.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]">
-                  {parentFullName}
-                </span>
-                <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-tight">
-                  Parent / Guardian
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </header>
 
       {/* ── MAIN HOMEPAGE CONTAINER ── */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-[1600px] mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 max-w-[1600px] mx-auto w-full">
         
         {/* ── 2. CLEAN & PROFESSIONAL WELCOME CARD ── */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1 max-w-2xl">
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">
-              Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening'}, {String(parentFirstName)}! 👋
-            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">
+                Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening'}, {String(parentFirstName)}! 👋
+              </h2>
+              <Badge variant="outline" className="lg:hidden bg-red-50 text-[#D8232A] border-red-200 font-extrabold text-[9px] px-2 py-0.5 rounded-full">
+                S.Y. 2026–2027
+              </Badge>
+            </div>
             <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
               Quickly access your child's records, grades, attendance, and announcements.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
             <Button
               onClick={() => onNavigate('children')}
-              className="h-9 sm:h-10 px-4 rounded-xl bg-[#D8232A] hover:bg-[#b91c22] text-white text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-[#D8232A] hover:bg-[#b91c22] text-white text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer w-full sm:w-auto"
             >
               <Users className="w-4 h-4" />
-              <span>My Children</span>
+              <span>My Students</span>
             </Button>
             <Button
               onClick={() => onNavigate('requirements')}
               variant="outline"
-              className="h-9 sm:h-10 px-4 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer w-full sm:w-auto"
             >
               <FolderOpen className="w-4 h-4 text-slate-500" />
-              <span>Document Center</span>
+              <span>Documents</span>
             </Button>
           </div>
         </div>

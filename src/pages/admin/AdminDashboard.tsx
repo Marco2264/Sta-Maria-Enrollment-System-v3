@@ -259,8 +259,21 @@ const AdminSidebar: React.FC<AdminSidebarProps> = React.memo(({
       </div>
 
       {/* User Profile Bar at Bottom */}
-      <div className="h-[76px] border-t border-slate-200/80 px-3 flex items-center shrink-0 relative bg-white">
-        {showUserMenu && (
+      <div className="border-t border-slate-200/80 p-3 flex flex-col gap-2 shrink-0 relative bg-white">
+        {isMobile && (
+          <button
+            onClick={() => {
+              if (onCloseMobile) onCloseMobile();
+              onLogout();
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-all cursor-pointer border border-rose-100 shadow-2xs"
+          >
+            <LogOut className="w-4 h-4 text-rose-500" />
+            <span>Sign Out</span>
+          </button>
+        )}
+
+        {showUserMenu && !isMobile && (
           <div
             className={`absolute ${
               collapsed ? 'left-full ml-3 bottom-2 w-52' : 'bottom-20 left-3 right-3'
@@ -335,6 +348,7 @@ function AdminDashboardContent() {
   const { role, user, userData } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
 
   if (!setupComplete) {
     return <SetupWizard />;
@@ -476,11 +490,56 @@ function AdminDashboardContent() {
           <div className="flex items-center gap-2.5 font-bold text-sm text-slate-800">
             Admin Portal
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
             <NotificationBell onNavigate={setActiveView} />
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            <div
+              onClick={() => setMobileProfileOpen(!mobileProfileOpen)}
+              className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm cursor-pointer active:scale-95 transition-transform"
+            >
               {initials}
             </div>
+
+            {/* Mobile Profile Dropdown Popover */}
+            {mobileProfileOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
+                  onClick={() => setMobileProfileOpen(false)}
+                />
+                <div className="absolute right-0 top-11 w-56 bg-white rounded-2xl border border-slate-200/90 shadow-2xl p-2.5 z-50 animate-in fade-in-50 slide-in-from-top-2 duration-150 select-none space-y-1">
+                  <div className="px-2.5 py-2 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {userData ? `${(userData as any).firstName || ''} ${(userData as any).lastName || ''}`.trim() : 'Administrator'}
+                    </p>
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 truncate mt-0.5">
+                      System Administrator
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setActiveView('settings');
+                      setMobileProfileOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all cursor-pointer border-0 bg-transparent"
+                  >
+                    <Settings className="w-4 h-4 text-slate-400" />
+                    <span>Account Settings</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMobileProfileOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border-0 bg-transparent"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-500" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </header>
 

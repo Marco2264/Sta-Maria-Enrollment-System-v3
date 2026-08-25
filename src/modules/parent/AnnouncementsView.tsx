@@ -278,19 +278,40 @@ export function AnnouncementsView() {
         {/* ------------------------------------------------------------- */}
         {/* CENTER NEWS FEED (Mobile 12 cols, Desktop 6 cols) */}
         {/* ------------------------------------------------------------- */}
-        <div className="col-span-1 lg:col-span-6 space-y-4 max-w-xl mx-auto w-full">
+        <div className="col-span-1 lg:col-span-6 space-y-3.5 sm:space-y-4 max-w-xl mx-auto w-full">
+
+          {/* Mobile Search & Quick Bar (Visible on mobile & tablet) */}
+          <div className="lg:hidden bg-white rounded-2xl p-2.5 sm:p-3 border border-slate-200/80 shadow-2xs">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Search announcements, topics, authors..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 text-xs rounded-xl bg-slate-50 border-0 focus:bg-white transition-all w-full"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* 1. INSTAGRAM-STYLE STORIES / CHANNEL HIGHLIGHTS RAIL */}
-          <div className="bg-white rounded-3xl p-3 sm:p-4 border border-slate-200/80 shadow-2xs overflow-hidden">
-            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200/80 shadow-2xs overflow-hidden">
+            <div className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
               
               {/* Story 1: All */}
               <button
                 onClick={() => setActiveStoryFilter('all')}
-                className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer group"
+                className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer group border-0 bg-transparent"
               >
                 <div className={cn(
-                  "w-14 h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
                   activeStoryFilter === 'all'
                     ? "bg-gradient-to-tr from-amber-500 via-red-500 to-purple-600 ring-2 ring-red-200"
                     : "bg-slate-200"
@@ -301,7 +322,7 @@ export function AnnouncementsView() {
                     </div>
                   </div>
                 </div>
-                <span className={cn("text-[11px] font-bold truncate max-w-[64px]", activeStoryFilter === 'all' ? "text-[#D8232A] font-black" : "text-slate-600")}>
+                <span className={cn("text-[10px] sm:text-[11px] font-bold truncate max-w-[56px] sm:max-w-[64px]", activeStoryFilter === 'all' ? "text-[#D8232A] font-black" : "text-slate-600")}>
                   All Feed
                 </span>
               </button>
@@ -309,10 +330,10 @@ export function AnnouncementsView() {
               {/* Story 2: Emergency */}
               <button
                 onClick={() => setActiveStoryFilter('emergency')}
-                className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer group"
+                className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer group border-0 bg-transparent"
               >
                 <div className={cn(
-                  "w-14 h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
                   activeStoryFilter === 'emergency'
                     ? "bg-gradient-to-tr from-red-600 to-rose-400 ring-2 ring-rose-300"
                     : "bg-slate-200"
@@ -323,7 +344,7 @@ export function AnnouncementsView() {
                     </div>
                   </div>
                 </div>
-                <span className={cn("text-[11px] font-bold truncate max-w-[64px]", activeStoryFilter === 'emergency' ? "text-rose-600 font-black" : "text-slate-600")}>
+                <span className={cn("text-[10px] sm:text-[11px] font-bold truncate max-w-[56px] sm:max-w-[64px]", activeStoryFilter === 'emergency' ? "text-rose-600 font-black" : "text-slate-600")}>
                   Urgent
                 </span>
               </button>
@@ -331,10 +352,10 @@ export function AnnouncementsView() {
               {/* Story 3: School */}
               <button
                 onClick={() => setActiveStoryFilter('school')}
-                className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer group"
+                className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer group border-0 bg-transparent"
               >
                 <div className={cn(
-                  "w-14 h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
                   activeStoryFilter === 'school'
                     ? "bg-gradient-to-tr from-amber-400 to-orange-500 ring-2 ring-amber-300"
                     : "bg-slate-200"
@@ -345,7 +366,7 @@ export function AnnouncementsView() {
                     </div>
                   </div>
                 </div>
-                <span className={cn("text-[11px] font-bold truncate max-w-[64px]", activeStoryFilter === 'school' ? "text-amber-600 font-black" : "text-slate-600")}>
+                <span className={cn("text-[10px] sm:text-[11px] font-bold truncate max-w-[56px] sm:max-w-[64px]", activeStoryFilter === 'school' ? "text-amber-600 font-black" : "text-slate-600")}>
                   Bulletins
                 </span>
               </button>
@@ -353,10 +374,10 @@ export function AnnouncementsView() {
               {/* Story 4: Academic */}
               <button
                 onClick={() => setActiveStoryFilter('academic')}
-                className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer group"
+                className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer group border-0 bg-transparent"
               >
                 <div className={cn(
-                  "w-14 h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
                   activeStoryFilter === 'academic'
                     ? "bg-gradient-to-tr from-emerald-400 to-teal-500 ring-2 ring-emerald-300"
                     : "bg-slate-200"
@@ -367,7 +388,7 @@ export function AnnouncementsView() {
                     </div>
                   </div>
                 </div>
-                <span className={cn("text-[11px] font-bold truncate max-w-[64px]", activeStoryFilter === 'academic' ? "text-emerald-600 font-black" : "text-slate-600")}>
+                <span className={cn("text-[10px] sm:text-[11px] font-bold truncate max-w-[56px] sm:max-w-[64px]", activeStoryFilter === 'academic' ? "text-emerald-600 font-black" : "text-slate-600")}>
                   Academic
                 </span>
               </button>
@@ -375,10 +396,10 @@ export function AnnouncementsView() {
               {/* Story 5: Events */}
               <button
                 onClick={() => setActiveStoryFilter('events')}
-                className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer group"
+                className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer group border-0 bg-transparent"
               >
                 <div className={cn(
-                  "w-14 h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 transition-transform group-hover:scale-105",
                   activeStoryFilter === 'events'
                     ? "bg-gradient-to-tr from-purple-400 to-indigo-500 ring-2 ring-purple-300"
                     : "bg-slate-200"
@@ -389,7 +410,7 @@ export function AnnouncementsView() {
                     </div>
                   </div>
                 </div>
-                <span className={cn("text-[11px] font-bold truncate max-w-[64px]", activeStoryFilter === 'events' ? "text-purple-600 font-black" : "text-slate-600")}>
+                <span className={cn("text-[10px] sm:text-[11px] font-bold truncate max-w-[56px] sm:max-w-[64px]", activeStoryFilter === 'events' ? "text-purple-600 font-black" : "text-slate-600")}>
                   Events
                 </span>
               </button>
@@ -398,7 +419,7 @@ export function AnnouncementsView() {
           </div>
 
           {/* 2. SOCIAL POSTS FEED STREAM */}
-          <div className="space-y-4">
+          <div className="space-y-3.5 sm:space-y-4">
             {filteredFeed.map((post) => {
               const isLiked = !!likedPosts[post.id];
               const isAcknowledged = !!acknowledgedPosts[post.id];
@@ -408,7 +429,7 @@ export function AnnouncementsView() {
                 <div
                   key={post.id}
                   className={cn(
-                    "bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden transition-all",
+                    "bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden transition-all",
                     isEmergency && "border-rose-200 shadow-md shadow-rose-500/5",
                     post.isPinned && "ring-2 ring-amber-300"
                   )}
@@ -424,26 +445,26 @@ export function AnnouncementsView() {
                   )}
 
                   {/* Post Top Header */}
-                  <div className="p-4 sm:p-5 pb-3 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                  <div className="p-3.5 sm:p-5 pb-2.5 sm:pb-3 flex items-start justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                       <div className={cn(
-                        "w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-2xs",
+                        "w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-black text-xs sm:text-sm text-white shadow-2xs shrink-0",
                         isEmergency ? "bg-gradient-to-tr from-red-600 to-rose-500" : "bg-gradient-to-tr from-slate-800 to-slate-900"
                       )}>
                         {post.author.charAt(0)}
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-black text-sm text-slate-900">{post.author}</span>
-                          <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-                          <Badge className={cn("text-[9px] px-1.5 py-0 font-extrabold uppercase", isEmergency ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-600")}>
+                          <span className="font-black text-xs sm:text-sm text-slate-900 truncate">{post.author}</span>
+                          <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <Badge className={cn("text-[9px] px-1.5 py-0 font-extrabold uppercase shrink-0", isEmergency ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-600")}>
                             {post.category}
                           </Badge>
                         </div>
 
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium mt-0.5">
-                          <span>{post.date} {post.time ? `at ${post.time}` : ''}</span>
+                        <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 flex-wrap">
+                          <span>{post.date} {post.time ? `• ${post.time}` : ''}</span>
                           <span>•</span>
                           <span className="flex items-center gap-1 text-slate-500">
                             {post.targetType === 'all' ? (
@@ -462,11 +483,11 @@ export function AnnouncementsView() {
                   </div>
 
                   {/* Post Content Body */}
-                  <div className="px-4 sm:px-5 pb-3 space-y-2">
-                    <h3 className={cn("text-base font-black leading-snug", isEmergency ? "text-rose-900" : "text-slate-900")}>
+                  <div className="px-3.5 sm:px-5 pb-3 space-y-1.5 sm:space-y-2">
+                    <h3 className={cn("text-sm sm:text-base font-black leading-snug break-words", isEmergency ? "text-rose-900" : "text-slate-900")}>
                       {post.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words">
                       {post.content}
                     </p>
                   </div>

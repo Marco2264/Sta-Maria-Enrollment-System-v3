@@ -12,13 +12,17 @@ interface SelectContextType {
   triggerRef: React.MutableRefObject<HTMLButtonElement | null>;
   contentRef: React.MutableRefObject<HTMLDivElement | null>;
   placeholder?: string;
+  registerItem?: (value: string, label: React.ReactNode) => void;
+  itemLabels?: Record<string, React.ReactNode>;
 }
 
 const SelectContext = React.createContext<SelectContextType>({
   open: false,
   setOpen: () => { /* empty */ },
   triggerRef: { current: null } as React.MutableRefObject<HTMLButtonElement | null>,
-  contentRef: { current: null } as React.MutableRefObject<HTMLDivElement | null>
+  contentRef: { current: null } as React.MutableRefObject<HTMLDivElement | null>,
+  registerItem: () => {},
+  itemLabels: {}
 });
 
 interface SelectProps {
@@ -32,10 +36,18 @@ interface SelectProps {
 const Select: React.FC<SelectProps> = ({ children, value, defaultValue, onValueChange }) => {
   const [internalValue, setInternalValue] = React.useState(defaultValue ?? "");
   const [open, setOpen] = React.useState(false);
+  const [itemLabels, setItemLabels] = React.useState<Record<string, React.ReactNode>>({});
   const containerRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const controlledValue = value !== undefined ? value : internalValue;
+
+  const registerItem = React.useCallback((val: string, label: React.ReactNode) => {
+    setItemLabels((prev) => {
+      if (prev[val] === label) return prev;
+      return { ...prev, [val]: label };
+    });
+  }, []);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -62,7 +74,7 @@ const Select: React.FC<SelectProps> = ({ children, value, defaultValue, onValueC
   };
 
   return (
-    <SelectContext.Provider value={{ value: controlledValue, onValueChange: handleChange, open, setOpen, triggerRef, contentRef }}>
+    <SelectContext.Provider value={{ value: controlledValue, onValueChange: handleChange, open, setOpen, triggerRef, contentRef, registerItem, itemLabels }}>
       <div ref={containerRef} data-slot="select" className="relative inline-block w-full">
         {children}
       </div>
@@ -115,12 +127,12 @@ interface SelectValueProps {
 }
 
 const SelectValue: React.FC<SelectValueProps> = ({ placeholder, children }) => {
-  const { value } = React.useContext(SelectContext);
+  const { value, itemLabels } = React.useContext(SelectContext);
+  const displayContent = children ?? (value ? (itemLabels?.[value] ?? value) : placeholder);
   return (
     <span data-slot="select-value" data-placeholder={!value || undefined} className={cn(!value && "text-muted-foreground")}>
-      {children ? children : (value || placeholder)}
+      {displayContent}
     </span>);
-
 };
 
 type SelectContentProps = React.HTMLAttributes<HTMLDivElement>
@@ -206,8 +218,14 @@ interface SelectItemProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
   ({ className, children, value: itemValue, disabled, ...props }, ref) => {
-    const { value, onValueChange } = React.useContext(SelectContext);
+    const { value, onValueChange, registerItem } = React.useContext(SelectContext);
     const isSelected = value === itemValue;
+
+    React.useEffect(() => {
+      if (itemValue && children && registerItem) {
+        registerItem(itemValue, children);
+      }
+    }, [itemValue, children, registerItem]);
 
     return (
       <div

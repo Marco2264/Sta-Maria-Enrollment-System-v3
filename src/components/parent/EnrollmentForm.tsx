@@ -774,23 +774,23 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
       )}
 
       {/* HEADER CARD WITH PROGRESS BAR */}
-      <header className="px-6 sm:px-8 bg-white border-b border-slate-100 lg:h-28 flex items-center shrink-0">
-        <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="px-3.5 sm:px-8 py-3.5 sm:py-5 bg-white border-b border-slate-100 flex items-center shrink-0">
+        <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           {/* Title & Subtitle */}
           <div className="flex items-center gap-3 text-left">
             <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#D8232A] shrink-0">
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">Student Registration Form</h1>
-              <p className="text-xs text-slate-400 font-medium mt-0.5 leading-none">Sta. Maria Elementary School Learner Portal</p>
+              <h1 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">Student Registration Form</h1>
+              <p className="text-[11px] sm:text-xs text-slate-400 font-medium mt-0.5 leading-none">Sta. Maria Elementary School Learner Portal</p>
             </div>
           </div>
 
           {/* Progress & Step Info on the Right Side */}
-          <div className="flex flex-col sm:items-end gap-1.5 min-w-[280px]">
-            <div className="flex items-center justify-between sm:justify-end gap-2.5 text-[10px] font-extrabold tracking-wider uppercase">
-              <span className="px-2.5 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shrink-0">
+          <div className="flex flex-col sm:items-end gap-1.5 w-full sm:w-auto sm:min-w-[240px]">
+            <div className="flex items-center justify-between sm:justify-end gap-2 text-[10px] font-extrabold tracking-wider uppercase">
+              <span className="px-2 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shrink-0">
                 STEP {mainStep} OF 6
               </span>
               <span className="text-slate-400 hidden lg:inline">{[
@@ -801,7 +801,7 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
                 'SUPPORTING DOCUMENTS',
                 'REVIEW & SUBMISSION'
               ][mainStep - 1]}</span>
-              <span className="text-[#D8232A] bg-red-50 px-2.5 py-0.5 rounded-full border border-red-100 font-black shrink-0">
+              <span className="text-[#D8232A] bg-red-50 px-2 py-0.5 rounded-full border border-red-100 font-black shrink-0">
                 {Math.round((mainStep / 6) * 100)}%
               </span>
             </div>
@@ -816,8 +816,8 @@ export function EnrollmentForm({ onComplete, onNavigateToRequirements }: Enrollm
       </header>
 
       {/* ── MAIN SCROLLABLE CONTENT ── */}
-      <div className="flex-1 overflow-y-auto pt-10 pb-8 px-8 bg-white border-b border-slate-100">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto pt-4 sm:pt-8 pb-8 px-3.5 sm:px-8 bg-white border-b border-slate-100">
+        <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
           
           {/* Toast Alerts */}
           {errorMsg && (

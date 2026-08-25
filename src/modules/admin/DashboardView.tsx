@@ -366,21 +366,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
 
             {/* Notification Bell */}
             <NotificationBell onNavigate={onNavigate} />
-
-            {/* Quick Profile Summary Badge */}
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shadow-inner">
-                {adminName.charAt(0).toUpperCase()}
-              </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]">
-                  {adminName}
-                </span>
-                <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#D8232A] leading-tight">
-                  {currentUserRole || 'Administrator'}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </header>

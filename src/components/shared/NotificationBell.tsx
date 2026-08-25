@@ -160,13 +160,21 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           )}
         </button>
 
-        {/* Notification Dropdown Popover */}
+        {/* Mobile Backdrop Overlay for Dropdown */}
         {isOpen && (
-          <div className="absolute right-0 mt-2.5 w-[360px] sm:w-[400px] bg-white rounded-3xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-in fade-in-50 slide-in-from-top-2 duration-200 select-none">
+          <div
+            className="fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-40 sm:hidden"
+            onClick={() => setIsOpen(false)}
+          />
+        )}
+
+        {/* Notification Dropdown Popover (Mobile Responsive Position) */}
+        {isOpen && (
+          <div className="fixed inset-x-3.5 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2.5 w-auto sm:w-[400px] max-h-[calc(100vh-120px)] sm:max-h-[520px] bg-white rounded-3xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-in fade-in-50 slide-in-from-top-2 duration-200 select-none flex flex-col">
             {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
+            <div className="p-3.5 sm:p-5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center border border-red-100 shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D8232A] flex items-center justify-center border border-red-100 shadow-2xs shrink-0">
                   <Bell className="w-4 h-4" />
                 </div>
                 <div>
@@ -178,25 +186,33 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium leading-none mt-0.5">
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium leading-none mt-0.5">
                     School & class announcements
                   </p>
                 </div>
               </div>
 
-              {unreadCount > 0 && (
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    className="text-[10px] sm:text-[11px] font-bold text-[#D8232A] hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    <span>Mark all read</span>
+                  </button>
+                )}
                 <button
-                  onClick={handleMarkAllAsRead}
-                  className="text-[11px] font-bold text-[#D8232A] hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                  onClick={() => setIsOpen(false)}
+                  className="sm:hidden w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer border-0"
                 >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  Mark all read
+                  <X className="w-4 h-4" />
                 </button>
-              )}
+              </div>
             </div>
 
             {/* Notification Items List */}
-            <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 custom-scrollbar">
               {notifications.length === 0 ? (
                 <div className="py-12 px-6 text-center space-y-3">
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
@@ -215,7 +231,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                     key={notif.id}
                     onClick={() => handleItemClick(notif)}
                     className={cn(
-                      'p-4 transition-all duration-150 cursor-pointer flex gap-3 relative group',
+                      'p-3.5 sm:p-4 transition-all duration-150 cursor-pointer flex gap-3 relative group',
                       !notif.isRead
                         ? 'bg-red-50/40 hover:bg-red-50/70'
                         : 'bg-white hover:bg-slate-50'
@@ -250,7 +266,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
                       <h4
                         className={cn(
-                          'text-xs leading-snug line-clamp-1',
+                          'text-xs leading-snug line-clamp-1 break-words',
                           !notif.isRead
                             ? 'font-black text-slate-900'
                             : 'font-semibold text-slate-700'
@@ -259,7 +275,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                         {notif.title}
                       </h4>
 
-                      <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed break-words">
                         {notif.content}
                       </p>
 
@@ -285,7 +301,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             </div>
 
             {/* Dropdown Footer */}
-            <div className="p-3 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between">
+            <div className="p-3 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between shrink-0">
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -302,7 +318,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         )}
       </div>
 
-      {/* Redesigned School Announcement Detail Modal */}
+      {/* Redesigned School Announcement Detail Modal (Fully Responsive) */}
       {selectedAnnouncement && (
         <Dialog
           open={!!selectedAnnouncement}
@@ -310,13 +326,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             if (!open) setSelectedAnnouncement(null);
           }}
         >
-          <DialogContent className="max-w-xl sm:max-w-2xl p-0 overflow-hidden rounded-3xl border border-slate-200/90 shadow-2xl bg-white font-sans">
+          <DialogContent className="w-[92vw] sm:max-w-2xl max-h-[88vh] p-0 overflow-hidden rounded-3xl border border-slate-200/90 shadow-2xl bg-white font-sans flex flex-col">
             {/* Header Section */}
-            <div className="p-6 sm:p-7 border-b border-slate-100 bg-white relative">
+            <div className="p-4 sm:p-7 border-b border-slate-100 bg-white relative shrink-0">
               {/* Top Meta Row: Badge & Close Button */}
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-[#D8232A] border border-red-200/70 text-[11px] font-black uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-red-50 text-[#D8232A] border border-red-200/70 text-[10px] sm:text-[11px] font-black uppercase tracking-wider">
                     <Megaphone className="w-3.5 h-3.5" />
                     <span>Announcement</span>
                   </div>
@@ -324,7 +340,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                   <Badge
                     variant="outline"
                     className={cn(
-                      'text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border',
+                      'text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider px-2 sm:px-2.5 py-0.5 rounded-full border',
                       getCategoryBadgeClass(selectedAnnouncement.category)
                     )}
                   >
@@ -334,17 +350,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
               </div>
 
               {/* Prominent Announcement Title */}
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+              <h2 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-snug break-words">
                 {selectedAnnouncement.title}
               </h2>
 
               {/* Metadata Info Bar */}
-              <div className="flex flex-wrap items-center gap-y-2 gap-x-4 mt-3.5 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
+              <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 sm:gap-x-4 mt-2.5 sm:mt-3.5 pt-2.5 sm:pt-3 border-t border-slate-100 text-[11px] sm:text-xs text-slate-500 font-medium">
                 {/* Author */}
                 <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
-                  <User className="w-3.5 h-3.5 text-[#D8232A]" />
-                  <span>
-                    Published by: <strong className="text-slate-900">{selectedAnnouncement.author}</strong>
+                  <User className="w-3.5 h-3.5 text-[#D8232A] shrink-0" />
+                  <span className="truncate">
+                    By: <strong className="text-slate-900">{selectedAnnouncement.author}</strong>
                     {selectedAnnouncement.authorRole && (
                       <span className="text-slate-400 font-normal ml-1">({selectedAnnouncement.authorRole})</span>
                     )}
@@ -353,7 +369,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
                 {/* Date & Time */}
                 <div className="flex items-center gap-1.5 text-slate-500">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span>
                     {selectedAnnouncement.date || selectedAnnouncement.timeAgo}
                     {selectedAnnouncement.time && ` • ${selectedAnnouncement.time}`}
@@ -363,7 +379,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                 {/* Target Audience if specified */}
                 {selectedAnnouncement.targetGradeLevel && (
                   <div className="flex items-center gap-1.5 text-slate-500">
-                    <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                    <BookOpen className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span>Audience: <strong>{selectedAnnouncement.targetGradeLevel}</strong></span>
                   </div>
                 )}
@@ -371,23 +387,23 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             </div>
 
             {/* Scrollable Announcement Body */}
-            <div className="p-6 sm:p-7 space-y-5 max-h-[52vh] overflow-y-auto custom-scrollbar bg-white">
+            <div className="p-4 sm:p-7 space-y-4 sm:space-y-5 flex-1 overflow-y-auto custom-scrollbar bg-white">
               {/* Main Content Typography */}
-              <div className="text-sm sm:text-[15px] text-slate-700 whitespace-pre-wrap leading-relaxed font-normal">
+              <div className="text-xs sm:text-[15px] text-slate-700 whitespace-pre-wrap leading-relaxed font-normal break-words">
                 {selectedAnnouncement.content}
               </div>
 
               {/* Attached Image Preview (if image) */}
               {selectedAnnouncement.attachmentUrl && selectedAnnouncement.attachmentType === 'image' && (
-                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                <div className="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-slate-100 space-y-2">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                     <Paperclip className="w-3.5 h-3.5 text-[#D8232A]" /> Attached Image
                   </p>
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 shadow-xs max-h-[300px] flex items-center justify-center">
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 shadow-xs max-h-[220px] sm:max-h-[300px] flex items-center justify-center">
                     <img
                       src={selectedAnnouncement.attachmentUrl}
                       alt={selectedAnnouncement.attachmentName || 'Announcement attachment'}
-                      className="max-h-[300px] w-full object-contain"
+                      className="max-h-[220px] sm:max-h-[300px] w-full object-contain"
                     />
                   </div>
                 </div>
@@ -395,14 +411,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
               {/* Attached Document Card (if file / pdf / doc) */}
               {selectedAnnouncement.attachmentUrl && selectedAnnouncement.attachmentType !== 'image' && (
-                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                <div className="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-slate-100 space-y-2">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                     <Paperclip className="w-3.5 h-3.5 text-[#D8232A]" /> Attachment
                   </p>
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200/80 rounded-2xl transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-[#D8232A] shrink-0">
-                        <FileText className="w-4.5 h-4.5" />
+                  <div className="flex items-center justify-between p-3 sm:p-3.5 bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200/80 rounded-2xl transition-colors">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-[#D8232A] shrink-0">
+                        <FileText className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-800 truncate">
@@ -417,7 +433,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                       href={selectedAnnouncement.attachmentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 shadow-2xs transition-all shrink-0 ml-3"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 shadow-2xs transition-all shrink-0 ml-2"
                     >
                       <span>Open File</span>
                       <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
@@ -428,14 +444,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 sm:px-7 sm:py-4 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-3">
-              <div className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 select-none">
+            <div className="p-3.5 sm:px-7 sm:py-4 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
+              <div className="text-[11px] sm:text-xs font-bold text-emerald-600 flex items-center gap-1.5 select-none">
                 <CheckCheck className="w-4 h-4" />
                 <span>Marked as Read</span>
               </div>
               <Button
                 onClick={() => setSelectedAnnouncement(null)}
-                className="h-9 px-6 rounded-xl bg-[#D8232A] hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+                className="h-8 sm:h-9 px-5 sm:px-6 rounded-xl bg-[#D8232A] hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
               >
                 Close
               </Button>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
 import { db, auth } from '../../lib/firebase';
 import { ImageUpload } from '../../components/ui/ImageUpload';
-import { sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { uploadToImageKit, buildImageKitFolder, buildStandardizedFileName } from '../../lib/services/imageUploadService';
 import { logActivity } from '../../lib/services/activityLogService';
@@ -28,7 +29,8 @@ import {
   AlertTriangle,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  LogOut
 } from 'lucide-react';
 
 const PROVINCES_CITIES: Record<string, string[]> = {
@@ -68,7 +70,17 @@ export interface AddressItem {
 
 export function ParentSettingsView() {
   const { user, userData, updateUserData } = useAuth();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAccountSignOut = async () => {
+    try {
+      await signOut(auth);
+      navigate('/');
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
 
   const handleImageKitUploaded = async (url: string) => {
     setPhotoURL(url);
@@ -1332,6 +1344,30 @@ export function ParentSettingsView() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* ── CARD 5: ACCOUNT SESSION & SIGN OUT ── */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
+        <div className="p-4 sm:p-6 md:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-rose-100 rounded-xl flex items-center justify-center text-rose-600 shrink-0">
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">Account Session</h2>
+              <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate">Sign out of your active Parent Portal session on this device.</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAccountSignOut}
+            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out of Portal</span>
+          </button>
+        </div>
       </div>
 
       {/* ── WARNING CONFIRMATION MODAL ── */}

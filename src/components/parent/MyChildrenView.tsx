@@ -384,8 +384,8 @@ export function MyChildrenView({
 
   return (
     <div className="flex flex-col h-full bg-[#F4F7F9] font-sans">
-      {/* ── 1. HEADER SECTION ── */}
-      <header className="px-5 sm:px-8 py-5 border-b border-slate-200/80 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 shadow-2xs">
+      {/* ── 1. DESKTOP HEADER SECTION (Hidden on mobile) ── */}
+      <header className="hidden lg:flex px-6 sm:px-8 py-5 border-b border-slate-200/80 bg-white items-center justify-between gap-4 shrink-0 shadow-2xs">
         <div className="flex items-center gap-3.5">
           <div className="w-11 h-11 bg-red-50 rounded-2xl flex items-center justify-center text-[#D8232A] border border-red-100/80 shadow-inner">
             <GraduationCap className="w-6 h-6" />
@@ -411,11 +411,11 @@ export function MyChildrenView({
       </header>
 
       {/* ── 2. FILTER & CONTROLS TOOLBAR ── */}
-      <div className="px-5 sm:px-8 pt-6 pb-2 shrink-0 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+      <div className="px-3.5 sm:px-6 lg:px-8 pt-3.5 sm:pt-6 pb-2 shrink-0 space-y-3 sm:space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
 
           {/* Status Filter Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0" style={{ scrollbarWidth: 'none' }}>
             <button
               onClick={() => setStatusFilter('ALL')}
               className={cn(
@@ -425,7 +425,7 @@ export function MyChildrenView({
                   : "bg-slate-50 text-slate-600 hover:bg-slate-100"
               )}
             >
-              All Learners ({children.length})
+              All ({children.length})
             </button>
             <button
               onClick={() => setStatusFilter('ENROLLED')}
@@ -452,8 +452,8 @@ export function MyChildrenView({
           </div>
 
           {/* Search & View Mode Switcher */}
-          <div className="flex items-center gap-2.5">
-            <div className="relative w-full sm:w-64">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 md:w-64">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
                 value={searchQuery}
@@ -491,7 +491,7 @@ export function MyChildrenView({
       </div>
 
       {/* ── 3. MAIN STUDENT LIST / CARDS CONTAINER ── */}
-      <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-4 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 lg:px-8 py-3.5 sm:py-4 space-y-4 sm:space-y-6">
         {filteredChildren.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-12 text-center space-y-4 max-w-md mx-auto my-8">
             <div className="w-16 h-16 bg-red-50 text-[#D8232A] rounded-3xl flex items-center justify-center mx-auto border border-red-100">

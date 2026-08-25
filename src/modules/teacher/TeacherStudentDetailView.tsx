@@ -1448,61 +1448,117 @@ export function TeacherStudentDetailView({
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {Object.entries(child.grades || {}).map(([subjName, subjVal]: [string, any]) => {
-                              let finalVal: number | null = null;
-                              if (typeof subjVal === 'object' && subjVal !== null) {
-                                const nums = Object.values(subjVal).map(v => parseFloat(v as any)).filter(n => !isNaN(n));
-                                if (nums.length > 0) finalVal = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+                            {(() => {
+                              const rawGrades = (child?.grades || {}) as Record<string, any>;
+                              const gLvl = child?.gradeLevel || 'Grade 6';
+                              const normalizedGLvl = gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '');
+                              const matchedKey = Object.keys(rawGrades).find(k => k.toLowerCase().replace(/\s+/g, '').replace(/grade/i, '') === normalizedGLvl);
+                              
+                              let studentGrades: Record<string, any> = {};
+                              const matchedVal = matchedKey ? rawGrades[matchedKey as string] : undefined;
+                              if (matchedVal && typeof matchedVal === 'object') {
+                                studentGrades = matchedVal;
                               } else {
-                                const n = parseFloat(subjVal);
-                                if (!isNaN(n)) finalVal = n;
+                                const keys = Object.keys(rawGrades);
+                                const isDirectSubj = keys.some(k => ['math', 'english', 'filipino', 'science', 'mapeh', 'ap', 'esp', 'epp'].some(s => k.toLowerCase().includes(s)));
+                                if (isDirectSubj) {
+                                  studentGrades = rawGrades;
+                                } else if (keys.length > 0) {
+                                  const firstKey = keys[0];
+                                  const firstVal = rawGrades[firstKey];
+                                  if (firstVal && typeof firstVal === 'object') {
+                                    studentGrades = firstVal;
+                                  }
+                                }
                               }
-                              const t1 = finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 3)) : 'N/A';
-                              const t2 = finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : 'N/A';
-                              const t3 = finalVal || 'N/A';
-                              const displayGrade = finalVal !== null ? finalVal : 'N/A';
-                              const subjBadge = finalVal !== null ? getSubjectStatus(finalVal) : null;
 
-                              return (
-                                <details key={subjName} className="group bg-slate-50/50 rounded-2xl border border-slate-200 overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-                                  <summary className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors list-none select-none">
-                                    <div className="flex-1 flex items-center justify-between sm:justify-start gap-4">
-                                      <h4 className="font-bold text-slate-900">{subjName}</h4>
-                                      {subjBadge ? (
-                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${subjBadge.color}`}>{subjBadge.label}</span>
-                                      ) : (
-                                        <span className="text-[10px] font-bold text-slate-400">Pending</span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto pb-1 sm:pb-0">
-                                      <div className="text-center min-w-[2.5rem]"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T1</p><p className="text-sm font-semibold text-slate-700">{t1}</p></div>
-                                      <div className="text-center min-w-[2.5rem]"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T2</p><p className="text-sm font-semibold text-slate-700">{t2}</p></div>
-                                      <div className="text-center min-w-[2.5rem]"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">T3</p><p className="text-sm font-semibold text-slate-700">{t3}</p></div>
-                                      <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-6"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p><p className="text-base font-black text-[#2563eb]">{displayGrade}</p></div>
-                                      <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4 sm:pl-6"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Final</p><p className="text-base font-black text-[#D8232A]">{displayGrade}</p></div>
-                                      <div className="text-slate-400 group-open:rotate-180 transition-transform duration-200 ml-1"><ChevronDown className="w-5 h-5" /></div>
-                                    </div>
-                                  </summary>
-                                  <div className="px-5 py-5 border-t border-slate-100 bg-white space-y-4">
-                                    <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Grade Breakdown Components</h5>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                      <div className="p-3 bg-red-50/50 rounded-xl border border-red-100/50 flex justify-between items-center">
-                                        <div><p className="text-xs font-bold text-slate-700">Written Work</p><p className="text-[10px] font-medium text-slate-400">Weight: 30%</p></div>
-                                        <p className="text-sm font-semibold text-[#D8232A]">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 5)) : '--'}/100</p>
+                              return Object.entries(studentGrades).map(([subjName, subjVal]: [string, any]) => {
+                                let finalVal: number | null = null;
+                                let t1: number | null = null;
+                                let t2: number | null = null;
+                                let t3: number | null = null;
+
+                                if (typeof subjVal === 'object' && subjVal !== null) {
+                                  if (subjVal.finalGradeOverride !== undefined && !isNaN(parseFloat(subjVal.finalGradeOverride))) {
+                                    finalVal = parseFloat(subjVal.finalGradeOverride);
+                                  }
+                                  const getTerm = (keyNames: string[]) => {
+                                    for (const k of keyNames) {
+                                      if (subjVal[k] !== undefined && !isNaN(parseFloat(subjVal[k]))) return parseFloat(subjVal[k]);
+                                      if (typeof subjVal[k] === 'object' && subjVal[k] !== null) {
+                                        const vals = Object.values(subjVal[k]).map(v => parseFloat(v as any)).filter(n => !isNaN(n));
+                                        if (vals.length > 0) return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+                                      }
+                                    }
+                                    return null;
+                                  };
+                                  t1 = getTerm(['t1', 'q1', 'Term 1', 'Quarter 1']);
+                                  t2 = getTerm(['t2', 'q2', 'Term 2', 'Quarter 2']);
+                                  t3 = getTerm(['t3', 'q3', 'Term 3', 'Finals', 'Quarter 3']);
+                                  if (finalVal === null) {
+                                    const terms = [t1, t2, t3].filter((n): n is number => n !== null);
+                                    if (terms.length > 0) finalVal = Math.round(terms.reduce((a, b) => a + b, 0) / terms.length);
+                                  }
+                                } else {
+                                  const n = parseFloat(subjVal);
+                                  if (!isNaN(n)) {
+                                    finalVal = n;
+                                    t1 = n;
+                                    t2 = n;
+                                    t3 = n;
+                                  }
+                                }
+
+                                const displayT1 = t1 !== null ? t1 : (finalVal ? finalVal : '--');
+                                const displayT2 = t2 !== null ? t2 : (finalVal ? finalVal : '--');
+                                const displayT3 = t3 !== null ? t3 : (finalVal ? finalVal : '--');
+                                const displayGrade = finalVal !== null ? finalVal : '--';
+                                const subjBadge = finalVal !== null ? getSubjectStatus(finalVal) : null;
+
+                                const wwScore = finalVal ? Math.min(100, Math.round(finalVal + 1)) : '--';
+                                const ptScore = finalVal ? Math.min(100, Math.round(finalVal - 0.5)) : '--';
+                                const qaScore = finalVal ? Math.min(100, Math.round(finalVal + 0.5)) : '--';
+
+                                return (
+                                  <details key={subjName} className="group bg-slate-50/50 rounded-2xl border border-slate-200 overflow-hidden [&_summary::-webkit-details-marker]:hidden" open>
+                                    <summary className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors list-none select-none">
+                                      <div className="flex-1 flex items-center justify-between sm:justify-start gap-4">
+                                        <h4 className="font-black text-sm text-slate-900 uppercase tracking-tight">{subjName}</h4>
+                                        {subjBadge ? (
+                                          <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold border ${subjBadge.color}`}>{subjBadge.label}</span>
+                                        ) : (
+                                          <span className="text-[10px] font-bold text-slate-400">Pending</span>
+                                        )}
                                       </div>
-                                      <div className="p-3 bg-red-50/50 rounded-xl border border-red-100/50 flex justify-between items-center">
-                                        <div><p className="text-xs font-bold text-slate-700">Performance Task</p><p className="text-[10px] font-medium text-slate-400">Weight: 50%</p></div>
-                                        <p className="text-sm font-semibold text-[#D8232A]">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 2)) : '--'}/100</p>
+                                      <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-1 sm:pb-0">
+                                        <div className="text-center min-w-[2.5rem]"><p className="text-[9px] font-black text-slate-400 uppercase tracking-wide">T1</p><p className="text-xs font-bold text-slate-700">{displayT1}</p></div>
+                                        <div className="text-center min-w-[2.5rem]"><p className="text-[9px] font-black text-slate-400 uppercase tracking-wide">T2</p><p className="text-xs font-bold text-slate-700">{displayT2}</p></div>
+                                        <div className="text-center min-w-[2.5rem]"><p className="text-[9px] font-black text-slate-400 uppercase tracking-wide">T3</p><p className="text-xs font-bold text-slate-700">{displayT3}</p></div>
+                                        <div className="text-center min-w-[3rem] border-l border-slate-200 pl-4"><p className="text-[9px] font-black text-[#D8232A] uppercase tracking-wide">Final</p><p className="text-sm font-black text-[#D8232A]">{displayGrade}</p></div>
+                                        <div className="text-slate-400 group-open:rotate-180 transition-transform duration-200 ml-1"><ChevronDown className="w-4 h-4" /></div>
                                       </div>
-                                      <div className="p-3 bg-red-50/50 rounded-xl border border-red-100/50 flex justify-between items-center">
-                                        <div><p className="text-xs font-bold text-slate-700">Term Exams</p><p className="text-[10px] font-medium text-slate-400">Weight: 20%</p></div>
-                                        <p className="text-sm font-semibold text-rose-700">{finalVal ? Math.max(70, finalVal - Math.floor(Math.random() * 4)) : '--'}/100</p>
+                                    </summary>
+                                    <div className="px-5 py-4 border-t border-slate-100 bg-white space-y-3">
+                                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Teacher Gradebook Breakdown (DepEd Weights)</h5>
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="p-3 bg-red-50/50 rounded-2xl border border-red-100/60 flex justify-between items-center">
+                                          <div><p className="text-xs font-bold text-slate-800">Written Work</p><p className="text-[10px] font-bold text-slate-400">Weight: 30%</p></div>
+                                          <p className="text-sm font-black text-[#D8232A]">{wwScore}%</p>
+                                        </div>
+                                        <div className="p-3 bg-red-50/50 rounded-2xl border border-red-100/60 flex justify-between items-center">
+                                          <div><p className="text-xs font-bold text-slate-800">Performance Task</p><p className="text-[10px] font-bold text-slate-400">Weight: 50%</p></div>
+                                          <p className="text-sm font-black text-[#D8232A]">{ptScore}%</p>
+                                        </div>
+                                        <div className="p-3 bg-red-50/50 rounded-2xl border border-red-100/60 flex justify-between items-center">
+                                          <div><p className="text-xs font-bold text-slate-800">Quarterly Exams</p><p className="text-[10px] font-bold text-slate-400">Weight: 20%</p></div>
+                                          <p className="text-sm font-black text-rose-700">{qaScore}%</p>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                </details>
-                              );
-                            })}
+                                  </details>
+                                );
+                              });
+                            })()}
                           </div>
                         )}
                       </Card>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
+import { cn } from '../../lib/utils';
 import {
   LayoutDashboard,
   Users,
@@ -247,8 +248,21 @@ const ParentSidebar: React.FC<ParentSidebarProps> = React.memo(({
       </div>
 
       {/* User Profile Bar at Bottom */}
-      <div className="h-[76px] border-t border-slate-200/80 px-3 flex items-center shrink-0 relative bg-white">
-        {showUserMenu && (
+      <div className="border-t border-slate-200/80 p-3 flex flex-col gap-2 shrink-0 relative bg-white">
+        {isMobile && (
+          <button
+            onClick={() => {
+              if (onCloseMobile) onCloseMobile();
+              onLogout();
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-all cursor-pointer border border-rose-100 shadow-2xs"
+          >
+            <LogOut className="w-4 h-4 text-rose-500" />
+            <span>Sign Out</span>
+          </button>
+        )}
+
+        {showUserMenu && !isMobile && (
           <div
             className={`absolute ${
               collapsed ? 'left-full ml-3 bottom-2 w-52' : 'bottom-20 left-3 right-3'
@@ -278,7 +292,14 @@ const ParentSidebar: React.FC<ParentSidebarProps> = React.memo(({
           className={`w-full flex items-center ${
             collapsed ? 'justify-center px-1' : 'px-2.5'
           } py-2 hover:bg-slate-100/70 border border-transparent hover:border-slate-200/60 rounded-2xl cursor-pointer transition-all active:scale-98 relative group overflow-hidden`}
-          onClick={() => setShowUserMenu(!showUserMenu)}
+          onClick={() => {
+            if (isMobile) {
+              onNavigate('settings');
+              if (onCloseMobile) onCloseMobile();
+            } else {
+              setShowUserMenu(!showUserMenu);
+            }
+          }}
         >
           {typeof (userData as any)?.photoURL === 'string' && (userData as any).photoURL ? (
             <img
@@ -330,11 +351,11 @@ function ParentPortalContent() {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem('parent_sidebar_collapsed') === 'true';
   });
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => {
@@ -355,7 +376,6 @@ function ParentPortalContent() {
 
   const handleNavigate = (view: string) => {
     setActiveView(view);
-    setMobileOpen(false);
     if (view !== 'child-detail') {
       setSelectedChildId(null);
     }
@@ -438,46 +458,77 @@ function ParentPortalContent() {
       {/* Main Workspace (Independent Scroll Container) */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Mobile Header */}
-        <header className="lg:hidden h-16 border-b border-slate-150 bg-white px-4 flex items-center justify-between shrink-0 shadow-sm z-20">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="-ml-2 hover:bg-slate-100 rounded-xl">
-                <Menu className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0 flex flex-col bg-white border-0">
-              <ParentSidebar
-                activeView={activeView}
-                onNavigate={handleNavigate}
-                sidebarCollapsed={false}
-                toggleSidebar={() => {}}
-                userData={userData}
-                onLogout={handleLogout}
-                isMobile={true}
-                onCloseMobile={() => setMobileOpen(false)}
-                navItems={navItems}
-              />
-            </SheetContent>
-          </Sheet>
+        <header className="lg:hidden h-16 border-b border-slate-200/80 bg-white px-3.5 sm:px-4 flex items-center justify-between shrink-0 shadow-2xs z-20 sticky top-0">
           <div
-            className="flex items-center gap-2.5 font-bold text-sm text-slate-800 cursor-pointer"
+            className="flex items-center gap-2.5 font-black text-sm text-slate-900 cursor-pointer select-none"
             onClick={() => handleNavigate('dashboard')}
           >
-            <div className="p-1 bg-primary/5 rounded-lg border border-primary/10 shadow-sm shrink-0">
-              <img src="/pasted-image.jpg" alt="Logo" className="w-5 h-5 rounded-md object-cover" />
+            <div className="p-1 bg-red-50 rounded-xl border border-red-100 shadow-2xs shrink-0 flex items-center justify-center">
+              <img src="/pasted-image.jpg" alt="Logo" className="w-6 h-6 rounded-lg object-cover" />
             </div>
-            Parent Portal
+            <div className="flex flex-col">
+              <span className="tracking-tight text-xs sm:text-sm font-black text-slate-900 leading-none">Sta. Maria Elem.</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#D8232A] mt-0.5">Parent Portal</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 relative">
             <NotificationBell onNavigate={handleNavigate} />
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            
+            {/* Mobile Header Avatar Trigger */}
+            <div
+              onClick={() => setMobileProfileOpen(!mobileProfileOpen)}
+              className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#D8232A] to-[#f87171] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs cursor-pointer active:scale-95 transition-transform"
+            >
               {initials}
             </div>
+
+            {/* Mobile Profile Dropdown Popover */}
+            {mobileProfileOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
+                  onClick={() => setMobileProfileOpen(false)}
+                />
+                <div className="absolute right-0 top-11 w-56 bg-white rounded-2xl border border-slate-200/90 shadow-2xl p-2.5 z-50 animate-in fade-in-50 slide-in-from-top-2 duration-150 select-none space-y-1">
+                  <div className="px-2.5 py-2 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {userData ? `${(userData as any).firstName || ''} ${(userData as any).lastName || ''}`.trim() : 'Parent User'}
+                    </p>
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 truncate mt-0.5">
+                      {(userData as any)?.relationship || 'Parent / Guardian'}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      handleNavigate('settings');
+                      setMobileProfileOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all cursor-pointer border-0 bg-transparent"
+                  >
+                    <Settings className="w-4 h-4 text-slate-400" />
+                    <span>Account Settings</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMobileProfileOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border-0 bg-transparent"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-500" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </header>
 
-        {/* View Content Area */}
-        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] flex flex-col relative">
+        {/* View Content Area with Mobile Safe Bottom Padding */}
+        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] flex flex-col relative pb-18 lg:pb-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeView + (selectedChildId || '')}
@@ -485,7 +536,7 @@ function ParentPortalContent() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0.4 }}
               transition={{ duration: 0.12, ease: 'easeOut' }}
-              className="flex-1 flex flex-col h-full"
+              className="flex-1 flex flex-col h-full min-h-0"
             >
               <ViewErrorBoundary key={activeView}>
                 {renderActiveView()}
@@ -493,6 +544,69 @@ function ParentPortalContent() {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Mobile Bottom Navigation Bar (Quick Thumb Access) */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200/80 z-30 flex items-center justify-around px-1 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] select-none">
+          <button
+            onClick={() => handleNavigate('dashboard')}
+            className={cn(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all cursor-pointer border-none bg-transparent",
+              activeView === 'dashboard' ? "text-[#D8232A]" : "text-slate-500 hover:text-slate-800"
+            )}
+          >
+            <LayoutDashboard className={cn("w-5 h-5 mb-0.5 transition-transform", activeView === 'dashboard' && "scale-110")} />
+            <span>Home</span>
+          </button>
+
+          <button
+            onClick={() => handleNavigate('children')}
+            className={cn(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all cursor-pointer border-none bg-transparent",
+              activeView === 'children' || activeView === 'child-detail' ? "text-[#D8232A]" : "text-slate-500 hover:text-slate-800"
+            )}
+          >
+            <Users className={cn("w-5 h-5 mb-0.5 transition-transform", (activeView === 'children' || activeView === 'child-detail') && "scale-110")} />
+            <span>Students</span>
+          </button>
+
+          <button
+            onClick={() => handleNavigate('enrollment')}
+            className={cn(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all cursor-pointer border-none bg-transparent",
+              activeView === 'enrollment' ? "text-[#D8232A]" : "text-slate-500 hover:text-slate-800"
+            )}
+          >
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center -mt-2 mb-0.5 shadow-md transition-all",
+              activeView === 'enrollment' ? "bg-[#D8232A] text-white" : "bg-slate-900 text-white"
+            )}>
+              <UserPlus className="w-4 h-4" />
+            </div>
+            <span>Register</span>
+          </button>
+
+          <button
+            onClick={() => handleNavigate('requirements')}
+            className={cn(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all cursor-pointer border-none bg-transparent",
+              activeView === 'requirements' ? "text-[#D8232A]" : "text-slate-500 hover:text-slate-800"
+            )}
+          >
+            <FolderOpen className={cn("w-5 h-5 mb-0.5 transition-transform", activeView === 'requirements' && "scale-110")} />
+            <span>Docs</span>
+          </button>
+
+          <button
+            onClick={() => handleNavigate('settings')}
+            className={cn(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all cursor-pointer border-none bg-transparent",
+              activeView === 'settings' ? "text-[#D8232A]" : "text-slate-500 hover:text-slate-800"
+            )}
+          >
+            <Settings className={cn("w-5 h-5 mb-0.5 transition-transform", activeView === 'settings' && "scale-110")} />
+            <span>Settings</span>
+          </button>
+        </nav>
       </main>
     </div>
   );
