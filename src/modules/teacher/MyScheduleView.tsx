@@ -128,6 +128,7 @@ export function MyScheduleView() {
 
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
 
     const fetchReferences = async () => {
       try {
@@ -135,6 +136,7 @@ export function MyScheduleView() {
           getDocs(collection(db, 'subjects')),
           getDocs(collection(db, 'sections'))
         ]);
+        if (!isMounted) return;
         setSubjects(subSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setSections(secSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (error) {
@@ -151,11 +153,15 @@ export function MyScheduleView() {
     );
 
     const unsub = onSnapshot(q, (snap) => {
+      if (!isMounted) return;
       setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as Schedule)));
       setLoading(false);
     });
 
-    return () => unsub();
+    return () => {
+      isMounted = false;
+      unsub();
+    };
   }, [user, syName]);
 
   const teacherSchedules = useMemo(() => {

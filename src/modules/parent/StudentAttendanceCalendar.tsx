@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '../ui/Card';
+import { Card } from '../../components/ui/Card';
 import { ChevronLeft, ChevronRight, CalendarCheck, Calendar } from 'lucide-react';
 import { getGlobalSettings, GlobalSettings } from '../../lib/services/settingsService';
 
@@ -38,7 +38,17 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
 
   const recordsMap = new Map<string, AttendanceRecord>();
   records.forEach(r => {
-    recordsMap.set(r.date, r);
+    if (!r?.date) return;
+    let dStr = '';
+    if (typeof r.date === 'string') {
+      dStr = r.date.split('T')[0];
+    } else if (typeof (r.date as any)?.toDate === 'function') {
+      const dt = (r.date as any).toDate();
+      dStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    if (dStr) {
+      recordsMap.set(dStr, r);
+    }
   });
 
   const nextMonth = () => {
@@ -188,14 +198,22 @@ export function StudentAttendanceCalendar({ records }: StudentAttendanceCalendar
       </div>
       
       {/* Legend */}
-      <div className="mt-6 flex items-center justify-end gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full border-2 border-emerald-300 bg-transparent"></div>
-          <span className="text-sm font-medium text-slate-600">Present</span>
+      <div className="mt-6 flex flex-wrap items-center justify-end gap-4 sm:gap-6 text-xs font-medium text-slate-600">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span>Present</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full border-2 border-slate-200 bg-slate-50"></div>
-          <span className="text-sm font-medium text-slate-600">No Record / N/A</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+          <span>Late</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+          <span>Absent</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+          <span>No Record / N/A</span>
         </div>
       </div>
     </Card>

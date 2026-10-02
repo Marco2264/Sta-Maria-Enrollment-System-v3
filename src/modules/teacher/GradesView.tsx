@@ -262,7 +262,8 @@ export function GradesView() {
     subjects 
   } = useTeacherData();
 
-  const enrolled = useMemo(() => students.filter((s) => s.status !== 'Pending' && s.status !== 'Rejected'), [students]);
+  const safeStudents = useMemo(() => (Array.isArray(students) ? students.filter(Boolean) : []), [students]);
+  const enrolled = useMemo(() => safeStudents.filter((s) => s && s.status !== 'Pending' && s.status !== 'Rejected'), [safeStudents]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 25;
@@ -377,9 +378,11 @@ export function GradesView() {
   const filteredEnrolled = useMemo(() => {
     if (!searchQuery.trim()) return enrolled;
     const q = searchQuery.toLowerCase();
-    return enrolled.filter(s =>
-      `${s.firstName} ${s.lastName} ${s.lrn}`.toLowerCase().includes(q)
-    );
+    return enrolled.filter(s => {
+      const name = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
+      const lrn = (s.lrn ?? '').toString().toLowerCase();
+      return name.includes(q) || lrn.includes(q);
+    });
   }, [enrolled, searchQuery]);
 
   useEffect(() => {

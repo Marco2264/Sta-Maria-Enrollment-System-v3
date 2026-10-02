@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import toast from 'react-hot-toast';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { Card } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import {
   Table,
   TableBody,
@@ -13,8 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow
-} from '../ui/Table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
+} from '../../components/ui/Table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import { BookOpen, Search, Loader2, Printer, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAdminData } from '../../lib/adminData';
 
@@ -310,12 +310,9 @@ export function AdminGradesView() {
     return filteredStudents.slice(start, start + itemsPerPage);
   }, [filteredStudents, currentPage]);
 
-
-
   const handlePrint = () => {
     window.print();
   };
-
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 print:bg-white print:h-auto">

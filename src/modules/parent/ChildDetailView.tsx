@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
-import { StudentAttendanceCalendar } from '../../components/parent/StudentAttendanceCalendar';
-import { ObservedValuesCard } from '../../components/parent/ObservedValuesCard';
+import { StudentAttendanceCalendar } from './StudentAttendanceCalendar';
+import { ObservedValuesCard } from './ObservedValuesCard';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -56,7 +56,7 @@ export function ChildDetailView({
   onBack
 }: { childId: string; onBack: () => void; }) {
   const { user } = useAuth();
-  const { children, updateChild } = useParentData();
+  const { children, updateChild, loading } = useParentData();
   const child = children.find((c) => c.id === childId);
 
   const [gradeConfigs, setGradeConfigs] = useState<any[]>([]);
@@ -85,7 +85,35 @@ export function ChildDetailView({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
 
-  if (!child) return null;
+  if (loading && !child) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#F4F7F9] font-sans items-center justify-center p-8">
+        <Loader2 className="w-8 h-8 text-[#D8232A] animate-spin mb-3" />
+        <p className="text-xs font-bold text-slate-600">Loading student profile...</p>
+      </div>
+    );
+  }
+
+  if (!child) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#F4F7F9] font-sans items-center justify-center p-8 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-100 shadow-2xs">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h3 className="text-base font-bold text-slate-800 mb-1">Student Record Not Found</h3>
+        <p className="text-xs text-slate-500 max-w-sm mb-5">
+          The requested student information could not be found or has been updated.
+        </p>
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#D8232A] hover:bg-red-700 text-white text-xs font-bold transition-all shadow-2xs cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Students</span>
+        </button>
+      </div>
+    );
+  }
 
   const handleCopyLrn = () => {
     const lrnVal = child.lrn || (child as any).studentId || '';
@@ -330,11 +358,45 @@ export function ChildDetailView({
     };
   };
 
+  // Helper to resolve student grades mapping
+  const resolveStudentGradesObject = (grades: any, gradeLevel?: string): Record<string, any> => {
+    if (!grades || typeof grades !== 'object') return {};
+    
+    const gLvl = (gradeLevel || '').toString().trim();
+    const cleanNum = gLvl.replace(/[^0-9]/g, '');
+    const normalizedTarget = gLvl.toLowerCase().replace(/\s+/g, '');
+
+    const rootKeys = Object.keys(grades);
+    const commonSubjs = ['math', 'mathematics', 'english', 'filipino', 'science', 'ap', 'araling', 'esp', 'mapeh', 'epp', 'tle'];
+    const isDirectFlatSubjects = rootKeys.some(k => commonSubjs.some(s => k.toLowerCase().includes(s)));
+    
+    if (isDirectFlatSubjects) {
+      return grades;
+    }
+
+    const matchedKey = rootKeys.find(k => {
+      const cleanK = k.toLowerCase().replace(/\s+/g, '');
+      const kNum = k.replace(/[^0-9]/g, '');
+      return cleanK === normalizedTarget || (cleanNum && kNum === cleanNum) || cleanK === `grade${cleanNum}`;
+    });
+
+    if (matchedKey && typeof grades[matchedKey] === 'object' && grades[matchedKey] !== null) {
+      return grades[matchedKey];
+    }
+
+    if (rootKeys.length > 0 && typeof grades[rootKeys[0]] === 'object' && grades[rootKeys[0]] !== null) {
+      return grades[rootKeys[0]];
+    }
+
+    return grades;
+  };
+
   // Get all parsed subject items
   const getAllParsedSubjects = (c: any) => {
     if (!c) return [];
+    const defaultSubjs = ['Filipino', 'English', 'Mathematics', 'Science', 'Araling Panlipunan (AP)', 'Edukasyon sa Pagpapakatao (EsP)', 'MAPEH', 'EPP / TLE'];
+    
     if (!c.grades || typeof c.grades !== 'object') {
-      const defaultSubjs = ['Filipino', 'English', 'Mathematics', 'Science', 'Araling Panlipunan (AP)', 'Edukasyon sa Pagpapakatao (EsP)', 'MAPEH', 'EPP / TLE'];
       return defaultSubjs.map(s => ({
         subject: s,
         t1: null,
@@ -346,30 +408,15 @@ export function ChildDetailView({
       }));
     }
 
-    const gLvl = c.gradeLevel || 'Grade 6';
-    const normalizedGLvl = gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '');
-    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '').replace(/grade/i, '') === normalizedGLvl);
-    
-    let studentGrades: Record<string, any> = {};
-    if (matchedKey && typeof c.grades[matchedKey] === 'object' && c.grades[matchedKey] !== null) {
-      studentGrades = c.grades[matchedKey];
-    } else {
-      // Check if subjects are direct keys on c.grades
-      const keys = Object.keys(c.grades);
-      const isDirectSubj = keys.some(k => ['math', 'english', 'filipino', 'science', 'mapeh', 'ap', 'esp', 'epp'].some(s => k.toLowerCase().includes(s)));
-      if (isDirectSubj) {
-        studentGrades = c.grades;
-      } else if (keys.length > 0 && typeof c.grades[keys[0]] === 'object') {
-        studentGrades = c.grades[keys[0]] || {};
-      }
-    }
+    const studentGrades = resolveStudentGradesObject(c.grades, c.gradeLevel);
+    const ignoredKeys = ['observedvalues', 'attendance', 'medical', 'status', 'schemaversion', 'submittedat', 'parentid'];
 
     const parsed = Object.entries(studentGrades)
+      .filter(([subjCode, subjVal]) => subjVal !== undefined && subjVal !== null && !ignoredKeys.includes(subjCode.toLowerCase()))
       .map(([subjCode, subjVal]) => parseSubjectGrades(subjCode, subjVal))
       .filter((s): s is NonNullable<typeof s> => s !== null);
 
     if (parsed.length === 0) {
-      const defaultSubjs = ['Filipino', 'English', 'Mathematics', 'Science', 'Araling Panlipunan (AP)', 'Edukasyon sa Pagpapakatao (EsP)', 'MAPEH', 'EPP / TLE'];
       return defaultSubjs.map(s => ({
         subject: s,
         t1: null,
@@ -596,7 +643,7 @@ export function ChildDetailView({
   };
 
   const getAttendanceDetails = (c: any) => {
-    if (!c.attendance || c.attendance.length === 0) {
+    if (!c || !Array.isArray(c.attendance) || c.attendance.length === 0) {
       return {
         percentage: '100%',
         detail: 'Roll Call Synced'
@@ -605,6 +652,7 @@ export function ChildDetailView({
     let presentCount = 0;
     let totalCount = 0;
     c.attendance.forEach((rec: any) => {
+      if (!rec) return;
       totalCount += 1;
       const stat = rec.status || rec.amStatus;
       if (stat === 'Present' || stat === 'Late') presentCount += 1;

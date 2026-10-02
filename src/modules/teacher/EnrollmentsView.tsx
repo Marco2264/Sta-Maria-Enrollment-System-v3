@@ -230,8 +230,8 @@ export function EnrollmentsView() {
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
           const fullName = `${s.firstName || ''} ${s.lastName || ''} ${s.middleName || ''}`.toLowerCase();
-          const lrn = (s.lrn || '').toLowerCase();
-          const guardian = ((s as any).guardianName || (s as any).parentName || '').toLowerCase();
+          const lrn = (s.lrn ?? '').toString().toLowerCase();
+          const guardian = ((s as any).guardianName || (s as any).parentName || '').toString().toLowerCase();
           return fullName.includes(q) || lrn.includes(q) || guardian.includes(q);
         }
 

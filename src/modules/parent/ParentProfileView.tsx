@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { User, Lock, Phone, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Label } from '../ui/Label';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Label } from '../../components/ui/Label';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
 import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -35,8 +35,6 @@ export function ParentProfileView() {
     setMessage(null);
 
     try {
-
-      // Update parent user document with contact info
       await updateDoc(doc(db, 'users', user.uid), {
         contactNumber: contactInfo.phone,
         address: contactInfo.address,
@@ -44,7 +42,6 @@ export function ParentProfileView() {
         updatedAt: new Date()
       });
 
-      // Updates apply to all children automatically (they reference parent via parentId)
       setMessage({
         type: 'success',
         text: 'Contact information updated successfully!'
@@ -84,7 +81,6 @@ export function ParentProfileView() {
     setMessage(null);
 
     try {
-      // Reauthenticate first
       if (!user.email) throw new Error('Email not found');
 
       const credential = EmailAuthProvider.credential(
@@ -93,8 +89,6 @@ export function ParentProfileView() {
       );
 
       await reauthenticateWithCredential(user, credential);
-
-      // Update password
       await updatePassword(user, passwordForm.newPassword);
 
       setMessage({

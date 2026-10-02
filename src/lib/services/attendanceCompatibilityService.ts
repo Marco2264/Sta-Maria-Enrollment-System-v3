@@ -18,9 +18,12 @@ export function mergeAttendanceWithCompatibility(params: {
   canonicalEntries: CanonicalAttendanceEntry[];
   legacyEntries?: AttendanceRecord[];
 }): AttendanceRecord[] {
-  const { studentId, canonicalEntries, legacyEntries = [] } = params;
-  const canonical = canonicalEntries
-    .filter((entry) => entry.studentId === studentId)
+  const { studentId, canonicalEntries = [], legacyEntries = [] } = params;
+  const safeCanonical = Array.isArray(canonicalEntries) ? canonicalEntries : [];
+  const safeLegacy = Array.isArray(legacyEntries) ? legacyEntries : [];
+
+  const canonical = safeCanonical
+    .filter((entry) => entry && entry.studentId === studentId)
     .map((entry) => {
       let derived = entry.status;
       if (!derived) {
@@ -30,7 +33,7 @@ export function mergeAttendanceWithCompatibility(params: {
         else derived = 'Present';
       }
       return { 
-        date: entry.date, 
+        date: entry.date || '', 
         status: derived,
         amStatus: entry.amStatus,
         pmStatus: entry.pmStatus
@@ -38,8 +41,8 @@ export function mergeAttendanceWithCompatibility(params: {
     });
 
   if (canonical.length > 0) {
-    return canonical.sort((a, b) => (a.date < b.date ? 1 : -1));
+    return canonical.sort((a, b) => ((a.date || '') < (b.date || '') ? 1 : -1));
   }
 
-  return [...legacyEntries].sort((a, b) => (a.date < b.date ? 1 : -1));
+  return [...safeLegacy].sort((a, b) => ((a?.date || '') < (b?.date || '') ? 1 : -1));
 }

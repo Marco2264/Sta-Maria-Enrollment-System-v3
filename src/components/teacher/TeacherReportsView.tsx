@@ -1,1 +1,0 @@
-export { TeacherReportsView } from '../../modules/teacher/TeacherReportsView';

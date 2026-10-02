@@ -37,7 +37,7 @@ import {
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
 import { db } from '../../lib/firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore';
 import { DOCUMENT_TYPES, DocumentType } from '../../lib/schema/phase2';
 import { documentTypeToRequirementKey } from '../../lib/services/enrollmentDocumentsService';
 import { subscribeParentActivityLogs, ActivityLog } from '../../lib/services/activityLogService';
@@ -85,9 +85,46 @@ const DEFAULT_ANNOUNCEMENTS: AnnouncementItem[] = [
   }
 ];
 
+// Helper to get Unix Epoch MS for sorting newest at top
+const toEpochMs = (val: any): number => {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  if (typeof val?.toDate === 'function') return val.toDate().getTime();
+  if (typeof val?.seconds === 'number') return val.seconds * 1000;
+  const parsed = Date.parse(String(val));
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+// Reusable Date Formatter
+const formatDate = (value: any): string => {
+  if (!value) return 'N/A';
+  let dateObj: Date | null = null;
+
+  if (typeof value?.toDate === 'function') {
+    dateObj = value.toDate();
+  } else if (typeof value?.seconds === 'number') {
+    dateObj = new Date(value.seconds * 1000);
+  } else if (value instanceof Date) {
+    dateObj = value;
+  } else if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      dateObj = parsed;
+    } else {
+      return String(value);
+    }
+  }
+
+  if (dateObj && !isNaN(dateObj.getTime())) {
+    return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  return typeof value === 'object' ? 'N/A' : String(value);
+};
+
 export function ParentDashboardView({
   onNavigate
-}: { onNavigate: (view: string) => void; }) {
+}: { onNavigate: (view: string, childId?: string) => void; }) {
   const { user, userData } = useAuth();
   const { children, documents, loading } = useParentData();
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(DEFAULT_ANNOUNCEMENTS);
@@ -109,15 +146,12 @@ export function ParentDashboardView({
       setActivityLogs(logs);
     });
     return () => {
-      setTimeout(() => unsub(), 100);
+      try { unsub(); } catch {}
     };
   }, [user?.uid]);
 
   // Real-time Announcements from Firestore
   useEffect(() => {
-    console.log("Collection:", "announcements");
-    console.log("Doc ID:", "N/A");
-    console.log("Query params:", { orderBy: "createdAt desc" });
     const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(
       q,
@@ -159,46 +193,9 @@ export function ParentDashboardView({
       }
     );
     return () => {
-      setTimeout(() => unsubscribe(), 100);
+      try { unsubscribe(); } catch {}
     };
   }, []);
-
-  // Helper to get Unix Epoch MS for sorting newest at top
-  const toEpochMs = (val: any): number => {
-    if (!val) return 0;
-    if (typeof val === 'number') return val;
-    if (typeof val?.toDate === 'function') return val.toDate().getTime();
-    if (typeof val?.seconds === 'number') return val.seconds * 1000;
-    const parsed = Date.parse(String(val));
-    return isNaN(parsed) ? 0 : parsed;
-  };
-
-  // Reusable Date Formatter
-  const formatDate = (value: any): string => {
-    if (!value) return 'N/A';
-    let dateObj: Date | null = null;
-
-    if (typeof value?.toDate === 'function') {
-      dateObj = value.toDate();
-    } else if (typeof value?.seconds === 'number') {
-      dateObj = new Date(value.seconds * 1000);
-    } else if (value instanceof Date) {
-      dateObj = value;
-    } else if (typeof value === 'string' || typeof value === 'number') {
-      const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) {
-        dateObj = parsed;
-      } else {
-        return String(value);
-      }
-    }
-
-    if (dateObj && !isNaN(dateObj.getTime())) {
-      return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    return typeof value === 'object' ? 'N/A' : String(value);
-  };
 
   // Helper for Academic Standing Badge
   const getAcademicStandingBadge = (avgStr: string) => {
@@ -211,6 +208,63 @@ export function ParentDashboardView({
     return { label: 'Did Not Meet Expectations', color: 'bg-rose-50 text-rose-700 border-rose-200' };
   };
 
+  const [sectionsMap, setSectionsMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSections = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'sections'));
+        if (!isMounted) return;
+        const map: Record<string, string> = {};
+        snap.docs.forEach(doc => {
+          const d = doc.data();
+          map[doc.id] = d.name || d.sectionName || doc.id;
+        });
+        setSectionsMap(map);
+      } catch (err) {
+        console.warn('Could not fetch sections for dashboard:', err);
+      }
+    };
+    fetchSections();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Helper to resolve student grades mapping
+  const resolveStudentGradesObject = (grades: any, gradeLevel?: string): Record<string, any> => {
+    if (!grades || typeof grades !== 'object') return {};
+    
+    const gLvl = (gradeLevel || '').toString().trim();
+    const cleanNum = gLvl.replace(/[^0-9]/g, '');
+    const normalizedTarget = gLvl.toLowerCase().replace(/\s+/g, '');
+
+    const rootKeys = Object.keys(grades);
+    const commonSubjs = ['math', 'mathematics', 'english', 'filipino', 'science', 'ap', 'araling', 'esp', 'mapeh', 'epp', 'tle'];
+    const isDirectFlatSubjects = rootKeys.some(k => commonSubjs.some(s => k.toLowerCase().includes(s)));
+    
+    if (isDirectFlatSubjects) {
+      return grades;
+    }
+
+    const matchedKey = rootKeys.find(k => {
+      const cleanK = k.toLowerCase().replace(/\s+/g, '');
+      const kNum = k.replace(/[^0-9]/g, '');
+      return cleanK === normalizedTarget || (cleanNum && kNum === cleanNum) || cleanK === `grade${cleanNum}`;
+    });
+
+    if (matchedKey && typeof grades[matchedKey] === 'object' && grades[matchedKey] !== null) {
+      return grades[matchedKey];
+    }
+
+    if (rootKeys.length > 0 && typeof grades[rootKeys[0]] === 'object' && grades[rootKeys[0]] !== null) {
+      return grades[rootKeys[0]];
+    }
+
+    return grades;
+  };
+
   // Helper for Today's Real-time Attendance Status
   const getTodayAttendanceStatus = (child: any) => {
     const today = new Date();
@@ -218,8 +272,14 @@ export function ParentDashboardView({
     const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     const todayEntry = child.attendance?.find((a: any) => {
-      if (!a.date) return false;
-      const dStr = typeof a.date === 'string' ? a.date.split('T')[0] : '';
+      if (!a || !a.date) return false;
+      let dStr = '';
+      if (typeof a.date === 'string') {
+        dStr = a.date.split('T')[0];
+      } else if (typeof a.date?.toDate === 'function') {
+        const dt = a.date.toDate();
+        dStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      }
       return dStr === isoToday || dStr === localToday;
     });
 
@@ -306,10 +366,7 @@ export function ParentDashboardView({
       };
     }
 
-    const gLvl = c.gradeLevel || 'Grade 6';
-    const normalizedGLvl = gLvl.toString().toLowerCase().replace(/\s+/g, '').replace(/grade/i, '');
-    const matchedKey = Object.keys(c.grades).find(k => k.toLowerCase().replace(/\s+/g, '').replace(/grade/i, '') === normalizedGLvl) || Object.keys(c.grades)[0];
-    const studentGrades = matchedKey ? c.grades[matchedKey] : null;
+    const studentGrades = resolveStudentGradesObject(c.grades, c.gradeLevel);
 
     if (!studentGrades || typeof studentGrades !== 'object') {
       return {
@@ -331,7 +388,13 @@ export function ParentDashboardView({
     let subjectCount = 0;
 
     const extractTermVal = (subjVal: any, termNames: string[], directKeys: string[]) => {
-      if (!subjVal || typeof subjVal !== 'object') return null;
+      if (!subjVal) return null;
+      if (typeof subjVal === 'number') return subjVal;
+      if (typeof subjVal === 'string') {
+        const num = parseFloat(subjVal);
+        return isNaN(num) ? null : num;
+      }
+      if (typeof subjVal !== 'object') return null;
 
       // Direct property keys
       for (const k of directKeys) {
@@ -368,12 +431,21 @@ export function ParentDashboardView({
     };
 
     Object.entries(studentGrades).forEach(([subjCode, subjVal]: [string, any]) => {
-      if (!subjVal || typeof subjVal !== 'object') return;
+      if (subjVal === undefined || subjVal === null || subjCode === 'observedValues' || subjCode === 'attendance' || subjCode === 'medical') return;
       subjectCount++;
 
-      const t1 = extractTermVal(subjVal, ['Term 1', 'Quarter 1', 'T1', 'Q1'], ['t1', 'q1']);
-      const t2 = extractTermVal(subjVal, ['Term 2', 'Quarter 2', 'T2', 'Q2'], ['t2', 'q2']);
-      const t3 = extractTermVal(subjVal, ['Term 3', 'Finals', 'Quarter 3', 'T3', 'Q3'], ['t3', 'q3']);
+      if (typeof subjVal === 'number' || (typeof subjVal === 'string' && !isNaN(parseFloat(String(subjVal))))) {
+        const num = parseFloat(String(subjVal));
+        t1Scores.push(num);
+        t2Scores.push(num);
+        t3Scores.push(num);
+        finalGrades.push(num);
+        return;
+      }
+
+      const t1 = extractTermVal(subjVal, ['Term 1', 'Quarter 1', 'T1', 'Q1'], ['t1', 'q1', 'term1', 'quarter1']);
+      const t2 = extractTermVal(subjVal, ['Term 2', 'Quarter 2', 'T2', 'Q2'], ['t2', 'q2', 'term2', 'quarter2']);
+      const t3 = extractTermVal(subjVal, ['Term 3', 'Finals', 'Quarter 3', 'T3', 'Q3'], ['t3', 'q3', 'term3', 'quarter3']);
 
       if (t1 !== null) t1Scores.push(t1);
       if (t2 !== null) t2Scores.push(t2);
@@ -447,10 +519,20 @@ export function ParentDashboardView({
 
   // Helper to resolve document status for a child and docType
   const resolveDocStatus = (child: any, docType: DocumentType): 'Approved' | 'Under Review' | 'Missing' | 'Rejected' => {
+    if (!child) return 'Missing';
     const reqKey = documentTypeToRequirementKey(docType);
     const uploadMeta = (child as any)?.requirementUploads?.[reqKey];
-    const docItem = documents.find((d) => d.enrollmentId === child.id && d.documentType === docType)
-      || documents.find((d) => d.studentName && child.firstName && d.studentName.toLowerCase().includes(child.firstName.toLowerCase()) && d.documentType === docType);
+    
+    const childId = child.id || '';
+    const childFirst = (child.firstName || '').toString().toLowerCase();
+
+    const docList = Array.isArray(documents) ? documents : [];
+    const docItem = docList.find((d) => d && d.enrollmentId === childId && d.documentType === docType)
+      || docList.find((d) => {
+        if (!d || d.documentType !== docType) return false;
+        const sName = (d.studentName || '').toString().toLowerCase();
+        return childFirst.length > 0 && sName.includes(childFirst);
+      });
 
     const status = uploadMeta?.status || docItem?.status;
     if (status === 'APPROVED') return 'Approved';
@@ -461,6 +543,7 @@ export function ParentDashboardView({
 
   // Helper for Student Requirements Status
   const getStudentRequirementStatus = (child: any) => {
+    if (!child) return { label: 'Missing', color: 'bg-rose-50 text-rose-700 border-rose-200', statusKey: 'MISSING' };
     if (child.requirements === 'Complete') {
       return { 
         label: 'Approved', 
@@ -497,12 +580,13 @@ export function ParentDashboardView({
   };
 
   // Stats Calculations
-  const registeredStudentsCount = children.length;
+  const safeChildren = Array.isArray(children) ? children : [];
+  const registeredStudentsCount = safeChildren.length;
 
   const pendingRequirementsCount = useMemo(() => {
     let unverified = 0;
-    children.forEach((child) => {
-      if (child.requirements === 'Complete') return;
+    safeChildren.forEach((child) => {
+      if (!child || child.requirements === 'Complete') return;
       const requiredList = getRequiredDocsForChild(child);
       requiredList.forEach((req) => {
         const st = resolveDocStatus(child, req.key);
@@ -512,18 +596,19 @@ export function ParentDashboardView({
       });
     });
     return unverified;
-  }, [children, documents]);
+  }, [safeChildren, documents]);
 
   const attendanceRate = useMemo(() => {
     let totalDays = 0;
     let presentDays = 0;
-    children.forEach((child) => {
-      const attendance = child.attendance || [];
+    safeChildren.forEach((child) => {
+      if (!child) return;
+      const attendance = Array.isArray(child.attendance) ? child.attendance : [];
       totalDays += attendance.length;
-      presentDays += attendance.filter((a) => a.status === 'Present' || a.status === 'Late').length;
+      presentDays += attendance.filter((a) => a && (a.status === 'Present' || a.status === 'Late')).length;
     });
     return totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
-  }, [children]);
+  }, [safeChildren]);
 
   // Current Month Name (e.g. "July 2026")
   const currentMonthLabel = useMemo(() => {
@@ -546,29 +631,36 @@ export function ParentDashboardView({
     }> = [];
 
     // 1. Real-time Activity Logs (User uploads, deletes, profile updates)
-    activityLogs.forEach((log) => {
+    const safeLogs = Array.isArray(activityLogs) ? activityLogs : [];
+    safeLogs.forEach((log) => {
+      if (!log) return;
       updates.push({
         id: `act-${log.id}`,
-        title: log.title,
-        subtitle: log.subtitle,
+        title: log.title || 'Activity',
+        subtitle: log.subtitle || '',
         date: formatDate(log.timestamp),
         monthGroup: currentMonthLabel,
-        type: log.type as any,
-        badgeText: log.badgeText,
-        badgeColor: log.badgeColor,
-        dotColor: log.dotColor,
-        timestamp: log.timestamp
+        type: (log.type as any) || 'profile',
+        badgeText: log.badgeText || 'LOG',
+        badgeColor: log.badgeColor || 'bg-slate-100 text-slate-700 border-slate-200',
+        dotColor: log.dotColor || 'bg-slate-400',
+        timestamp: log.timestamp || Date.now()
       });
     });
 
     // 2. Children Registration & Profile updates
-    children.forEach((c) => {
+    safeChildren.forEach((c) => {
+      if (!c) return;
+      const firstName = (c.firstName || '').toString().trim();
+      const lastName = (c.lastName || '').toString().trim();
+      const studentName = `${firstName} ${lastName}`.trim() || 'Learner';
       const ts = toEpochMs(c.submittedAt || (c as any).createdAt || Date.now());
+
       if (c.status === 'Enrolled' || c.status === 'Approved') {
         updates.push({
           id: `app-appr-${c.id}`,
           title: `Registration Approved`,
-          subtitle: `${c.firstName} ${c.lastName} (Grade ${c.gradeLevel}) is officially registered.`,
+          subtitle: `${studentName} (Grade ${c.gradeLevel || 'Level'}) is officially registered.`,
           date: formatDate(c.submittedAt || 'Today'),
           monthGroup: currentMonthLabel,
           type: 'registration',
@@ -581,7 +673,7 @@ export function ParentDashboardView({
         updates.push({
           id: `app-rej-${c.id}`,
           title: `Registration Rejected`,
-          subtitle: `Application for ${c.firstName} ${c.lastName} requires revisions.`,
+          subtitle: `Application for ${studentName} requires revisions.`,
           date: formatDate(c.submittedAt || 'Today'),
           monthGroup: currentMonthLabel,
           type: 'registration',
@@ -594,7 +686,7 @@ export function ParentDashboardView({
         updates.push({
           id: `app-pend-${c.id}`,
           title: `Registration Submitted`,
-          subtitle: `Application for ${c.firstName} ${c.lastName} is under staff review.`,
+          subtitle: `Application for ${studentName} is under staff review.`,
           date: formatDate(c.submittedAt || 'Today'),
           monthGroup: currentMonthLabel,
           type: 'registration',
@@ -606,29 +698,31 @@ export function ParentDashboardView({
       }
 
       // Attendance events
-      if (c.attendance && c.attendance.length > 0) {
-        const latestAtt = [...c.attendance].sort((a, b) => formatDate(b.date).localeCompare(formatDate(a.date)))[0];
-        const isPresent = latestAtt?.status === 'Present' || latestAtt?.status === 'Late';
-        const formattedAttDate = formatDate(latestAtt.date);
-        const attStatusText = latestAtt?.status ? latestAtt.status.toLowerCase() : 'updated';
-        const attTs = toEpochMs(latestAtt.date);
-        updates.push({
-          id: `att-${c.id}-${formattedAttDate}`,
-          title: `Attendance Updated`,
-          subtitle: `Marked ${attStatusText} for ${c.firstName} ${c.lastName} on ${formattedAttDate}.`,
-          date: formattedAttDate,
-          monthGroup: currentMonthLabel,
-          type: 'attendance',
-          badgeText: isPresent ? 'PRESENT' : 'ABSENT',
-          badgeColor: isPresent ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200',
-          dotColor: isPresent ? 'bg-emerald-500' : 'bg-rose-500',
-          timestamp: attTs
-        });
+      if (Array.isArray(c.attendance) && c.attendance.length > 0) {
+        const validAtt = c.attendance.filter(Boolean);
+        if (validAtt.length > 0) {
+          const latestAtt = [...validAtt].sort((a, b) => toEpochMs(b?.date) - toEpochMs(a?.date))[0];
+          if (latestAtt) {
+            const isPresent = latestAtt.status === 'Present' || latestAtt.status === 'Late';
+            const formattedAttDate = formatDate(latestAtt.date);
+            const attStatusText = latestAtt.status ? latestAtt.status.toLowerCase() : 'updated';
+            const attTs = toEpochMs(latestAtt.date);
+            updates.push({
+              id: `att-${c.id}-${formattedAttDate}`,
+              title: `Attendance Updated`,
+              subtitle: `Marked ${attStatusText} for ${studentName} on ${formattedAttDate}.`,
+              date: formattedAttDate,
+              monthGroup: currentMonthLabel,
+              type: 'attendance',
+              badgeText: isPresent ? 'PRESENT' : 'ABSENT',
+              badgeColor: isPresent ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200',
+              dotColor: isPresent ? 'bg-emerald-500' : 'bg-rose-500',
+              timestamp: attTs
+            });
+          }
+        }
       }
     });
-
-    // 3. Document events are handled natively via activityLogs (uploaded / verified / rejected)
-    // No need to manually compute fake activities from documents here.
 
     // Fallback if no updates
     if (updates.length === 0) {
@@ -650,7 +744,7 @@ export function ParentDashboardView({
     updates.sort((a, b) => b.timestamp - a.timestamp);
 
     return updates;
-  }, [children, documents, announcements, activityLogs, currentMonthLabel]);
+  }, [safeChildren, documents, announcements, activityLogs, currentMonthLabel]);
 
   // Document Status Summary (Top 3 recent items)
   const documentTypesSummary = useMemo(() => {
@@ -662,8 +756,11 @@ export function ParentDashboardView({
       statusColor: string;
     }> = [];
 
-    children.forEach((c) => {
-      const studentFullName = `${c.firstName || ''} ${c.lastName || ''}`.trim().toUpperCase() || 'LEARNER';
+    safeChildren.forEach((c) => {
+      if (!c) return;
+      const firstName = (c.firstName || '').toString().trim();
+      const lastName = (c.lastName || '').toString().trim();
+      const studentFullName = `${firstName} ${lastName}`.trim().toUpperCase() || 'LEARNER';
       const requiredList = getRequiredDocsForChild(c);
 
       requiredList.forEach((req) => {
@@ -678,7 +775,7 @@ export function ParentDashboardView({
         }
 
         records.push({
-          id: `${c.id}-${req.key}`,
+          id: `${c.id || Math.random()}-${req.key}`,
           studentName: studentFullName,
           docName: req.name,
           statusText,
@@ -688,7 +785,7 @@ export function ParentDashboardView({
     });
 
     return records;
-  }, [children, documents]);
+  }, [safeChildren, documents]);
 
   const parentFirstName = userData?.firstName || (typeof userData?.displayName === 'string' ? userData.displayName.split(' ')[0] : 'Parent');
   const parentFullName = userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Parent User';
@@ -841,6 +938,12 @@ export function ParentDashboardView({
                 const displayGrade = (child.gradeLevel || '').toString().toLowerCase().startsWith('grade')
                   ? child.gradeLevel
                   : `Grade ${child.gradeLevel || 'Level'}`;
+                const actualSectionName = child.sectionId ? (sectionsMap[child.sectionId] || (child as any).sectionName || child.section) : ((child as any).sectionName || child.section);
+                const displaySection = (child.status === 'Enrolled' || child.status === 'Approved')
+                  ? (actualSectionName
+                    ? (actualSectionName.toString().toLowerCase().startsWith('section') ? actualSectionName : `Section ${actualSectionName}`)
+                    : 'Section TBA')
+                  : 'Section Assignment Pending';
 
                 return (
                   <div
@@ -854,20 +957,27 @@ export function ParentDashboardView({
                           {(() => {
                             const photoFields = [child.photoURL, (child as any).photoUrl, (child as any).profilePicture, (child as any).avatarUrl, (child as any).avatar, (child as any).photo];
                             const photo = photoFields.find((p): p is string => typeof p === 'string' && p.trim().length > 0) || null;
+                            const firstInit = (child.firstName || 'S').toString().charAt(0).toUpperCase();
+                            const lastInit = (child.lastName || '').toString().charAt(0).toUpperCase();
                             return photo ? (
-                              <img src={photo} alt={child.firstName} className="w-full h-full object-cover" />
+                              <img src={photo} alt={child.firstName || 'Student'} className="w-full h-full object-cover" />
                             ) : (
-                              <>{child.firstName?.[0]}{child.lastName?.[0]}</>
+                              <>{firstInit}{lastInit}</>
                             );
                           })()}
                         </div>
 
                         <div className="min-w-0">
                           <h4 className="font-black text-slate-900 text-sm sm:text-base leading-tight uppercase truncate group-hover:text-[#D8232A] transition-colors">
-                            {child.firstName} {child.middleName ? `${child.middleName.charAt(0)}. ` : ''}{child.lastName}
+                            {(() => {
+                              const fName = (child.firstName || 'Student').toString().trim();
+                              const mName = typeof child.middleName === 'string' && child.middleName.trim() ? `${child.middleName.trim().charAt(0).toUpperCase()}. ` : '';
+                              const lName = (child.lastName || '').toString().trim();
+                              return `${fName} ${mName}${lName}`.trim();
+                            })()}
                           </h4>
                           <p className="text-xs font-bold text-slate-600 truncate mt-0.5">
-                            {displayGrade} {(child as any).sectionName || (child as any).section ? `• Section ${(child as any).sectionName || (child as any).section}` : ''}
+                            {displayGrade} • {displaySection}
                           </p>
                           <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
                             LRN: <span className="font-bold text-slate-600">{(child as any).lrn || (child as any).studentId || '123456789123'}</span>
@@ -950,7 +1060,7 @@ export function ParentDashboardView({
                     {/* 3. Card Bottom / Clean Action Footer */}
                     <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
                       <Button
-                        onClick={() => onNavigate('children')}
+                        onClick={() => onNavigate('child-detail', child.id)}
                         className="w-full h-9 bg-[#D8232A] hover:bg-[#b91c22] text-white rounded-xl text-xs font-bold shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <BookOpen className="w-3.5 h-3.5" />

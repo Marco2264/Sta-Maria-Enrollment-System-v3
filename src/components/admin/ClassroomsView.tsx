@@ -1,1 +1,0 @@
-export { ClassroomsView } from '../../modules/admin/ClassroomsView';

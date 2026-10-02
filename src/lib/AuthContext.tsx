@@ -33,6 +33,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Safety fallback: Ensure auth loading completes within 2s even if network is slow
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
@@ -52,20 +57,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (err) {
           console.warn("AuthContext user doc fetch failed, falling back to default role:", err);
           setRole('parent');
+          setUserData({ email: user.email, fullName: user.displayName || 'Parent User', role: 'parent' });
         }
       } else {
         setRole(null);
         setUserData(null);
       }
+      clearTimeout(safetyTimer);
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   return (
     <AuthContext.Provider value={{ user, role, userData, loading, updateUserData }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

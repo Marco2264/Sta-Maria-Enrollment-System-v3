@@ -165,8 +165,10 @@ export function HealthDashboardView() {
   // Filtered Roster Data
   const filteredRoster = useMemo(() => {
     return allHealthData.filter(student => {
-      const matchSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (student.lrn && student.lrn.includes(searchTerm));
+      const sName = (student.name || '').toLowerCase();
+      const sLrn = (student.lrn ?? '').toString().toLowerCase();
+      const q = searchTerm.toLowerCase();
+      const matchSearch = sName.includes(q) || sLrn.includes(q);
       const matchGrade = gradeFilter === 'all' || student.gradeLevel === gradeFilter;
       const matchSection = sectionFilter === 'all' || student.sectionId === sectionFilter;
       const matchGender = genderFilter === 'all' || student.gender === genderFilter;
@@ -183,8 +185,10 @@ export function HealthDashboardView() {
       const isEligible = d.nutritionalStatus === 'Severely Wasted' || d.nutritionalStatus === 'Wasted';
       if (!isEligible) return false;
 
-      const matchSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (d.lrn && d.lrn.includes(searchTerm));
+      const dName = (d.name || '').toLowerCase();
+      const dLrn = (d.lrn ?? '').toString().toLowerCase();
+      const q = searchTerm.toLowerCase();
+      const matchSearch = dName.includes(q) || dLrn.includes(q);
       const matchGrade = gradeFilter === 'all' || d.gradeLevel === gradeFilter;
       const matchSection = sectionFilter === 'all' || d.sectionId === sectionFilter;
       const matchGender = genderFilter === 'all' || d.gender === genderFilter;

@@ -1,1 +1,0 @@
-export { ReportsView } from '../../modules/admin/ReportsView';

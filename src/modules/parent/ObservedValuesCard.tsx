@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from '../ui/Card';
+import { Card } from '../../components/ui/Card';
 import { Shield, Heart, Leaf, Flag, Award } from 'lucide-react';
 
 const coreValuesList = [
@@ -53,7 +53,7 @@ const markingDescriptions: Record<string, string> = {
 
 const getMarkingBadge = (mark?: string) => {
   if (mark === 'AO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">AO</span>;
-  if (mark === 'SO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">SO</span>;
+  if (mark === 'SO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">SO</span>;
   if (mark === 'RO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">RO</span>;
   if (mark === 'NO') return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">NO</span>;
   return <span className="text-slate-300 font-medium text-xs">--</span>;
@@ -66,20 +66,32 @@ interface ObservedValuesCardProps {
 
 export function ObservedValuesCard({ observedValues, gradeLevel }: ObservedValuesCardProps) {
   // Try to get values for current grade level, fallback to raw observedValues if no grade level nesting
-  let currentValues = {};
-  if (observedValues) {
-    const rawGrade = gradeLevel || null;
-    const formattedGrade = rawGrade ? (rawGrade.startsWith('Grade') ? rawGrade : `Grade ${rawGrade}`) : null;
+  let currentValues: Record<string, any> = {};
+  if (observedValues && typeof observedValues === 'object') {
+    const rawGrade = (gradeLevel || '').toString().trim();
+    const cleanNum = rawGrade.replace(/[^0-9]/g, '');
+    const normalizedTarget = rawGrade.toLowerCase().replace(/\s+/g, '');
     
-    if (rawGrade && observedValues[rawGrade]) {
-      currentValues = observedValues[rawGrade];
-    } else if (formattedGrade && observedValues[formattedGrade]) {
-      currentValues = observedValues[formattedGrade];
+    // 1. Direct or formatted grade key match
+    const matchingKey = Object.keys(observedValues).find(k => {
+      const cleanK = k.toLowerCase().replace(/\s+/g, '');
+      const kNum = k.replace(/[^0-9]/g, '');
+      return cleanK === normalizedTarget || (cleanNum && kNum === cleanNum) || cleanK === `grade${cleanNum}`;
+    });
+
+    if (matchingKey && typeof observedValues[matchingKey] === 'object') {
+      currentValues = observedValues[matchingKey];
     } else {
-      // It might not be nested by grade level if it was saved directly
-      const hasCategories = Object.keys(observedValues).some(k => k.startsWith('maka'));
+      // Check if categories (makaDiyos1, etc.) are at the root
+      const hasCategories = Object.keys(observedValues).some(k => k.toLowerCase().startsWith('maka'));
       if (hasCategories) {
         currentValues = observedValues;
+      } else {
+        // Fallback to first object in observedValues
+        const firstKey = Object.keys(observedValues)[0];
+        if (firstKey && typeof observedValues[firstKey] === 'object') {
+          currentValues = observedValues[firstKey];
+        }
       }
     }
   }
@@ -152,15 +164,27 @@ export function ObservedValuesCard({ observedValues, gradeLevel }: ObservedValue
                 </div>
                 
                 {core.items.map((item) => {
-                  const itemMarks = (currentValues as any)[item.key] || {};
+                  const itemMarks = (currentValues as any)[item.key] || (currentValues as any)[item.key.toLowerCase()] || {};
+                  const getMark = (termIdx: '1' | '2' | '3') => {
+                    const keys = termIdx === '1' ? ['t1', 'q1', 'term1', 'quarter1', '1', 'T1', 'Q1'] :
+                                 termIdx === '2' ? ['t2', 'q2', 'term2', 'quarter2', '2', 'T2', 'Q2'] :
+                                 ['t3', 'q3', 'term3', 'quarter3', '3', 'T3', 'Q3'];
+                    for (const k of keys) {
+                      if (itemMarks[k] !== undefined && itemMarks[k] !== null && itemMarks[k] !== '') {
+                        return itemMarks[k];
+                      }
+                    }
+                    return undefined;
+                  };
+
                   return (
                     <div key={item.key} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-slate-50/50 transition-colors">
                       <div className="col-span-9 text-xs text-slate-600 font-medium pr-4">
                         {item.statement}
                       </div>
-                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['t1'] || itemMarks['q1'])}</div>
-                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['t2'] || itemMarks['q2'])}</div>
-                      <div className="col-span-1 flex justify-center">{getMarkingBadge(itemMarks['t3'] || itemMarks['q3'])}</div>
+                      <div className="col-span-1 flex justify-center">{getMarkingBadge(getMark('1'))}</div>
+                      <div className="col-span-1 flex justify-center">{getMarkingBadge(getMark('2'))}</div>
+                      <div className="col-span-1 flex justify-center">{getMarkingBadge(getMark('3'))}</div>
                     </div>
                   );
                 })}

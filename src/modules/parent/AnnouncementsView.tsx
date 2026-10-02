@@ -67,8 +67,9 @@ export interface AnnouncementItem {
 export function AnnouncementsView() {
   const { userData } = useAuth();
   const { children } = useParentData();
-  const myStudentIds = useMemo(() => children.map(c => c.id), [children]);
-  const mySectionIds = useMemo(() => children.map(c => c.sectionId), [children]);
+  const safeChildren = useMemo(() => (Array.isArray(children) ? children.filter(Boolean) : []), [children]);
+  const myStudentIds = useMemo(() => safeChildren.map(c => c?.id).filter(Boolean) as string[], [safeChildren]);
+  const mySectionIds = useMemo(() => safeChildren.map(c => c?.sectionId).filter(Boolean) as string[], [safeChildren]);
 
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [activeStoryFilter, setActiveStoryFilter] = useState<string>('all');
@@ -116,40 +117,48 @@ export function AnnouncementsView() {
   useEffect(() => {
     try {
       const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const firestoreItems: AnnouncementItem[] = snapshot.docs.map((docSnap) => {
-            const data = docSnap.data();
-            return {
-              id: docSnap.id,
-              tab: data.tab || 'school',
-              category: data.category || 'General',
-              title: data.title || 'Official Advisory',
-              author: data.author || 'Sta. Maria Elementary',
-              authorRole: data.authorRole || 'School Administration',
-              date: data.date || '',
-              time: data.time || '',
-              content: data.content || '',
-              targetType: data.targetType || 'all',
-              targetGradeLevel: data.targetGradeLevel,
-              targetSectionId: data.targetSectionId,
-              targetStudentId: data.targetStudentId,
-              targetStudentIds: data.targetStudentIds,
-              attachmentName: data.attachmentName || undefined,
-              attachmentUrl: data.attachmentUrl || undefined,
-              attachmentType: data.attachmentType || undefined,
-              attachmentSize: data.attachmentSize || undefined,
-              targetGrade: data.targetGrade || undefined,
-              isPinned: !!data.isPinned,
-              isArchived: !!data.isArchived,
-              likesCount: data.likesCount || 0,
-              createdAt: data.createdAt
-            };
-          });
-          setAnnouncements(firestoreItems);
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const firestoreItems: AnnouncementItem[] = snapshot.docs.map((docSnap) => {
+              const data = docSnap.data();
+              return {
+                id: docSnap.id,
+                tab: data.tab || 'school',
+                category: data.category || 'General',
+                title: data.title || 'Official Advisory',
+                author: data.author || 'Sta. Maria Elementary',
+                authorRole: data.authorRole || 'School Administration',
+                date: data.date || '',
+                time: data.time || '',
+                content: data.content || '',
+                targetType: data.targetType || 'all',
+                targetGradeLevel: data.targetGradeLevel,
+                targetSectionId: data.targetSectionId,
+                targetStudentId: data.targetStudentId,
+                targetStudentIds: data.targetStudentIds,
+                attachmentName: data.attachmentName || undefined,
+                attachmentUrl: data.attachmentUrl || undefined,
+                attachmentType: data.attachmentType || undefined,
+                attachmentSize: data.attachmentSize || undefined,
+                targetGrade: data.targetGrade || undefined,
+                isPinned: !!data.isPinned,
+                isArchived: !!data.isArchived,
+                likesCount: data.likesCount || 0,
+                createdAt: data.createdAt
+              };
+            });
+            setAnnouncements(firestoreItems);
+          }
+        },
+        (err) => {
+          console.warn('[AnnouncementsView] Snapshot error:', err);
         }
-      });
-      return () => unsubscribe();
+      );
+      return () => {
+        try { unsubscribe(); } catch {}
+      };
     } catch (e) {
       console.error(e);
     }
@@ -157,8 +166,9 @@ export function AnnouncementsView() {
 
   // Filtered Announcements for Parent's Learners
   const filteredFeed = useMemo(() => {
-    return announcements
-      .filter(a => !a.isArchived)
+    const safeList = Array.isArray(announcements) ? announcements : [];
+    return safeList
+      .filter(a => a && !a.isArchived)
       .filter(a => {
         // Targeted filtering for parent
         if (!a.targetType || a.targetType === 'all') return true;
@@ -169,7 +179,7 @@ export function AnnouncementsView() {
           return myStudentIds.includes(a.targetStudentId);
         }
         if (a.targetType === 'grade_level' && a.targetGradeLevel) {
-          return children.some(c => c.gradeLevel === a.targetGradeLevel || `Grade ${c.gradeLevel}` === a.targetGradeLevel);
+          return safeChildren.some(c => c && (c.gradeLevel === a.targetGradeLevel || `Grade ${c.gradeLevel}` === a.targetGradeLevel));
         }
         return true;
       })
@@ -182,12 +192,12 @@ export function AnnouncementsView() {
       })
       .filter(a => {
         if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         return (
-          a.title.toLowerCase().includes(q) ||
-          a.content.toLowerCase().includes(q) ||
-          a.author.toLowerCase().includes(q) ||
-          a.category.toLowerCase().includes(q)
+          (a.title || '').toLowerCase().includes(q) ||
+          (a.content || '').toLowerCase().includes(q) ||
+          (a.author || '').toLowerCase().includes(q) ||
+          (a.category || '').toLowerCase().includes(q)
         );
       })
       .sort((a, b) => {
@@ -195,10 +205,10 @@ export function AnnouncementsView() {
         if (!a.isPinned && b.isPinned) return 1;
         return 0;
       });
-  }, [announcements, mySectionIds, myStudentIds, children, activeStoryFilter, searchQuery]);
+  }, [announcements, mySectionIds, myStudentIds, safeChildren, activeStoryFilter, searchQuery]);
 
   return (
-    <div className="min-h-full bg-[#f0f2f5] py-4 sm:py-6 px-2 sm:px-4 flex justify-center">
+    <div className="flex-1 h-full overflow-y-auto bg-[#f0f2f5] py-4 sm:py-6 px-2 sm:px-4 flex justify-center">
       
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6">
 

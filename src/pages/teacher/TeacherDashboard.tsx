@@ -25,17 +25,18 @@ import {
 import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { TeacherDataProvider, useTeacherData } from '../../lib/teacherData';
-import { TeacherDashboardView } from '../../components/teacher/TeacherDashboardView';
-import { TeacherSettingsView } from '../../modules/teacher/TeacherSettingsView';
-import { EnrollmentsView } from '../../components/teacher/EnrollmentsView';
-import { StudentsView } from '../../components/teacher/StudentsView';
-import { AttendanceView } from '../../components/teacher/AttendanceView';
-import { GradesView } from '../../components/teacher/GradesView';
-import { TeacherReportsView } from '../../components/teacher/TeacherReportsView';
-import { SF10Module } from '../../modules/admin/SF10Module';
-import { ObservedValuesView } from '../../components/teacher/ObservedValuesView';
-import { MyScheduleView } from '../../components/teacher/MyScheduleView';
-import { HealthDashboardView } from '../../components/admin/HealthDashboardView';
+import {
+  TeacherDashboardView,
+  TeacherSettingsView,
+  EnrollmentsView,
+  StudentsView,
+  AttendanceView,
+  GradesView,
+  TeacherReportsView,
+  ObservedValuesView,
+  MyScheduleView
+} from '../../modules/teacher';
+import { SF10Module, HealthDashboardView } from '../../modules/admin';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -44,6 +45,7 @@ import { NotificationBell } from '../../components/shared/NotificationBell';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
+  resetKey?: string;
   fallbackView?: () => void;
 }
 
@@ -64,6 +66,12 @@ class DashboardErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Teacher Dashboard Error Caught:", error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   render() {
@@ -141,6 +149,7 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = React.memo(({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const savedScrollPositionRef = useRef<number>(0);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const collapsed = isMobile ? false : sidebarCollapsed;
 
@@ -156,6 +165,20 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = React.memo(({
     }
   }, [activeView, collapsed]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
   const uData = userData as Record<string, string> | null;
   const initials = uData ? `${uData.firstName?.charAt(0) || ''}${uData.lastName?.charAt(0) || ''}`.toUpperCase() : 'T';
   const fullName = uData ? `${uData.firstName} ${uData.lastName}` : 'Teacher';
@@ -168,7 +191,10 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = React.memo(({
       {/* Brand Header */}
       <div className="h-[72px] border-b border-slate-200/80 flex items-center px-4 shrink-0 overflow-hidden relative">
         <div
-          onClick={() => navigate('/')}
+          onClick={() => {
+            setActiveView('dashboard');
+            if (isMobile && onCloseMobile) onCloseMobile();
+          }}
           className="flex items-center gap-3 cursor-pointer group"
         >
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-50 to-red-100/60 p-1.5 border border-red-200/60 shadow-xs shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
@@ -324,7 +350,7 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = React.memo(({
       </div>
 
       {/* User Profile Bar at Bottom */}
-      <div className="border-t border-slate-200/80 p-3 flex flex-col gap-2 shrink-0 relative bg-white">
+      <div ref={userMenuRef} className="border-t border-slate-200/80 p-3 flex flex-col gap-2 shrink-0 relative bg-white">
         {isMobile && (
           <button
             onClick={() => {
@@ -349,14 +375,14 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = React.memo(({
                 setActiveView('settings');
                 setShowUserMenu(false);
               }}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 rounded-xl transition-all"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
             >
               <Settings className="w-4 h-4 text-slate-400" />
               Settings
             </button>
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
             >
               <LogOut className="w-4 h-4 text-rose-500" />
               Sign Out
@@ -423,13 +449,11 @@ function TeacherDashboardContent() {
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
 
   useEffect(() => {
-    if (['students', 'enrollments', 'observed-values', 'reports', 'sf10'].includes(activeView)) {
+    if (!currentSection && assignedSections.length > 0) {
       const advisorySec = assignedSections.find((s) => s.isAdvisor);
-      if (advisorySec && currentSection !== advisorySec.sectionId) {
-        setCurrentSection(advisorySec.sectionId);
-      }
+      setCurrentSection(advisorySec ? advisorySec.sectionId : assignedSections[0].sectionId);
     }
-  }, [activeView, assignedSections, currentSection, setCurrentSection]);
+  }, [assignedSections, currentSection, setCurrentSection]);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -444,7 +468,7 @@ function TeacherDashboardContent() {
     });
   }, []);
 
-  const pendingCount = students.filter((s) => s.status === 'Pending').length;
+  const pendingCount = Array.isArray(students) ? students.filter((s) => s?.status === 'Pending').length : 0;
 
   const handleLogout = async () => {
     try {
@@ -500,14 +524,15 @@ function TeacherDashboardContent() {
       case 'observed-values':
         return <ObservedValuesView />;
       case 'announcements':
-        return <ManageAnnouncementsView sections={assignedSections} students={students} />;
+        return <ManageAnnouncementsView sections={assignedSections || []} students={students || []} />;
       case 'reports':
         return <TeacherReportsView />;
       case 'sf10':
+        const advSecs = (assignedSections || []).filter((s) => s.isAdvisor);
         return (
           <SF10Module
-            students={students}
-            sections={assignedSections.filter((s) => s.isAdvisor)}
+            students={students || []}
+            sections={advSecs.length > 0 ? advSecs : (assignedSections || [])}
             isAdmin={false}
           />
         );
@@ -533,7 +558,7 @@ function TeacherDashboardContent() {
       >
         <TeacherSidebar
           activeView={activeView}
-          setActiveView={setActiveView}
+          setActiveView={handleNavigate}
           sidebarCollapsed={sidebarCollapsed}
           toggleSidebar={toggleSidebar}
           userData={userData}
@@ -555,7 +580,7 @@ function TeacherDashboardContent() {
             <SheetContent side="left" className="w-72 p-0 flex flex-col bg-white border-0">
               <TeacherSidebar
                 activeView={activeView}
-                setActiveView={setActiveView}
+                setActiveView={handleNavigate}
                 sidebarCollapsed={false}
                 toggleSidebar={() => {}}
                 userData={userData}
@@ -566,7 +591,10 @@ function TeacherDashboardContent() {
               />
             </SheetContent>
           </Sheet>
-          <div className="flex items-center gap-2.5 font-bold text-sm text-slate-800">
+          <div
+            onClick={() => handleNavigate('dashboard')}
+            className="flex items-center gap-2.5 font-bold text-sm text-slate-800 cursor-pointer"
+          >
             Teacher Portal
           </div>
           <div className="flex items-center gap-2 relative">
@@ -623,21 +651,16 @@ function TeacherDashboardContent() {
         </header>
 
         {/* View Transition Area */}
-        <div className="flex-1 overflow-hidden bg-slate-50/50">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeView}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="h-full w-full overflow-hidden"
-            >
-              <DashboardErrorBoundary fallbackView={() => setActiveView('dashboard')}>
-                {renderActiveView()}
-              </DashboardErrorBoundary>
-            </motion.div>
-          </AnimatePresence>
+        <div className="flex-1 overflow-hidden bg-slate-50/50 flex flex-col relative min-h-0">
+          <DashboardErrorBoundary
+            key={activeView}
+            resetKey={activeView}
+            fallbackView={() => setActiveView('dashboard')}
+          >
+            <div className="flex-1 flex flex-col h-full w-full min-h-0 overflow-hidden">
+              {renderActiveView()}
+            </div>
+          </DashboardErrorBoundary>
         </div>
       </main>
     </div>

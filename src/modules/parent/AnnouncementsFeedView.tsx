@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Pin, X } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../lib/AuthContext';
 import { useParentData } from '../../lib/parentData';
 import { subscribeParentAnnouncements, markAnnouncementAsRead, Announcement, getCategoryColor } from '../../lib/services/announcementsService';
@@ -22,12 +22,10 @@ export function AnnouncementsFeedView() {
     }
 
     if (children.length === 0) {
-      // Parent has no children, show empty state
       setLoading(false);
       return;
     }
 
-    // Get unique grades and sections from children
     const childGrades = Array.from(new Set(children.map(c => c.gradeLevel).filter(Boolean)));
     const childSections = Array.from(new Set(
       children
@@ -35,14 +33,11 @@ export function AnnouncementsFeedView() {
         .filter(Boolean)
     ));
 
-    console.log('Subscribing to announcements for grades:', childGrades, 'sections:', childSections);
-
     const unsubscribe = subscribeParentAnnouncements(
       childGrades,
       childSections,
       user.uid,
       (announcements, readMap) => {
-        console.log('Announcements loaded:', announcements.length, 'Read states:', readMap.size);
         setAnnouncements(announcements);
         setReadStates(readMap);
         setLoading(false);
@@ -54,7 +49,6 @@ export function AnnouncementsFeedView() {
     );
 
     return () => {
-      console.log('Unsubscribing from announcements');
       unsubscribe();
     };
   }, [user, children]);

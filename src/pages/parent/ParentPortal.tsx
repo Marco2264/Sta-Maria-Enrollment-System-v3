@@ -23,13 +23,15 @@ import {
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { ParentDataProvider } from '../../lib/parentData';
-import { ParentDashboardView } from '../../components/parent/ParentDashboardView';
-import { MyChildrenView } from '../../components/parent/MyChildrenView';
-import { EnrollmentForm } from '../../components/parent/EnrollmentForm';
-import { ChildDetailView } from '../../components/parent/ChildDetailView';
-import { RequirementsView } from '../../components/parent/RequirementsView';
-import { ParentSettingsView } from '../../components/parent/ParentSettingsView';
-import { AnnouncementsView } from '../../components/parent/AnnouncementsView';
+import {
+  ParentDashboardView,
+  MyChildrenView,
+  EnrollmentForm,
+  ChildDetailView,
+  RequirementsView,
+  ParentSettingsView,
+  AnnouncementsView
+} from '../../modules/parent';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
@@ -84,9 +86,31 @@ const ParentSidebar: React.FC<ParentSidebarProps> = React.memo(({
     }
   }, [activeView, collapsed]);
 
-  const uData = userData as Record<string, string> | null;
-  const initials = uData ? `${uData.firstName?.charAt(0) || ''}${uData.lastName?.charAt(0) || ''}`.toUpperCase() : 'P';
-  const fullName = uData ? `${uData.firstName} ${uData.lastName}` : 'Parent User';
+  const uData = userData as Record<string, any> | null;
+  const fullName = (() => {
+    if (uData?.firstName || uData?.lastName) {
+      return `${uData.firstName || ''} ${uData.lastName || ''}`.trim();
+    }
+    if (uData?.fullName) return String(uData.fullName);
+    if (uData?.name) return String(uData.name);
+    if (userData?.displayName) return String(userData.displayName);
+    return 'Parent User';
+  })();
+
+  const initials = (() => {
+    if (uData?.firstName && uData?.lastName) {
+      return `${uData.firstName.charAt(0)}${uData.lastName.charAt(0)}`.toUpperCase();
+    }
+    if (fullName && fullName !== 'Parent User') {
+      const parts = fullName.split(' ').filter(Boolean);
+      if (parts.length >= 2) {
+        return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+      }
+      return fullName.charAt(0).toUpperCase();
+    }
+    return 'P';
+  })();
+
   const relationship = uData?.relationship || 'Parent / Guardian';
 
   const categories = ['Main Menu', 'Registration', 'Documents'];
@@ -374,10 +398,15 @@ function ParentPortalContent() {
     }
   };
 
-  const handleNavigate = (view: string) => {
-    setActiveView(view);
-    if (view !== 'child-detail') {
-      setSelectedChildId(null);
+  const handleNavigate = (view: string, childId?: string) => {
+    if (view === 'child-detail' && childId) {
+      setSelectedChildId(childId);
+      setActiveView('child-detail');
+    } else {
+      setActiveView(view);
+      if (view !== 'child-detail') {
+        setSelectedChildId(null);
+      }
     }
   };
 
@@ -402,11 +431,15 @@ function ParentPortalContent() {
   const renderActiveView = () => {
     switch (activeView) {
       case 'dashboard':
+      case 'home':
         return <ParentDashboardView onNavigate={handleNavigate} />;
       case 'children':
       case 'my-students':
+      case 'students':
         return <MyChildrenView onSelectChild={handleSelectChild} onNavigate={handleNavigate} />;
       case 'enrollment':
+      case 'register':
+      case 'registration':
         return (
           <EnrollmentForm
             onComplete={() => handleNavigate('children')}
@@ -414,13 +447,20 @@ function ParentPortalContent() {
           />
         );
       case 'requirements':
+      case 'documents':
+      case 'document-center':
+      case 'docs':
         return <RequirementsView />;
       case 'announcements':
+      case 'notifications':
         return <AnnouncementsView />;
       case 'settings':
+      case 'profile':
+      case 'account':
         return <ParentSettingsView />;
       case 'attendance':
       case 'academic-records':
+      case 'grades':
         return <MyChildrenView onSelectChild={handleSelectChild} onNavigate={handleNavigate} />;
       case 'child-detail':
         return selectedChildId ? (
@@ -433,8 +473,21 @@ function ParentPortalContent() {
     }
   };
 
-  const uData = userData as Record<string, string> | null;
-  const initials = uData ? `${uData.firstName?.charAt(0) || ''}${uData.lastName?.charAt(0) || ''}`.toUpperCase() : 'P';
+  const uData = userData as Record<string, any> | null;
+  const initials = (() => {
+    if (uData?.firstName && uData?.lastName) {
+      return `${uData.firstName.charAt(0)}${uData.lastName.charAt(0)}`.toUpperCase();
+    }
+    const name = uData?.fullName || uData?.name || userData?.displayName;
+    if (name && typeof name === 'string' && name.trim()) {
+      const parts = name.trim().split(' ').filter(Boolean);
+      if (parts.length >= 2) {
+        return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+      }
+      return name.charAt(0).toUpperCase();
+    }
+    return 'P';
+  })();
 
   return (
     <div className="flex h-screen w-full bg-[#F4F7F9] overflow-hidden font-sans">
@@ -528,21 +581,15 @@ function ParentPortalContent() {
         </header>
 
         {/* View Content Area with Mobile Safe Bottom Padding */}
-        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] flex flex-col relative pb-18 lg:pb-0">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeView + (selectedChildId || '')}
-              initial={{ opacity: 0.4 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0.4 }}
-              transition={{ duration: 0.12, ease: 'easeOut' }}
-              className="flex-1 flex flex-col h-full min-h-0"
-            >
-              <ViewErrorBoundary key={activeView}>
-                {renderActiveView()}
-              </ViewErrorBoundary>
-            </motion.div>
-          </AnimatePresence>
+        <div className="flex-1 overflow-hidden bg-[#F4F7F9] flex flex-col relative pb-16 lg:pb-0 min-h-0">
+          <ViewErrorBoundary
+            key={activeView + (selectedChildId || '')}
+            resetKey={activeView + (selectedChildId || '')}
+          >
+            <div className="flex-1 flex flex-col h-full w-full min-h-0 overflow-hidden">
+              {renderActiveView()}
+            </div>
+          </ViewErrorBoundary>
         </div>
 
         {/* Mobile Bottom Navigation Bar (Quick Thumb Access) */}
@@ -612,8 +659,11 @@ function ParentPortalContent() {
   );
 }
 
-class ViewErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
-  constructor(props: { children: React.ReactNode }) {
+class ViewErrorBoundary extends React.Component<
+  { children: React.ReactNode; resetKey?: string },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode; resetKey?: string }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -624,6 +674,12 @@ class ViewErrorBoundary extends React.Component<{ children: React.ReactNode }, {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Portal View Error:', error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: { children: React.ReactNode; resetKey?: string }) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   render() {

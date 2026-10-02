@@ -49,7 +49,8 @@ export function TeacherReportsView() {
   const handleGenerate = async (id: string) => {
     setGenerating(id);
     try {
-      const sectionStudents = students.filter(s => ['Enrolled', 'enrolled'].includes(s.status || '') && s.sectionId === currentSection);
+      const safeStudents = Array.isArray(students) ? students.filter(Boolean) : [];
+      const sectionStudents = safeStudents.filter(s => ['Enrolled', 'enrolled'].includes(s?.status || '') && s?.sectionId === currentSection);
       if (id === 'sf1') {
         const data = await ReportDataService.getSF1Data(academicYear, currentGradeLevel || '', currentSection);
         await generateAdminSF1(data);

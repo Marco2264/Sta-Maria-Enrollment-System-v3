@@ -481,7 +481,7 @@ export function AttendanceView() {
       .filter(s => {
         const q = studentSearchQuery.toLowerCase();
         const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
-        const lrn = (s.lrn || '').toLowerCase();
+        const lrn = (s.lrn ?? '').toString().toLowerCase();
         return fullName.includes(q) || lrn.includes(q);
       })
       .sort((a, b) => {

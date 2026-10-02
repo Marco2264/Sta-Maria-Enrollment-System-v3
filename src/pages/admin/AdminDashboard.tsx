@@ -25,24 +25,80 @@ import {
 import { ManageAnnouncementsView } from '../../components/shared/ManageAnnouncementsView';
 import { Sheet, SheetContent, SheetTrigger } from '../../components/ui/Sheet';
 import { AdminDataProvider, useAdminData } from '../../lib/adminData';
-import { DashboardView } from '../../modules/admin/DashboardView';
-import { UsersView } from '../../modules/admin/UsersView';
-import { ClassroomsView } from '../../modules/admin/ClassroomsView';
-import { SubjectsView } from '../../modules/admin/SubjectsView';
-import { ReportsView } from '../../modules/admin/ReportsView';
-import { SF10Module } from '../../modules/admin/SF10Module';
-import { SetupWizard } from '../../modules/admin/SetupWizard';
-import { HealthDashboardView } from '../../modules/admin/HealthDashboardView';
-import { StudentsView } from '../../modules/admin/StudentsView';
-import { AttendanceView } from '../../modules/admin/AttendanceView';
-import { SchedulesView } from '../../modules/admin/SchedulesView';
-import { AdminGradesView } from '../../components/admin/AdminGradesView';
-import { AdminSettingsView } from '../../modules/admin/AdminSettingsView';
+import {
+  DashboardView,
+  UsersView,
+  ClassroomsView,
+  SubjectsView,
+  ReportsView,
+  SF10Module,
+  SetupWizard,
+  HealthDashboardView,
+  StudentsView,
+  AttendanceView,
+  SchedulesView,
+  AdminGradesView,
+  AdminSettingsView
+} from '../../modules/admin';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationBell } from '../../components/shared/NotificationBell';
+
+interface AdminErrorBoundaryProps {
+  children: React.ReactNode;
+  resetKey?: string;
+  fallbackView?: () => void;
+}
+
+interface AdminErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class AdminErrorBoundary extends React.Component<AdminErrorBoundaryProps, AdminErrorBoundaryState> {
+  constructor(props: AdminErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): AdminErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Admin Dashboard Error Caught:", error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: AdminErrorBoundaryProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl max-w-md mx-auto space-y-4">
+            <h3 className="text-lg font-black text-slate-900">Module Temporarily Unavailable</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              We encountered an unexpected issue while loading this section. Click below to reload.
+            </p>
+            <Button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="bg-[#D8232A] hover:bg-[#b01c22] text-white rounded-xl text-xs font-bold px-4 cursor-pointer"
+            >
+              Reload Module
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface NavItem {
   id: string;
@@ -110,7 +166,10 @@ const AdminSidebar: React.FC<AdminSidebarProps> = React.memo(({
       {/* Brand Header */}
       <div className="h-[72px] border-b border-slate-200/80 flex items-center px-4 shrink-0 overflow-hidden relative">
         <div
-          onClick={() => navigate('/')}
+          onClick={() => {
+            setActiveView('dashboard');
+            if (isMobile && onCloseMobile) onCloseMobile();
+          }}
           className="flex items-center gap-3 cursor-pointer group"
         >
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-50 to-red-100/60 p-1.5 border border-red-200/60 shadow-xs shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
@@ -487,7 +546,10 @@ function AdminDashboardContent() {
               />
             </SheetContent>
           </Sheet>
-          <div className="flex items-center gap-2.5 font-bold text-sm text-slate-800">
+          <div
+            onClick={() => setActiveView('dashboard')}
+            className="flex items-center gap-2.5 font-bold text-sm text-slate-800 cursor-pointer"
+          >
             Admin Portal
           </div>
           <div className="flex items-center gap-2 relative">
@@ -545,18 +607,15 @@ function AdminDashboardContent() {
 
         {/* View Transition Area */}
         <div className="flex-1 overflow-hidden bg-slate-50/50">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeView}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="h-full w-full overflow-hidden"
-            >
+          <AdminErrorBoundary
+            key={activeView}
+            resetKey={activeView}
+            fallbackView={() => setActiveView('dashboard')}
+          >
+            <div className="h-full w-full overflow-hidden">
               {renderActiveView()}
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          </AdminErrorBoundary>
         </div>
       </main>
     </div>

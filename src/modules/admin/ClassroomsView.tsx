@@ -902,7 +902,7 @@ export function ClassroomsView() {
                   const filteredStudents = sectionS.filter(st => {
                     const q = studentSearchQuery.toLowerCase();
                     const name = `${st.firstName || ''} ${st.lastName || ''}`.toLowerCase();
-                    const lrn = (st.lrn || '').toLowerCase();
+                    const lrn = (st.lrn ?? '').toString().toLowerCase();
                     return name.includes(q) || lrn.includes(q);
                   });
 

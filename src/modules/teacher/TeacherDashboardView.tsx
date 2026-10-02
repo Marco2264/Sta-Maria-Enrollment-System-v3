@@ -259,20 +259,21 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
 
   // Fetch Schedules, Subjects, Sections, and Announcements
   useEffect(() => {
-    if (!user) return;
+    let isMounted = true;
     let unsubSchedule = () => {};
     let unsubAnnouncements = () => {};
 
     async function loadRefsAndSubs() {
       if (!user) return;
       try {
-        const [subSnap, secSnap] = await Promise.all([
+        const [subjSnap, secSnap] = await Promise.all([
           getDocs(collection(db, 'subjects')),
           getDocs(collection(db, 'sections'))
         ]);
+        if (!isMounted) return;
 
         const sMap: Record<string, string> = {};
-        subSnap.docs.forEach(d => {
+        subjSnap.docs.forEach(d => {
           const dat = d.data();
           sMap[d.id] = dat.name || dat.title || dat.code || 'Subject';
         });
@@ -285,6 +286,8 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
         });
         setSectionsMap(secObj);
 
+        if (!isMounted) return;
+
         // Schedule Subscription
         const qSch = query(
           collection(db, 'schedules'),
@@ -292,6 +295,7 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
           where('academicYear', '==', syName)
         );
         unsubSchedule = onSnapshot(qSch, (snap) => {
+          if (!isMounted) return;
           setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as Schedule)));
         });
 
@@ -301,6 +305,7 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
           limit(10)
         );
         unsubAnnouncements = onSnapshot(qAnn, (snap) => {
+          if (!isMounted) return;
           const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement));
           setAnnouncements(list.slice(0, 6));
         });
@@ -312,6 +317,7 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
 
     loadRefsAndSubs();
     return () => {
+      isMounted = false;
       unsubSchedule();
       unsubAnnouncements();
     };
@@ -320,9 +326,11 @@ export function TeacherDashboardView({ onNavigate }: TeacherDashboardViewProps) 
   // Section Filter for Academic Rankings & Assistance: 'all' | 'advisory' | sectionId
   const [academicScopeFilter, setAcademicScopeFilter] = useState<'all' | 'advisory' | string>('all');
 
+  const safeStudents = useMemo(() => (Array.isArray(students) ? students.filter(Boolean) : []), [students]);
+
   // Enrolled & Pending
-  const enrolled = useMemo(() => students.filter(s => s.status === 'Enrolled' || s.status === 'enrolled'), [students]);
-  const pending = useMemo(() => students.filter(s => s.status === 'Pending' || s.status === 'pending'), [students]);
+  const enrolled = useMemo(() => safeStudents.filter(s => s && (s.status === 'Enrolled' || s.status === 'enrolled')), [safeStudents]);
+  const pending = useMemo(() => safeStudents.filter(s => s && (s.status === 'Pending' || s.status === 'pending')), [safeStudents]);
 
   // Scoped Students
   const scopedStudents = useMemo(() => {

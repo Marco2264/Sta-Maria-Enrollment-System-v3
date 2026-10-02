@@ -1,1 +1,0 @@
-export { EnrollmentsView } from '../../modules/teacher/EnrollmentsView';

@@ -112,7 +112,7 @@ export function SF9ReportDocument({ onClose, data }: SF9ReportDocumentProps) {
     const q = searchTerm.toLowerCase();
     return sortedStudents.filter(s =>
       `${s.lastName || ''}, ${s.firstName || ''}`.toLowerCase().includes(q) ||
-      (s.lrn || '').toLowerCase().includes(q)
+      (s.lrn ?? '').toString().toLowerCase().includes(q)
     );
   }, [sortedStudents, searchTerm]);
 

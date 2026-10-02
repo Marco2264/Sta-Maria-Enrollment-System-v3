@@ -1,1 +1,0 @@
-export { GradesView } from '../../modules/teacher/GradesView';

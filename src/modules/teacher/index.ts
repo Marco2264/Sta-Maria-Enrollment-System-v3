@@ -1,0 +1,12 @@
+export { TeacherDashboardView } from './TeacherDashboardView';
+export { StudentsView } from './StudentsView';
+export { TeacherStudentDetailView } from './TeacherStudentDetailView';
+export { TeacherEditStudentModal } from './TeacherEditStudentModal';
+export { EnrollmentsView } from './EnrollmentsView';
+export { AttendanceView } from './AttendanceView';
+export { GradesView } from './GradesView';
+export { ObservedValuesView } from './ObservedValuesView';
+export { MyScheduleView } from './MyScheduleView';
+export { TeacherReportsView } from './TeacherReportsView';
+export { TeacherSettingsView } from './TeacherSettingsView';
+export { AttendanceTrendChart } from './AttendanceTrendChart';

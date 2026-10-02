@@ -244,14 +244,20 @@ export function ParentDataProvider({ children: reactChildren }: {children: React
 
     return () => {
       clearTimeout(safetyTimer);
-      setTimeout(() => {
+      try {
         unsubscribeEnrollments();
+      } catch (err) {
+        console.warn('Error unsubscribing enrollments:', err);
+      }
+      try {
         unsubscribeDocuments();
-      }, 100);
+      } catch (err) {
+        console.warn('Error unsubscribing documents:', err);
+      }
       while (attendanceUnsubs.length > 0) {
         const unsub = attendanceUnsubs.pop();
         if (unsub) {
-          setTimeout(() => unsub(), 100);
+          try { unsub(); } catch {}
         }
       }
     };
